@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aktien-Cockpit — Analyse</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <script src="/vendor/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html">Aktien<span class="tick">·</span>Cockpit</a>
+    <nav class="topnav">
+      <a href="./index.html">Dashboard</a>
+      <a href="./analyse.html">Analyse</a>
+      <a href="./portfolio.html">Portfolio</a>
+    </nav>
+    <div class="spacer"></div>
+  </header>
+
+  <main class="page">
+    <div class="masthead">
+      <div class="dateline">Aktien-Analyse</div>
+      <h1 class="pagetitle">Ticker rein, <em>Einschätzung raus.</em></h1>
+    </div>
+
+    <div class="search-wrap" style="max-width:560px">
+      <input type="text" id="search" placeholder="Aktie oder ETF suchen — Name oder Ticker, z. B. Nvidia, SAP, MSCI World …" autocomplete="off" />
+    </div>
+
+    <div id="report" hidden>
+      <div class="report-head">
+        <div class="title">
+          <h2 id="r-name"></h2>
+          <div class="meta" id="r-meta"></div>
+        </div>
+        <div class="gesamt-card" id="r-gesamt" title="Klicken für Begründung"></div>
+        <div class="price">
+          <div class="now" id="r-price"></div>
+          <div class="chg" id="r-chg"></div>
+        </div>
+      </div>
+
+      <div id="r-gesamt-detail" hidden class="panel" style="margin-bottom:18px"></div>
+
+      <section class="panel chart-panel">
+        <div class="chart-toolbar">
+          <button class="rng" data-range="6m">6M</button>
+          <button class="rng active" data-range="1y">1J</button>
+          <button class="rng" data-range="5y">5J</button>
+          <div class="chart-legend">
+            <span><span class="swatch" style="background:#e5a83b"></span>SMA 50</span>
+            <span><span class="swatch" style="background:#9085e9"></span>SMA 200</span>
+            <span><span class="swatch" style="background:#3fb968;height:8px;width:8px;border-radius:50%"></span>News-Marker</span>
+          </div>
+        </div>
+        <div id="chart"></div>
+      </section>
+
+      <div class="panel-grid">
+        <section class="panel" id="p-technik"></section>
+        <section class="panel" id="p-analysten"></section>
+        <section class="panel" id="p-fundamental"></section>
+        <section class="panel" id="p-termine"></section>
+      </div>
+
+      <div class="panel-grid">
+        <section class="panel" id="p-news" style="grid-column:1/-1"></section>
+      </div>
+
+      <div class="panel-grid">
+        <section class="panel" id="p-experten"></section>
+        <section class="panel" id="p-extra" hidden></section>
+      </div>
+    </div>
+
+    <div id="report-loading" hidden class="panel" style="margin-top:24px">
+      <div class="loading-line"><span class="spinner"></span><span id="loading-text">Analyse läuft — Kurse, Kennzahlen, News und KI-Bewertung …</span></div>
+    </div>
+    <div id="report-error" hidden class="notice err" style="margin-top:24px"></div>
+  </main>
+
+  <footer class="foot">
+    <b>Hinweis:</b> Automatische Einordnung auf Basis kostenloser Datenquellen und eines lokalen KI-Modells —
+    ersetzt keine eigene Recherche und ist keine Anlageberatung.
+  </footer>
+
+  <script type="module" src="./js/analyse.js"></script>
+</body>
+</html>

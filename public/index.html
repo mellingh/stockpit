@@ -1,1 +1,88 @@
-<h1>Platzhalter</h1>
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aktien-Cockpit — Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html">Aktien<span class="tick">·</span>Cockpit</a>
+    <nav class="topnav">
+      <a href="./index.html">Dashboard</a>
+      <a href="./analyse.html">Analyse</a>
+      <a href="./portfolio.html">Portfolio</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="status" id="ki-status"><span class="pulse"></span><span>lokale KI</span></div>
+  </header>
+
+  <main class="page">
+    <div class="masthead">
+      <div class="dateline" id="dateline">Portfolio-Übersicht</div>
+      <h1 class="pagetitle">Dein Depot, <em>auf einen Blick.</em></h1>
+    </div>
+
+    <section class="hero" id="hero">
+      <div class="panel">
+        <span class="kpi-label">Gesamtwert (EUR)</span>
+        <div>
+          <div class="kpi-value skel" id="kpi-total">000.000 €</div>
+          <div class="kpi-sub" id="kpi-fx"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <span class="kpi-label">Gewinn / Verlust</span>
+        <div>
+          <div class="kpi-value small skel" id="kpi-gain">0.000 €</div>
+          <div class="kpi-sub" id="kpi-gain-pct"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <span class="kpi-label">Heute</span>
+        <div>
+          <div class="kpi-value small skel" id="kpi-day">0.000 €</div>
+          <div class="kpi-sub" id="kpi-day-pct"></div>
+        </div>
+      </div>
+    </section>
+
+    <div id="termine-wrap"></div>
+
+    <div class="cols">
+      <div>
+        <section class="panel">
+          <h2 class="panel-title">Positionen</h2>
+          <div id="positions"><div class="loading-line"><span class="spinner"></span>Kurse werden geladen …</div></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Watchlist</h2>
+          <div id="watchlist"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Allokation</h2>
+          <div id="allocation"></div>
+        </section>
+      </div>
+
+      <div>
+        <section class="panel">
+          <h2 class="panel-title">News-Lage <span class="hint">· KI-bewertet, deinen Werten zugeordnet</span></h2>
+          <div id="newsfeed"><div class="loading-line"><span class="spinner"></span>News werden geladen und lokal bewertet …</div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <b>Aktien-Cockpit</b> läuft komplett lokal. Daten: Yahoo Finance (inoffiziell), RSS-Feeds, clinicaltrials.gov ·
+    News-Bewertung durch lokales KI-Modell (FinBERT) · Alle Angaben ohne Gewähr — keine Anlageberatung.
+  </footer>
+
+  <script type="module" src="./js/dashboard.js"></script>
+</body>
+</html>

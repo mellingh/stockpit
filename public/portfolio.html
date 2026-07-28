@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aktien-Cockpit — Portfolio verwalten</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html">Aktien<span class="tick">·</span>Cockpit</a>
+    <nav class="topnav">
+      <a href="./index.html">Dashboard</a>
+      <a href="./analyse.html">Analyse</a>
+      <a href="./portfolio.html">Portfolio</a>
+    </nav>
+    <div class="spacer"></div>
+  </header>
+
+  <main class="page">
+    <div class="masthead">
+      <div class="dateline">Verwaltung</div>
+      <h1 class="pagetitle">Positionen, Watchlist <em>&amp; Experten.</em></h1>
+    </div>
+
+    <div class="cols">
+      <div>
+        <section class="panel">
+          <h2 class="panel-title">Neue Position</h2>
+          <form id="add-position" style="display:grid;gap:12px">
+            <label class="field">Aktie / ETF suchen
+              <span class="search-wrap"><input type="text" id="pos-search" placeholder="Name oder Ticker …" autocomplete="off" /></span>
+            </label>
+            <div id="pos-picked" class="notice" hidden></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <label class="field">Stückzahl<input type="number" step="any" min="0" name="shares" required /></label>
+              <label class="field">Kaufkurs (je Stück)<input type="number" step="any" min="0" name="buyPrice" /></label>
+              <label class="field">Kaufdatum<input type="date" name="buyDate" /></label>
+            </div>
+            <button class="btn" type="submit">Position hinzufügen</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Deine Positionen</h2>
+          <div id="positions-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Watchlist</h2>
+          <form id="add-watch" style="display:grid;gap:12px;margin-bottom:14px">
+            <label class="field">Wert beobachten (ohne Besitz)
+              <span class="search-wrap"><input type="text" id="watch-search" placeholder="Name oder Ticker …" autocomplete="off" /></span>
+            </label>
+          </form>
+          <div id="watch-list"></div>
+        </section>
+      </div>
+
+      <div>
+        <section class="panel">
+          <h2 class="panel-title">Experten <span class="hint">· X/Twitter-Stimmen für deine Bewertung</span></h2>
+          <div class="notice">
+            X erlaubt kostenloses automatisches Mitlesen nicht zuverlässig. Der sichere Weg:
+            Post-Text auf der Analyse-Seite einfügen — die lokale KI bewertet ihn und
+            gewichtet ihn stärker als anonyme News. „Abrufen“ versucht es zusätzlich
+            über öffentliche Spiegel-Server (klappt nicht immer).
+          </div>
+          <form id="add-expert" style="display:grid;gap:12px;margin:14px 0">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <label class="field">Name<input type="text" name="name" placeholder="z. B. Biotech2k" /></label>
+              <label class="field">X-Handle (ohne @)<input type="text" name="handle" placeholder="z. B. Biotech2k1" /></label>
+            </div>
+            <button class="btn ghost" type="submit">Experte hinzufügen</button>
+          </form>
+          <div id="expert-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Datenablage</h2>
+          <p style="font-size:13.5px;color:var(--ink-2);margin:0">
+            Alles wird lokal in <code>data/portfolio.json</code> gespeichert — nichts verlässt deinen Rechner.
+            Beim Weitergeben der App an andere startet dort ein leeres Portfolio.
+          </p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <b>Aktien-Cockpit</b> · Daten bleiben lokal · Keine Anlageberatung.
+  </footer>
+
+  <script type="module" src="./js/portfolio.js"></script>
+</body>
+</html>
