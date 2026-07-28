@@ -11,11 +11,6 @@ const FILE = path.join(DATA_DIR, 'portfolio.json');
 const DEFAULT_DATA = {
   positions: [], // {id, symbol, name, shares, buyPrice, currency, buyDate}
   watchlist: [], // {symbol, name}
-  experts: [
-    // Vorbelegt nach Wunsch; jederzeit in der App änderbar
-    { id: 'biotech2k1', name: 'Biotech2k', handle: 'Biotech2k1', tickers: [] },
-  ],
-  expertPosts: [], // {id, expertId, symbol, text, date, sentiment: {label, score}}
 };
 
 let data = null;
@@ -76,44 +71,6 @@ export function addWatch(item) {
 export function removeWatch(symbol) {
   load();
   data.watchlist = data.watchlist.filter((w) => w.symbol !== symbol);
-  save();
-}
-
-export function addExpert(expert) {
-  load();
-  const entry = { id: newId(), tickers: [], ...expert };
-  data.experts.push(entry);
-  save();
-  return entry;
-}
-
-export function updateExpert(id, patch) {
-  load();
-  const e = data.experts.find((x) => x.id === id);
-  if (!e) return null;
-  Object.assign(e, patch);
-  save();
-  return e;
-}
-
-export function removeExpert(id) {
-  load();
-  data.experts = data.experts.filter((e) => e.id !== id);
-  data.expertPosts = data.expertPosts.filter((p) => p.expertId !== id);
-  save();
-}
-
-export function addExpertPost(post) {
-  load();
-  const entry = { id: newId(), date: new Date().toISOString(), ...post };
-  data.expertPosts.push(entry);
-  save();
-  return entry;
-}
-
-export function removeExpertPost(id) {
-  load();
-  data.expertPosts = data.expertPosts.filter((p) => p.id !== id);
   save();
 }
 

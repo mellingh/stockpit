@@ -73,6 +73,37 @@ export function mapAffected(newsItem, holdings) {
   return affected;
 }
 
+// ---------- Relevanz-Filter für den News-Feed ----------
+// Wunsch: primär News zu den eigenen Werten; allgemeine News nur bei echten
+// Marktbewegern (Zinsentscheide, Notenbanken, Präsident, große Geopolitik).
+// Ratgeber-/Lifestyle-Artikel ("Mein Berater sagt …") fliegen raus.
+
+const MARKET_MOVERS =
+  /\b(fed|fomc|powell|ezb|ecb|lagarde|zins(en|entscheid|senkung|erhöhung)?|leitzins|interest rates?|rate (cut|hike|decision)|inflation|cpi\b|ppi\b|nonfarm|jobs report|arbeitsmarktbericht|unemployment|gdp\b|bip\b|rezession|recession|stimulus|treasur(y|ies)|yields?|anleihen|opec|oil price|ölpreis|tariff|zölle|sanction|sanktion|trade (war|deal)|handelsabkommen|president|präsident|white house|weißes haus|trump|shutdown|schuldenobergrenze|debt ceiling|s&p ?500|nasdaq|dow jones|dax\b|börsen?(crash|rally)?|sell-?off|market (rally|slump|rout|crash)|earnings season|berichtssaison|krieg|war\b|ukraine|taiwan|nahost|middle east)\b/i;
+
+const SECTOR_FOCUS =
+  /\b(fintech|payment(s)?|zahlungsdienst|neobank|bank(en|ing)?|kredit|crypto|bitcoin|ethereum|blockchain|biotech|pharma|fda|ema\b|drug|medikament|zulassung|clinical|studie|tech(nology)?|software|cloud|chip(s)?|halbleiter|semiconductor|ki\b|künstliche intelligenz|artificial intelligence|\bai\b|data center|rechenzentrum)\b/i;
+
+const JUNK =
+  /\b(my (adviser|advisor|friend|husband|wife|mom|dad|brother|sister|son|daughter)|i['’]m \d\d|i am \d\d|inherit(ed|ance)?|medicaid|medicare|social security|401\(k\)|\bIRA\b|retirement (question|plan|dream)|dear (abby|quentin|moneyist)|the moneyist|horoscope|lottery|powerball|best credit cards?|mortgage rates? this week|student loans?|home prices? in|real estate tips|crossword|recipe)\b/i;
+
+// newsItem braucht title + betroffen (aus mapAffected)
+export function isRelevant(newsItem) {
+  const title = newsItem.title || '';
+  const direct = (newsItem.betroffen || []).some((b) => b.why === 'direkt');
+
+  // Eigene Werte: immer relevant
+  if (direct) return true;
+  // Ratgeber-/Boulevard-Müll: nie
+  if (JUNK.test(title)) return false;
+  // Große Marktbeweger oder Fokus-Sektoren (Fintech/Biotech/Tech)
+  if (MARKET_MOVERS.test(title)) return true;
+  if (SECTOR_FOCUS.test(title)) return true;
+  // Sektor-Betroffenheit der eigenen Werte (z. B. Fed → Tech-Positionen)
+  if ((newsItem.betroffen || []).length) return true;
+  return false;
+}
+
 // ---------- News ↔ Kursbewegung ----------
 
 // Findet die Tagesveränderung am News-Tag und am Folgetag
@@ -119,7 +150,7 @@ export function explain(newsItem, reaction, symbolName) {
 
 // Kombiniert alle Komponenten zu einer Ampel. Keine Blackbox:
 // jede Komponente wird mit Beitrag und Begründung zurückgegeben.
-export function overallAssessment({ technik, analysts, newsSentiments = [], expertSentiments = [] }) {
+export function overallAssessment({ technik, analysts, newsSentiments = [] }) {
   const components = [];
   let score = 0;
   let weightSum = 0;
@@ -159,20 +190,6 @@ export function overallAssessment({ technik, analysts, newsSentiments = [], expe
       weight: 2,
       verdict: verdictOf(val),
       text: `${counts.positive}× positiv, ${counts.negative}× negativ, ${counts.neutral}× neutral (letzte News)`,
-    });
-  }
-
-  if (expertSentiments.length) {
-    const val = avgSentiment(expertSentiments);
-    // Experten-Meinungen bewusst höher gewichtet als anonyme News
-    score += val * 3;
-    weightSum += 3;
-    const counts = countLabels(expertSentiments);
-    components.push({
-      label: 'Experten',
-      weight: 3,
-      verdict: verdictOf(val),
-      text: `${counts.positive}× positiv, ${counts.negative}× negativ, ${counts.neutral}× neutral (gespeicherte Experten-Posts)`,
     });
   }
 

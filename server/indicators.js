@@ -147,7 +147,31 @@ export function analyzeTechnicals(history) {
 
   const ampel = score >= 1.5 ? 'green' : score <= -1.5 ? 'red' : 'yellow';
 
+  // Performance über Standard-Zeiträume (Handelstage) + Jahresstart
+  const perfOver = (n) => (closes.length > n ? pct(last, closes[closes.length - 1 - n]) : null);
+  const thisYear = new Date().getFullYear();
+  const ytdIdx = history.findIndex((q) => new Date(q.date).getFullYear() === thisYear);
+  const sma20Series = sma(closes, 20);
+  const sma20 = sma20Series[closes.length - 1];
+
+  const performance = {
+    woche: perfOver(5),
+    monat: perfOver(21),
+    quartal: perfOver(63),
+    halbjahr: perfOver(126),
+    jahr: perfOver(252),
+    ytd: ytdIdx > 0 ? pct(last, history[ytdIdx].close) : null,
+  };
+
+  const smaAbstand = {
+    sma20: sma20 != null ? pct(last, sma20) : null,
+    sma50: sma50 != null ? pct(last, sma50) : null,
+    sma200: sma200 != null ? pct(last, sma200) : null,
+  };
+
   return {
+    performance,
+    smaAbstand,
     score: Math.round(score * 10) / 10,
     ampel,
     signals,

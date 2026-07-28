@@ -11,8 +11,9 @@ import { analyzeTechnicals } from './indicators.js';
 import * as store from './storage.js';
 import { getMacroNews, getNewsForSymbols, dedupeAndSort, toTime, MACRO_FEEDS } from './news.js';
 import { classify, sentimentStatus, preload } from './sentiment.js';
-import { categorize, mapAffected, priceReaction, explain, overallAssessment } from './analysis.js';
+import { categorize, mapAffected, priceReaction, explain, overallAssessment, isRelevant } from './analysis.js';
 import { getTrials } from './trials.js';
+import { getCalendar } from './calendar.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PORT = process.env.PORT || 3001;
@@ -91,6 +92,7 @@ function chartPayload(history, technik, range) {
     high: q.high,
     low: q.low,
     close: q.close,
+    volume: q.volume ?? null,
   }));
   const from = candles[0]?.time ?? '';
   const smaSlice = (series) =>
@@ -178,6 +180,44 @@ app.get(
         }
       : null;
 
+    // Analysten-Historie: einzelne Hoch-/Abstufungen mit Bank-Name.
+    // (Kursziele je einzelner Bank gibt es kostenlos nicht — nur den Konsens.)
+    const ACTION_LABELS = { up: 'Hochgestuft', down: 'Abgestuft', main: 'Bestätigt', reit: 'Bekräftigt', init: 'Neu aufgenommen' };
+    const ratings = (summary?.upgradeDowngradeHistory?.history ?? [])
+      .slice(0, 12)
+      .map((r) => ({
+        datum: r.epochGradeDate ?? null,
+        firma: r.firm,
+        aktion: ACTION_LABELS[r.action] ?? r.action ?? '',
+        von: r.fromGrade || null,
+        zu: r.toGrade || null,
+      }));
+
+    // Kennzahlen im Finviz-Stil (Yahoo-Rohdaten + eigene Berechnungen)
+    const kennzahlen = isEtf
+      ? null
+      : {
+          beta: sd.beta ?? ks.beta ?? null,
+          epsTtm: ks.trailingEps ?? null,
+          peg: ks.pegRatio ?? null,
+          kbv: ks.priceToBook ?? null,
+          evEbitda: ks.enterpriseToEbitda ?? null,
+          roe: fd.returnOnEquity ?? null,
+          roa: fd.returnOnAssets ?? null,
+          currentRatio: fd.currentRatio ?? null,
+          quickRatio: fd.quickRatio ?? null,
+          aktienGesamt: ks.sharesOutstanding ?? null,
+          streubesitz: ks.floatShares ?? null,
+          insiderAnteil: ks.heldPercentInsiders ?? null,
+          institutionenAnteil: ks.heldPercentInstitutions ?? null,
+          shortFloat: ks.shortPercentOfFloat ?? null,
+          shortRatio: ks.shortRatio ?? null,
+          volumen: quote.regularMarketVolume ?? null,
+          volumenSchnitt: sd.averageVolume ?? quote.averageDailyVolume3Month ?? null,
+          performance: technik?.performance ?? null,
+          smaAbstand: technik?.smaAbstand ?? null,
+        };
+
     // Termine
     const cal = summary?.calendarEvents ?? {};
     const termine = {
@@ -236,15 +276,10 @@ app.get(
       news.push(enriched);
     }
 
-    // Experten-Posts zu diesem Symbol
-    const data = store.getData();
-    const expertPosts = data.expertPosts.filter((p) => p.symbol === symbol);
-
     const gesamt = overallAssessment({
       technik,
       analysts,
       newsSentiments: news.map((n) => n.sentiment).filter((s) => !s.unavailable),
-      expertSentiments: expertPosts.map((p) => p.sentiment).filter(Boolean),
     });
 
     res.json({
@@ -266,11 +301,12 @@ app.get(
       technik: technik ? { score: technik.score, ampel: technik.ampel, signals: technik.signals, values: technik.values } : null,
       fundamental,
       analysts,
+      ratings,
+      kennzahlen,
       termine,
       etf,
       trials,
       news,
-      expertPosts,
       gesamt,
     });
   })
@@ -384,13 +420,27 @@ app.get(
       getMacroNews(),
     ]);
 
-    const items = dedupeAndSort([...tickerNews, ...macro.items]).slice(0, 40);
-    const out = [];
-    for (const item of items) {
-      const sentiment = await classifyCached(item.title, item.lang);
-      const category = categorize(item.title);
-      const enriched = { ...item, sentiment, category };
+    // Erst kategorisieren + zuordnen, dann Relevanz filtern:
+    // Eigene Werte immer, Makro nur bei echten Marktbewegern,
+    // Fokus-Sektoren (Fintech/Biotech/Tech) ja, Ratgeber-Müll nie.
+    const candidates = dedupeAndSort([...tickerNews, ...macro.items]).map((item) => {
+      const enriched = { ...item, category: categorize(item.title) };
       enriched.betroffen = mapAffected(enriched, holdings);
+      return enriched;
+    });
+    const relevant = candidates.filter(isRelevant);
+
+    // Eigene Werte zuerst, innerhalb der Gruppen nach Zeit
+    relevant.sort((a, b) => {
+      const aDirect = a.betroffen.some((x) => x.why === 'direkt') ? 0 : 1;
+      const bDirect = b.betroffen.some((x) => x.why === 'direkt') ? 0 : 1;
+      if (aDirect !== bDirect) return aDirect - bDirect;
+      return toTime(b.pubDate) - toTime(a.pubDate);
+    });
+
+    const out = [];
+    for (const enriched of relevant.slice(0, 35)) {
+      enriched.sentiment = await classifyCached(enriched.title, enriched.lang);
 
       // Bei direkter Zuordnung: Kursreaktion + Erklärung
       const direct = enriched.betroffen.find((b) => b.why === 'direkt');
@@ -409,7 +459,16 @@ app.get(
       out.push(enriched);
     }
 
-    res.json({ items: out, feedErrors: macro.errors });
+    res.json({ items: out, feedErrors: macro.errors, gefiltert: candidates.length - relevant.length });
+  })
+);
+
+// ---------- Wirtschaftskalender ----------
+
+app.get(
+  '/api/calendar',
+  wrap(async (req, res) => {
+    res.json({ events: await getCalendar() });
   })
 );
 
@@ -458,79 +517,6 @@ app.delete('/api/watchlist/:symbol', (req, res) => {
   store.removeWatch(req.params.symbol);
   res.json({ ok: true });
 });
-
-// ---------- Experten (X/Twitter) ----------
-
-app.get('/api/experts', (req, res) => {
-  const data = store.getData();
-  res.json({ experts: data.experts, posts: data.expertPosts });
-});
-
-app.post('/api/experts', (req, res) => {
-  const { name, handle, tickers } = req.body;
-  if (!name && !handle) return res.status(400).json({ error: 'Name oder Handle angeben' });
-  res.json(store.addExpert({ name: name || handle, handle: handle || '', tickers: tickers || [] }));
-});
-
-app.patch('/api/experts/:id', (req, res) => {
-  const updated = store.updateExpert(req.params.id, req.body);
-  if (!updated) return res.status(404).json({ error: 'Experte nicht gefunden' });
-  res.json(updated);
-});
-
-app.delete('/api/experts/:id', (req, res) => {
-  store.removeExpert(req.params.id);
-  res.json({ ok: true });
-});
-
-// Post-Text einfügen → lokale KI bewertet ihn → fließt in Gesamteinschätzung ein
-app.post(
-  '/api/experts/:id/posts',
-  wrap(async (req, res) => {
-    const { symbol, text } = req.body;
-    if (!symbol || !text) return res.status(400).json({ error: 'symbol und text sind Pflicht' });
-    const sentiment = await classify(text);
-    res.json(store.addExpertPost({ expertId: req.params.id, symbol, text: text.slice(0, 2000), sentiment }));
-  })
-);
-
-app.delete('/api/expert-posts/:id', (req, res) => {
-  store.removeExpertPost(req.params.id);
-  res.json({ ok: true });
-});
-
-// Best-Effort: Posts eines X-Nutzers über öffentliche Nitter-Instanzen (RSS).
-// X blockiert das oft — die App zeigt dann einen klaren Status an.
-const NITTER_INSTANCES = ['https://nitter.net', 'https://nitter.privacyredirect.com'];
-
-app.get(
-  '/api/experts/:id/fetch',
-  wrap(async (req, res) => {
-    const expert = store.getData().experts.find((e) => e.id === req.params.id);
-    if (!expert?.handle) return res.status(404).json({ error: 'Experte/Handle nicht gefunden' });
-
-    for (const base of NITTER_INSTANCES) {
-      try {
-        const r = await fetch(`${base}/${expert.handle}/rss`, {
-          headers: { 'user-agent': 'Mozilla/5.0' },
-          signal: AbortSignal.timeout(8_000),
-        });
-        if (!r.ok) continue;
-        const xml = await r.text();
-        const { XMLParser } = await import('fast-xml-parser');
-        const doc = new XMLParser().parse(xml);
-        const items = doc?.rss?.channel?.item ?? [];
-        const posts = (Array.isArray(items) ? items : [items])
-          .filter((i) => i && i.title)
-          .slice(0, 10)
-          .map((i) => ({ title: i.title, date: i.pubDate, link: i.link }));
-        // Manche Instanzen liefern eine Challenge-Seite statt RSS → weiterprobieren
-        if (posts.length) return res.json({ ok: true, source: base, posts });
-      } catch {}
-    }
-    res.json({ ok: false, posts: [], hinweis: 'X/Nitter aktuell nicht erreichbar — Posts bitte per Copy&Paste einfügen.' });
-  })
-);
 
 // ---------- Start ----------
 

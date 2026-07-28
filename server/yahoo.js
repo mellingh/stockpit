@@ -43,6 +43,7 @@ const STOCK_MODULES = [
   'recommendationTrend',
   'calendarEvents',
   'assetProfile',
+  'upgradeDowngradeHistory',
 ];
 
 export function getSummary(symbol) {

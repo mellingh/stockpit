@@ -543,6 +543,59 @@ button:disabled { opacity: 0.5; cursor: wait; }
 .chart-legend .swatch { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; }
 #chart { height: 420px; }
 
+/* OHLCV-Tooltip im Chart */
+.chart-tooltip {
+  display: none;
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 20;
+  pointer-events: none;
+  background: rgba(28, 28, 26, 0.96);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  min-width: 168px;
+}
+.chart-tooltip .tt-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.chart-tooltip .tt-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 16px;
+  font-size: 12.5px;
+}
+.chart-tooltip .tt-grid span { color: var(--ink-3); }
+.chart-tooltip .tt-grid b {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aktuelle Bewertung (Trade-Republic-Stil) */
+.rating-card {
+  border: 1px solid rgba(229, 168, 59, 0.3);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+}
+
+/* Kennzahlen zweispaltig */
+.facts-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+}
+@media (max-width: 560px) { .facts-2col { grid-template-columns: 1fr; } }
+
 .panel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));

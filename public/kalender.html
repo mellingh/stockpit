@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aktien-Cockpit — Wirtschaftskalender</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html">Aktien<span class="tick">·</span>Cockpit</a>
+    <nav class="topnav">
+      <a href="./index.html">Dashboard</a>
+      <a href="./analyse.html">Analyse</a>
+      <a href="./kalender.html">Kalender</a>
+      <a href="./portfolio.html">Portfolio</a>
+    </nav>
+    <div class="spacer"></div>
+  </header>
+
+  <main class="page">
+    <div class="masthead">
+      <div class="dateline">Wirtschaftskalender · diese Woche</div>
+      <h1 class="pagetitle">Was den Markt <em>bewegt.</em></h1>
+    </div>
+
+    <section class="panel">
+      <div class="chart-toolbar" style="padding:0 0 14px">
+        <button class="rng active" data-imp="high">Nur wichtige</button>
+        <button class="rng" data-imp="med">Wichtig + Mittel</button>
+        <button class="rng" data-imp="all">Alle</button>
+        <div class="chart-legend">
+          <span><span class="dot red" style="width:8px;height:8px"></span> hohe Marktwirkung</span>
+          <span><span class="dot yellow" style="width:8px;height:8px"></span> mittel</span>
+          <span><span class="dot gray" style="width:8px;height:8px"></span> gering</span>
+        </div>
+      </div>
+      <div id="calendar"><div class="loading-line"><span class="spinner"></span>Kalender wird geladen …</div></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <b>Quelle:</b> ForexFactory-Wochenkalender (kostenloser öffentlicher Feed) · Zeiten in deiner lokalen Zeitzone ·
+    Alle Angaben ohne Gewähr — keine Anlageberatung.
+  </footer>
+
+  <script type="module" src="./js/kalender.js"></script>
+</body>
+</html>

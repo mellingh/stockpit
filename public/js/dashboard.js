@@ -213,7 +213,10 @@ async function loadNews() {
   );
 
   const notices = (feed.feedErrors || []).map((f) => el('div', { class: 'notice' }, `Feed nicht erreichbar: ${f}`));
-  box.replaceChildren(...notices, ...nodes);
+  const filterInfo = feed.gefiltert
+    ? [el('div', { class: 'news-meta', style: 'padding:4px 0 8px' }, `${feed.gefiltert} unwichtige Meldungen ausgefiltert — gezeigt wird nur Marktrelevantes.`)]
+    : [];
+  box.replaceChildren(...notices, ...filterInfo, ...nodes);
 }
 
 loadDashboard();

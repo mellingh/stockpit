@@ -1,4 +1,4 @@
-// Verwaltung: Positionen, Watchlist und Experten (X/Twitter).
+// Verwaltung: Positionen und Watchlist.
 import { api } from './api.js';
 import { el, fmtMoney, fmtDate, attachSearch, markActiveNav } from './ui.js';
 
@@ -147,64 +147,5 @@ async function renderWatchlist() {
   );
 }
 
-// ---------- Experten ----------
-
-$('add-expert').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const name = form.name.value.trim();
-  const handle = form.handle.value.trim().replace(/^@/, '');
-  if (!name && !handle) return;
-  await api.post('/api/experts', { name, handle }).catch((err) => alert(err.message));
-  form.reset();
-  renderExperts();
-});
-
-async function renderExperts() {
-  const box = $('expert-list');
-  const data = await api.get('/api/experts').catch(() => null);
-  if (!data?.experts?.length) {
-    box.replaceChildren(el('div', { class: 'empty' }, 'Noch keine Experten angelegt.'));
-    return;
-  }
-  box.replaceChildren(
-    ...data.experts.map((ex) => {
-      const postCount = data.posts.filter((p) => p.expertId === ex.id).length;
-      const statusLine = el('div', { class: 'sym', style: 'margin-top:4px' }, `${postCount} gespeicherte${postCount === 1 ? 'r' : ''} Post${postCount === 1 ? '' : 's'}`);
-      const fetchBtn = el('button', { class: 'btn ghost small', type: 'button' }, 'Abrufen');
-      fetchBtn.addEventListener('click', async () => {
-        fetchBtn.disabled = true;
-        fetchBtn.textContent = 'Versuche …';
-        try {
-          const r = await api.get(`/api/experts/${ex.id}/fetch`);
-          if (r.ok && r.posts.length) {
-            statusLine.textContent = `Abruf ok (${r.source}) — neueste: „${String(r.posts[0].title).slice(0, 80)} …“`;
-          } else {
-            statusLine.textContent = r.hinweis || 'X/Nitter aktuell nicht erreichbar — Posts bitte per Copy&Paste auf der Analyse-Seite einfügen.';
-          }
-        } catch {
-          statusLine.textContent = 'Abruf fehlgeschlagen — Posts bitte per Copy&Paste einfügen.';
-        } finally {
-          fetchBtn.disabled = false;
-          fetchBtn.textContent = 'Abrufen';
-        }
-      });
-      return el('div', { class: 'expert-post' },
-        el('div', { style: 'display:flex;align-items:center;gap:10px' },
-          el('div', { class: 'name-cell', style: 'flex:1' }, ex.name, el('span', { class: 'sym' }, ex.handle ? `@${ex.handle}` : '')),
-          fetchBtn,
-          el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
-            if (!confirm(`Experte ${ex.name} samt gespeicherter Posts löschen?`)) return;
-            await api.del(`/api/experts/${ex.id}`);
-            renderExperts();
-          } }, 'Löschen')
-        ),
-        statusLine
-      );
-    })
-  );
-}
-
 renderPositions();
 renderWatchlist();
-renderExperts();

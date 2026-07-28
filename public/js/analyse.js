@@ -1,6 +1,6 @@
 // Analyse-Seite: Suche → Komplett-Report mit Chart (inkl. News-Marker),
 // Technik-, Analysten-, Fundamental-, Termin-, Studien-/ETF-Panels,
-// News mit KI-Sentiment + Kurs-Erklärung und Experten-Meinungen.
+// News mit KI-Sentiment + Kurs-Erklärung.
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
@@ -11,11 +11,17 @@ markActiveNav();
 
 const $ = (id) => document.getElementById(id);
 
+// replaceChildren wandelt null in den Text "null" um — deshalb immer filtern
+const setChildren = (node, ...kids) => node.replaceChildren(...kids.flat().filter(Boolean));
+
 let currentSymbol = null;
+let currentCurrency = 'USD';
 let chart = null;
 let candleSeries = null;
+let volumeSeries = null;
 let sma50Series = null;
 let sma200Series = null;
+let tooltip = null;
 
 // ---------- Suche ----------
 
@@ -56,27 +62,89 @@ function ensureChart() {
     wickDownColor: '#e66767',
     borderVisible: false,
   });
+  // Volumen-Balken unten im Chart (eigene, überlagerte Skala)
+  volumeSeries = chart.addHistogramSeries({
+    priceScaleId: 'vol',
+    priceFormat: { type: 'volume' },
+    priceLineVisible: false,
+    lastValueVisible: false,
+  });
+  chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
   sma50Series = chart.addLineSeries({ color: '#e5a83b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
   sma200Series = chart.addLineSeries({ color: '#9085e9', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+
+  // OHLCV-Tooltip beim Überfahren (wie bei Trade Republic)
+  tooltip = el('div', { class: 'chart-tooltip' });
+  $('chart').style.position = 'relative';
+  $('chart').append(tooltip);
+  const volFmt = (v) =>
+    v == null ? '–' : v >= 1e9 ? `${(v / 1e9).toFixed(2).replace('.', ',')} Mrd.` : v >= 1e6 ? `${(v / 1e6).toFixed(2).replace('.', ',')} Mio.` : new Intl.NumberFormat('de-DE').format(v);
+  chart.subscribeCrosshairMove((param) => {
+    const bar = param?.seriesData?.get(candleSeries);
+    if (!param?.time || !bar || param.point == null) {
+      tooltip.style.display = 'none';
+      return;
+    }
+    const vol = param.seriesData.get(volumeSeries)?.value;
+    const up = bar.close >= bar.open;
+    const date = new Date(param.time).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    tooltip.innerHTML = `
+      <div class="tt-date">${date}</div>
+      <div class="tt-grid">
+        <span>Eröffnung</span><b>${fmtNum(bar.open)}</b>
+        <span>Hoch</span><b>${fmtNum(bar.high)}</b>
+        <span>Tief</span><b>${fmtNum(bar.low)}</b>
+        <span>Schluss</span><b class="${up ? 'pos' : 'neg'}">${fmtNum(bar.close)}</b>
+        <span>Volumen</span><b>${volFmt(vol)}</b>
+      </div>`;
+    tooltip.style.display = 'block';
+    const box = $('chart').getBoundingClientRect();
+    const x = Math.min(param.point.x + 16, box.width - tooltip.offsetWidth - 8);
+    const y = Math.min(param.point.y + 16, box.height - tooltip.offsetHeight - 8);
+    tooltip.style.transform = `translate(${Math.max(x, 4)}px, ${Math.max(y, 4)}px)`;
+  });
+}
+
+function applyChartData(chartData) {
+  candleSeries.setData(chartData.candles);
+  volumeSeries.setData(
+    chartData.candles.map((c) => ({
+      time: c.time,
+      value: c.volume ?? 0,
+      color: c.close >= c.open ? 'rgba(63,185,104,0.35)' : 'rgba(230,103,103,0.35)',
+    }))
+  );
+  sma50Series.setData(chartData.sma50);
+  sma200Series.setData(chartData.sma200);
 }
 
 function setChartData(chartData, news) {
   ensureChart();
-  candleSeries.setData(chartData.candles);
-  sma50Series.setData(chartData.sma50);
-  sma200Series.setData(chartData.sma200);
+  applyChartData(chartData);
 
-  // News-Marker: am Handelstag der News, gefärbt nach Sentiment
+  // News-Marker: pro Handelstag gebündelt (sonst stapeln sie sich),
+  // gefärbt nach dominierendem Sentiment
   const firstTime = chartData.candles[0]?.time ?? '';
-  const markers = (news || [])
-    .filter((n) => n.reaction?.date && n.reaction.date >= firstTime)
-    .map((n) => ({
-      time: n.reaction.date,
-      position: 'aboveBar',
-      shape: n.sentiment?.label === 'negative' ? 'arrowDown' : n.sentiment?.label === 'positive' ? 'arrowUp' : 'circle',
-      color: n.sentiment?.label === 'negative' ? '#e66767' : n.sentiment?.label === 'positive' ? '#3fb968' : '#8a877a',
-      text: 'N',
-    }))
+  const byDay = new Map();
+  for (const n of news || []) {
+    if (!n.reaction?.date || n.reaction.date < firstTime) continue;
+    const day = byDay.get(n.reaction.date) ?? { pos: 0, neg: 0, count: 0 };
+    day.count++;
+    if (n.sentiment?.label === 'positive') day.pos++;
+    if (n.sentiment?.label === 'negative') day.neg++;
+    byDay.set(n.reaction.date, day);
+  }
+  const markers = [...byDay.entries()]
+    .map(([time, d]) => {
+      const dominant = d.pos > d.neg ? 'positive' : d.neg > d.pos ? 'negative' : 'neutral';
+      return {
+        time,
+        position: 'aboveBar',
+        shape: dominant === 'negative' ? 'arrowDown' : dominant === 'positive' ? 'arrowUp' : 'circle',
+        color: dominant === 'negative' ? '#e66767' : dominant === 'positive' ? '#3fb968' : '#8a877a',
+        text: d.count > 1 ? `${d.count} News` : 'News',
+      };
+    })
     .sort((a, b) => (a.time < b.time ? -1 : 1));
   candleSeries.setMarkers(markers);
   chart.timeScale().fitContent();
@@ -90,9 +158,7 @@ document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
     btn.classList.add('active');
     try {
       const data = await api.get(`/api/history/${encodeURIComponent(currentSymbol)}?range=${btn.dataset.range}`);
-      candleSeries.setData(data.candles);
-      sma50Series.setData(data.sma50);
-      sma200Series.setData(data.sma200);
+      applyChartData(data);
       chart.timeScale().fitContent();
     } catch {}
   });
@@ -122,7 +188,7 @@ async function loadReport(symbol) {
 
   // Kopf
   $('r-name').textContent = a.name;
-  $('r-meta').replaceChildren(
+  setChildren($('r-meta'), 
     el('span', { class: 'badge chip' }, a.symbol),
     a.kurs.boerse ? el('span', { class: 'badge' }, a.kurs.boerse) : null,
     a.type === 'ETF' ? el('span', { class: 'badge cat' }, 'ETF') : null,
@@ -165,13 +231,111 @@ async function loadReport(symbol) {
   document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.toggle('active', b.dataset.range === '1y'));
   setChartData(a.chart, a.news);
 
+  currentCurrency = a.currency;
   renderTechnik(a);
   renderAnalysten(a);
+  renderRatings(a);
+  renderKennzahlen(a);
   renderFundamental(a);
   renderTermine(a);
   renderNews(a);
-  renderExperten(a);
   renderExtra(a);
+}
+
+// Analysten-Historie: einzelne Banken mit Hoch-/Abstufungen
+function renderRatings(a) {
+  const box = $('p-ratings');
+  if (!a.ratings?.length) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const latest = a.ratings[0];
+  const aktionClass = (r) => (r.aktion === 'Hochgestuft' ? 'pos' : r.aktion === 'Abgestuft' ? 'neg' : '');
+
+  box.replaceChildren(
+    el('h2', { class: 'panel-title' }, 'Analysten-Historie', el('span', { class: 'hint' }, ' · einzelne Banken')),
+    // "Aktuelle Bewertung" — wie bei Trade Republic
+    el('div', { class: 'rating-card' },
+      el('dl', { class: 'facts' },
+        el('dt', {}, 'Datum'), el('dd', {}, fmtDate(latest.datum)),
+        el('dt', {}, 'Analyst'), el('dd', {}, latest.firma || '–'),
+        el('dt', {}, 'Aktion'), el('dd', { class: aktionClass(latest) }, latest.aktion || '–'),
+        el('dt', {}, 'Rating'), el('dd', {}, latest.von && latest.von !== latest.zu ? `${latest.von} → ${latest.zu}` : latest.zu || '–')
+      )
+    ),
+    el('table', { class: 'data', style: 'margin-top:12px' },
+      el('thead', {}, el('tr', {},
+        el('th', {}, 'Datum'), el('th', {}, 'Analyst'), el('th', {}, 'Aktion'), el('th', {}, 'Rating')
+      )),
+      el('tbody', {},
+        a.ratings.slice(1).map((r) =>
+          el('tr', {},
+            el('td', { class: 'num', style: 'text-align:left' }, fmtDate(r.datum)),
+            el('td', {}, r.firma || '–'),
+            el('td', { class: aktionClass(r) }, r.aktion),
+            el('td', {}, r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–')
+          )
+        )
+      )
+    ),
+    el('div', { class: 'notice', style: 'margin-top:12px' },
+      'Kursziele einzelner Banken sind nur in Bezahl-Datenbanken verfügbar — die Konsens-Spanne steht im Analysten-Panel.')
+  );
+}
+
+// Kennzahlen im Finviz-Stil
+function renderKennzahlen(a) {
+  const box = $('p-kennzahlen');
+  const k = a.kennzahlen;
+  if (!k) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+
+  const pctCell = (v) => (v == null ? el('dd', {}, '–') : el('dd', { class: signClass(v) }, fmtPct(v)));
+  const facts1 = [
+    ['Beta', fmtNum(k.beta)],
+    ['EPS (12 Mon.)', fmtNum(k.epsTtm)],
+    ['PEG', fmtNum(k.peg)],
+    ['Kurs/Buchwert', fmtNum(k.kbv)],
+    ['EV/EBITDA', fmtNum(k.evEbitda)],
+    ['ROE', k.roe != null ? fmtPctFrac(k.roe) : '–'],
+    ['ROA', k.roa != null ? fmtPctFrac(k.roa) : '–'],
+    ['Current Ratio', fmtNum(k.currentRatio)],
+  ];
+  const facts2 = [
+    ['Aktien gesamt', fmtCompact(k.aktienGesamt)],
+    ['Streubesitz', fmtCompact(k.streubesitz)],
+    ['Insider-Anteil', k.insiderAnteil != null ? fmtPctFrac(k.insiderAnteil) : '–'],
+    ['Institutionen', k.institutionenAnteil != null ? fmtPctFrac(k.institutionenAnteil) : '–'],
+    ['Short Float', k.shortFloat != null ? fmtPctFrac(k.shortFloat) : '–'],
+    ['Short Ratio', fmtNum(k.shortRatio)],
+    ['Volumen heute', fmtCompact(k.volumen)],
+    ['Volumen (Ø)', fmtCompact(k.volumenSchnitt)],
+  ];
+
+  const perf = k.performance || {};
+  const smaAb = k.smaAbstand || {};
+  const perfRows = [
+    ['Perf. Woche', perf.woche], ['Perf. Monat', perf.monat], ['Perf. Quartal', perf.quartal],
+    ['Perf. Halbjahr', perf.halbjahr], ['Perf. seit 1.1.', perf.ytd], ['Perf. Jahr', perf.jahr],
+    ['Abstand SMA20', smaAb.sma20], ['Abstand SMA50', smaAb.sma50], ['Abstand SMA200', smaAb.sma200],
+  ];
+
+  box.replaceChildren(
+    el('h2', { class: 'panel-title' }, 'Kennzahlen', el('span', { class: 'hint' }, ' · Finviz-Stil')),
+    el('div', { class: 'facts-2col' },
+      el('dl', { class: 'facts' }, facts1.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
+      el('dl', { class: 'facts' }, facts2.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
+    ),
+    el('div', { class: 'kpi-label', style: 'margin:16px 0 6px' }, 'Performance & Trend-Abstand'),
+    el('div', { class: 'facts-2col' },
+      el('dl', { class: 'facts' }, perfRows.slice(0, 5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)])),
+      el('dl', { class: 'facts' }, perfRows.slice(5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)]))
+    )
+  );
 }
 
 // ---------- Panels ----------
@@ -237,7 +401,7 @@ function renderAnalysten(a) {
     );
   }
 
-  box.replaceChildren(
+  setChildren(box,
     el('h2', { class: 'panel-title' }, 'Analysten ', el('span', { class: 'hint' }, `· ${an.count ?? '?'} Analysten`)),
     el('div', { style: 'display:flex;align-items:baseline;gap:12px' },
       el('span', { class: 'kpi-value small', style: 'font-size:30px' }, an.mean?.toFixed(1)),
@@ -334,62 +498,6 @@ function renderNews(a) {
     );
   }
   box.replaceChildren(...children);
-}
-
-async function renderExperten(a) {
-  const box = $('p-experten');
-  let experts = [];
-  try {
-    experts = (await api.get('/api/experts')).experts;
-  } catch {}
-
-  const posts = a.expertPosts || [];
-  const form = el('form', { style: 'display:grid;gap:10px;margin-top:14px' },
-    el('label', { class: 'field' }, 'Experte',
-      el('select', { name: 'expert' }, experts.map((e) => el('option', { value: e.id }, `${e.name}${e.handle ? ` (@${e.handle})` : ''}`)))
-    ),
-    el('label', { class: 'field' }, 'Post-Text (von X kopiert)',
-      el('textarea', { name: 'text', placeholder: 'Text des Posts hier einfügen — die lokale KI bewertet ihn und rechnet ihn in die Gesamteinschätzung ein.' })
-    ),
-    el('button', { class: 'btn', type: 'submit' }, 'Bewerten & speichern')
-  );
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const expertId = form.expert.value;
-    const text = form.text.value.trim();
-    if (!expertId || !text) return;
-    const btn = form.querySelector('button');
-    btn.disabled = true;
-    try {
-      await api.post(`/api/experts/${expertId}/posts`, { symbol: a.symbol, text });
-      loadReport(a.symbol); // neu laden → fließt in Gesamteinschätzung ein
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  box.replaceChildren(
-    el('h2', { class: 'panel-title' }, 'Experten-Meinungen', el('span', { class: 'hint' }, ' · zählen stärker als anonyme News')),
-    posts.length
-      ? el('div', {}, posts.map((p) => {
-          const expert = experts.find((e) => e.id === p.expertId);
-          return el('div', { class: 'expert-post' },
-            el('div', { class: 'news-meta' },
-              el('span', {}, expert ? `@${expert.handle || expert.name}` : 'Experte'),
-              el('span', {}, fmtDate(p.date))
-            ),
-            el('div', { class: 'txt' }, p.text.length > 220 ? p.text.slice(0, 220) + ' …' : p.text),
-            el('div', { class: 'news-badges' },
-              sentimentBadge(p.sentiment),
-              el('button', { class: 'btn danger small', type: 'button', onclick: async () => { await api.del(`/api/expert-posts/${p.id}`); loadReport(a.symbol); } }, 'Löschen')
-            )
-          );
-        }))
-      : el('div', { class: 'empty' }, 'Noch keine Experten-Posts zu diesem Wert.'),
-    experts.length ? form : el('div', { class: 'notice' }, 'Lege zuerst im Portfolio einen Experten an.')
-  );
 }
 
 function renderExtra(a) {
