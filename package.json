@@ -1,0 +1,21 @@
+{
+  "name": "aktien-dashboard",
+  "version": "0.1.0",
+  "description": "Zentrales Dashboard für dein Aktienportfolio — Kurse, Kennzahlen, Analysten, News mit lokaler KI-Bewertung. Ohne Abos, ohne API-Keys.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@huggingface/transformers": "^3.5.0",
+    "express": "^4.21.0",
+    "fast-xml-parser": "^4.5.0",
+    "lightweight-charts": "^4.2.0",
+    "yahoo-finance2": "^4.0.0"
+  }
+}
