@@ -520,12 +520,12 @@ app.get(
         const { XMLParser } = await import('fast-xml-parser');
         const doc = new XMLParser().parse(xml);
         const items = doc?.rss?.channel?.item ?? [];
-        const posts = (Array.isArray(items) ? items : [items]).slice(0, 10).map((i) => ({
-          title: i.title,
-          date: i.pubDate,
-          link: i.link,
-        }));
-        return res.json({ ok: true, source: base, posts });
+        const posts = (Array.isArray(items) ? items : [items])
+          .filter((i) => i && i.title)
+          .slice(0, 10)
+          .map((i) => ({ title: i.title, date: i.pubDate, link: i.link }));
+        // Manche Instanzen liefern eine Challenge-Seite statt RSS → weiterprobieren
+        if (posts.length) return res.json({ ok: true, source: base, posts });
       } catch {}
     }
     res.json({ ok: false, posts: [], hinweis: 'X/Nitter aktuell nicht erreichbar — Posts bitte per Copy&Paste einfügen.' });
