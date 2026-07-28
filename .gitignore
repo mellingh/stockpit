@@ -1,0 +1,15 @@
+# Abhängigkeiten
+node_modules/
+
+# Persönliche Daten — bleiben lokal, landen NIE auf GitHub
+data/portfolio.json
+
+# Lokal gecachte KI-Modelle (werden beim ersten Start automatisch geladen)
+models/
+
+# Betriebssystem-Müll
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
