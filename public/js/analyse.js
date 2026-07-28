@@ -4,7 +4,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
-  signClass, sentimentBadge, categoryBadge, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav,
+  signClass, sentimentBadge, categoryBadge, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, makeExplainable,
 } from './ui.js';
 
 markActiveNav();
@@ -485,12 +485,15 @@ function renderNews(a) {
         el('article', { class: 'news-item' },
           el('div', { class: 'news-meta' }, el('span', {}, n.source || '—'), el('span', {}, fmtAgo(n.pubDate))),
           el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-          el('div', { class: 'news-badges' },
-            sentimentBadge(n.sentiment),
-            categoryBadge(n.category),
-            n.reaction?.dayChangePct != null
-              ? el('span', { class: `badge ${signClass(n.reaction.dayChangePct)}` }, `Kurs am Tag: ${fmtPct(n.reaction.dayChangePct)}`)
-              : null
+          makeExplainable(
+            el('div', { class: 'news-badges' },
+              sentimentBadge(n.sentiment),
+              categoryBadge(n.category),
+              n.reaction?.dayChangePct != null
+                ? el('span', { class: `badge ${signClass(n.reaction.dayChangePct)}` }, `Kurs am Tag: ${fmtPct(n.reaction.dayChangePct)}`)
+                : null
+            ),
+            n
           ),
           n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
         )

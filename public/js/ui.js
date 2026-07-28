@@ -93,6 +93,63 @@ export function ampelDot(ampel, title) {
 
 export const AMPEL_TEXT = { green: 'Bullisch', yellow: 'Neutral', red: 'Bärisch' };
 
+// ---------- Erklärung zu News-Badges (Klick blendet Einordnung ein) ----------
+
+const conf = (s) => (s?.score ? ` (Sicherheit der KI: ${Math.round(s.score * 100)} %)` : '');
+
+const SENTIMENT_EXPLAIN = {
+  positive: (s) =>
+    `🟢 Positiv: Die lokale Finanz-KI (FinBERT) liest diese Schlagzeile als gute Nachricht aus Marktsicht — tendenziell kursstützend${conf(s)}.`,
+  negative: (s) =>
+    `🔴 Negativ: Die lokale Finanz-KI (FinBERT) liest diese Schlagzeile als schlechte Nachricht aus Marktsicht — tendenziell kursbelastend${conf(s)}.`,
+  neutral: (s) =>
+    `⚪ Neutral: Die Schlagzeile enthält aus Sicht der Finanz-KI weder klar gute noch klar schlechte Signale${conf(s)}.`,
+};
+
+const CATEGORY_EXPLAIN = {
+  earnings: 'Quartalszahlen: Es geht um Geschäftszahlen, Prognosen oder die Berichtssaison — hier reagieren Kurse oft am stärksten.',
+  fed: 'Fed/Zinsen: Geldpolitik (Zinsentscheide, Inflation) beeinflusst die Bewertung fast aller Aktien — besonders Tech und Wachstumswerte.',
+  geo: 'Geopolitik: Krieg, Sanktionen oder Zölle — wirkt vor allem auf Energie, Rüstung und Lieferketten.',
+  analyst: 'Analysten-Update: Eine Bank hat ihr Rating oder Kursziel geändert (z. B. hochgestuft/abgestuft) — kurzfristig oft kursbewegend.',
+  pharma: 'FDA/Studien: Zulassungen oder Studiendaten — bei Biotech/Pharma der stärkste einzelne Kurstreiber.',
+};
+
+export function buildNewsExplain(n) {
+  const parts = [];
+  const sExpl = SENTIMENT_EXPLAIN[n.sentiment?.label];
+  if (sExpl) parts.push(sExpl(n.sentiment));
+  if (n.sentiment?.unavailable) parts.push('Hinweis: Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
+  const cExpl = CATEGORY_EXPLAIN[n.category?.id];
+  if (cExpl) parts.push(cExpl);
+  for (const b of n.betroffen || []) {
+    parts.push(
+      b.why === 'direkt'
+        ? `${b.symbol}: direkt betroffen — Firma oder Ticker wird in der Schlagzeile genannt.`
+        : `${b.symbol}: indirekt betroffen über ${b.why}.`
+    );
+  }
+  if (!parts.length) return null;
+  return el('div', { class: 'news-explain-detail' }, parts.map((p) => el('div', {}, p)));
+}
+
+// Badge-Zeile klickbar machen: Klick blendet die Erklärung ein/aus
+export function makeExplainable(badgesRow, n) {
+  badgesRow.classList.add('clickable');
+  badgesRow.title = 'Klicken: Warum diese Einstufung?';
+  let detail = null;
+  badgesRow.addEventListener('click', (e) => {
+    if (e.target.closest('a')) return; // Ticker-Chips bleiben Links
+    if (detail) {
+      detail.remove();
+      detail = null;
+      return;
+    }
+    detail = buildNewsExplain(n);
+    if (detail) badgesRow.after(detail);
+  });
+  return badgesRow;
+}
+
 // ---------- Sparkline (SVG) ----------
 
 export function sparkline(values, width = 90, height = 26) {

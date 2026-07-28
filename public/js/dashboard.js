@@ -2,8 +2,8 @@
 // Termin-Radar und der KI-bewertete News-Feed.
 import { api } from './api.js';
 import {
-  el, fmtEur, fmtMoney, fmtPct, fmtAgo, signClass, sentimentBadge, categoryBadge,
-  ampelDot, AMPEL_TEXT, sparkline, donut, CAT_COLORS, markActiveNav,
+  el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, signClass, sentimentBadge, categoryBadge,
+  ampelDot, AMPEL_TEXT, sparkline, donut, CAT_COLORS, markActiveNav, makeExplainable,
 } from './ui.js';
 
 markActiveNav();
@@ -200,13 +200,16 @@ async function loadNews() {
         el('span', {}, fmtAgo(n.pubDate))
       ),
       el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-      el('div', { class: 'news-badges' },
-        sentimentBadge(n.sentiment),
-        categoryBadge(n.category),
-        (n.betroffen || []).slice(0, 4).map((b) =>
-          el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
-            b.symbol, b.why === 'direkt' ? '' : ' ~')
-        )
+      makeExplainable(
+        el('div', { class: 'news-badges' },
+          sentimentBadge(n.sentiment),
+          categoryBadge(n.category),
+          (n.betroffen || []).slice(0, 4).map((b) =>
+            el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
+              b.symbol, b.why === 'direkt' ? '' : ' ~')
+          )
+        ),
+        n
       ),
       n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
     )
