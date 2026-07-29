@@ -381,15 +381,33 @@ app.get(
       return s + p.valueEur - p.valueEur / (1 + p.tagesPct / 100);
     }, 0);
 
-    // Termin-Radar: nahende Earnings (nächste 14 Tage)
+    // Termin-Radar: nahende Quartalszahlen und Ex-Dividenden-Termine (14 Tage)
     const upcoming = [];
+    const daysUntil = (d) => Math.round((new Date(d) - Date.now()) / DAY);
     for (const t of store.trackedSymbols()) {
       try {
         const summary = await yahoo.getSummary(t.symbol);
-        const earnings = summary?.calendarEvents?.earnings?.earningsDate?.[0];
+        const cal = summary?.calendarEvents ?? {};
+        const earnings = cal.earnings?.earningsDate?.[0];
         if (earnings) {
-          const days = Math.round((new Date(earnings) - Date.now()) / DAY);
-          if (days >= 0 && days <= 14) upcoming.push({ symbol: t.symbol, name: t.name, date: earnings, days });
+          const days = daysUntil(earnings);
+          if (days >= 0 && days <= 14) {
+            upcoming.push({
+              symbol: t.symbol,
+              name: t.name,
+              typ: 'Quartalszahlen',
+              date: earnings,
+              days,
+              epsErwartet: cal.earnings?.earningsAverage ?? null,
+              umsatzErwartet: cal.earnings?.revenueAverage ?? null,
+            });
+          }
+        }
+        if (cal.exDividendDate) {
+          const days = daysUntil(cal.exDividendDate);
+          if (days >= 0 && days <= 14) {
+            upcoming.push({ symbol: t.symbol, name: t.name, typ: 'Ex-Dividende', date: cal.exDividendDate, days });
+          }
         }
       } catch {}
     }

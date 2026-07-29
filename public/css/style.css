@@ -27,17 +27,17 @@
 :root {
   color-scheme: dark;
 
-  /* Flächen */
-  --bg: #121210;
-  --panel: #1c1c1a;
-  --panel-2: #232320;
-  --line: #2c2c28;
-  --line-strong: #3a3a34;
+  /* Flächen — Hintergrund nahe Schwarz, Panels heben sich klarer ab */
+  --bg: #0c0c0b;
+  --panel: #171715;
+  --panel-2: #21211e;
+  --line: #2e2e29;
+  --line-strong: #403f38;
 
-  /* Text */
-  --ink: #f2efe6;
-  --ink-2: #b5b1a3;
-  --ink-3: #807d72;
+  /* Text — mehr Kontrast auf dunklem Grund */
+  --ink: #f6f4ec;
+  --ink-2: #c6c2b4;
+  --ink-3: #94907f;
 
   /* Akzent & Status */
   --accent: #e5a83b;
@@ -64,7 +64,7 @@
 
   --radius: 10px;
   --radius-sm: 6px;
-  --pad: 20px;
+  --pad: 22px;
 }
 
 * { box-sizing: border-box; }
@@ -112,7 +112,7 @@ a:hover { text-decoration: underline; }
   gap: 28px;
   padding: 0 28px;
   height: 58px;
-  background: rgba(18, 18, 16, 0.92);
+  background: rgba(12, 12, 11, 0.92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -211,6 +211,7 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: var(--pad);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.025);
   animation: rise 0.5s ease both;
 }
 .panel + .panel { margin-top: 18px; }
@@ -300,7 +301,7 @@ table.data th {
   white-space: nowrap;
 }
 table.data td {
-  padding: 11px 10px;
+  padding: 12px 10px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
@@ -399,6 +400,18 @@ table.data th.num { text-align: right; }
 .stars.s3 { color: var(--down); }
 .stars.s2 { color: var(--accent); }
 .stars.s1 { color: var(--ink-3); }
+
+/* Kalender-Tabelle: Tages-Trennzeilen wie bei investing.com */
+.cal-table .day-sep td {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--panel-2);
+  border-top: 1px solid var(--line-strong);
+  padding: 8px 10px;
+}
 
 /* ---------- Sparkline ---------- */
 
@@ -572,7 +585,7 @@ button:disabled { opacity: 0.5; cursor: wait; }
   top: 0; left: 0;
   z-index: 20;
   pointer-events: none;
-  background: rgba(28, 28, 26, 0.96);
+  background: rgba(23, 23, 21, 0.97);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -683,9 +696,14 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
   border-radius: var(--radius-sm);
   padding: 8px 14px;
   font-size: 13px;
+  color: var(--ink);
 }
+.termin:hover { text-decoration: none; border-color: var(--accent); }
 .termin b { font-family: var(--font-mono); font-weight: 600; }
 .termin .days { color: var(--accent); font-weight: 700; }
+.termin .termin-datum { color: var(--ink-2); font-family: var(--font-mono); font-size: 12px; }
+.termin.soon { border-color: rgba(230,103,103,0.5); background: var(--down-soft); }
+.termin.soon .days { color: var(--down); }
 
 /* Studien */
 .trial { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; display: grid; gap: 4px; }

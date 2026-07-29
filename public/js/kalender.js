@@ -1,82 +1,111 @@
-// Wirtschaftskalender: Events der Woche, gruppiert nach Tag,
-// gefiltert nach Marktwirkung. Zeiten in lokaler Zeitzone.
+// Wirtschaftskalender im investing.com-Stil: Tabelle mit Sternen für
+// Wichtigkeit, Prognose/Vorher-Spalten, Filter nach Tag und Marktwirkung.
 import { api } from './api.js';
 import { el, markActiveNav } from './ui.js';
 
 markActiveNav();
 
 const WAEHRUNG_LABEL = {
-  USD: '🇺🇸 USA', EUR: '🇪🇺 Eurozone', GBP: '🇬🇧 UK', JPY: '🇯🇵 Japan',
-  CNY: '🇨🇳 China', CHF: '🇨🇭 Schweiz', CAD: '🇨🇦 Kanada', AUD: '🇦🇺 Australien', NZD: '🇳🇿 Neuseeland',
+  USD: '🇺🇸 USD', EUR: '🇪🇺 EUR', GBP: '🇬🇧 GBP', JPY: '🇯🇵 JPY',
+  CNY: '🇨🇳 CNY', CHF: '🇨🇭 CHF', CAD: '🇨🇦 CAD', AUD: '🇦🇺 AUD', NZD: '🇳🇿 NZD',
 };
 
-const IMPACT = {
-  High: { dot: 'red', label: 'hoch' },
-  Medium: { dot: 'yellow', label: 'mittel' },
-  Low: { dot: 'gray', label: 'gering' },
-  Holiday: { dot: 'gray', label: 'Feiertag' },
+const IMPACT_STARS = {
+  High: { stars: '★★★', cls: 's3', label: 'hohe Marktwirkung' },
+  Medium: { stars: '★★☆', cls: 's2', label: 'mittlere Marktwirkung' },
+  Low: { stars: '★☆☆', cls: 's1', label: 'geringe Marktwirkung' },
+  Holiday: { stars: '—', cls: 's1', label: 'Feiertag' },
 };
 
 let events = [];
-let filter = 'high';
+let impFilter = 'med';
+let dayFilter = 'heute';
 
-function passes(e) {
-  if (filter === 'all') return true;
-  if (filter === 'med') return e.wichtigkeit === 'High' || e.wichtigkeit === 'Medium';
+const dayKey = (d) => new Date(d).toLocaleDateString('de-DE');
+
+function passesImpact(e) {
+  if (impFilter === 'all') return true;
+  if (impFilter === 'med') return e.wichtigkeit === 'High' || e.wichtigkeit === 'Medium';
   return e.wichtigkeit === 'High';
+}
+
+function passesDay(e) {
+  if (dayFilter === 'woche') return true;
+  const heute = new Date();
+  if (dayFilter === 'heute') return dayKey(e.zeit) === dayKey(heute);
+  const morgen = new Date(heute.getTime() + 86400000);
+  return dayKey(e.zeit) === dayKey(morgen);
+}
+
+function eventRow(e) {
+  const imp = IMPACT_STARS[e.wichtigkeit] ?? IMPACT_STARS.Low;
+  const time = new Date(e.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return el('tr', {},
+    el('td', { class: 'num', style: 'text-align:left;width:56px' }, time),
+    el('td', { style: 'width:88px;white-space:nowrap' }, WAEHRUNG_LABEL[e.waehrung] ?? e.waehrung),
+    el('td', { style: 'width:64px' }, el('span', { class: `stars ${imp.cls}`, title: imp.label }, imp.stars)),
+    el('td', { class: 'name-cell' }, e.titel),
+    el('td', { class: 'num' }, e.prognose ?? '–'),
+    el('td', { class: 'num dim' }, e.vorher ?? '–')
+  );
 }
 
 function render() {
   const box = document.getElementById('calendar');
-  const list = events.filter(passes);
+  const list = events.filter((e) => passesImpact(e) && passesDay(e));
+
   if (!list.length) {
-    box.replaceChildren(el('div', { class: 'empty' }, 'Keine Termine mit diesem Filter in dieser Woche.'));
+    box.replaceChildren(
+      el('div', { class: 'empty' },
+        el('div', { class: 'big' }, 'Keine Termine mit diesen Filtern.'),
+        el('div', {}, dayFilter !== 'woche' ? 'Tipp: auf „Ganze Woche“ oder eine niedrigere Wichtigkeit umschalten.' : 'Tipp: niedrigere Wichtigkeit wählen.')
+      )
+    );
     return;
   }
 
-  // Nach Tag gruppieren
-  const byDay = new Map();
+  const thead = el('thead', {},
+    el('tr', {},
+      el('th', {}, 'Zeit'), el('th', {}, 'Land'), el('th', {}, 'Wichtig'),
+      el('th', {}, 'Ereignis'), el('th', { class: 'num' }, 'Prognose'), el('th', { class: 'num' }, 'Vorher')
+    )
+  );
+
+  const tbody = el('tbody');
+  const today = dayKey(new Date());
+  let lastDay = null;
   for (const e of list) {
-    const d = new Date(e.zeit);
-    const key = d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
-    if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key).push(e);
+    const key = dayKey(e.zeit);
+    // Bei Wochenansicht: Tages-Trennzeile wie bei investing.com
+    if (dayFilter === 'woche' && key !== lastDay) {
+      lastDay = key;
+      const label = new Date(e.zeit).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+      tbody.append(
+        el('tr', { class: 'day-sep' },
+          el('td', { colspan: '6' }, key === today ? `${label} — heute` : label)
+        )
+      );
+    }
+    tbody.append(eventRow(e));
   }
 
-  const nodes = [];
-  const today = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
-  for (const [day, dayEvents] of byDay) {
-    nodes.push(
-      el('div', { class: 'kpi-label', style: `margin:18px 0 6px;${day === today ? 'color:var(--accent)' : ''}` },
-        day === today ? `${day} — heute` : day)
-    );
-    nodes.push(
-      el('table', { class: 'data' },
-        el('tbody', {},
-          dayEvents.map((e) => {
-            const imp = IMPACT[e.wichtigkeit] ?? IMPACT.Low;
-            const time = new Date(e.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-            return el('tr', {},
-              el('td', { class: 'num', style: 'text-align:left;width:64px' }, time),
-              el('td', { style: 'width:38px' }, el('span', { class: `dot ${imp.dot}`, title: `Marktwirkung: ${imp.label}` })),
-              el('td', { style: 'width:130px;white-space:nowrap' }, WAEHRUNG_LABEL[e.waehrung] ?? e.waehrung),
-              el('td', { class: 'name-cell' }, e.titel),
-              el('td', { class: 'num dim' }, e.prognose ? `Prognose ${e.prognose}` : ''),
-              el('td', { class: 'num dim' }, e.vorher ? `Vorher ${e.vorher}` : '')
-            );
-          })
-        )
-      )
-    );
-  }
-  box.replaceChildren(...nodes);
+  box.replaceChildren(el('table', { class: 'data cal-table' }, thead, tbody));
 }
 
-document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
+// Filter-Knöpfe: Tag (heute/morgen/Woche) und Wichtigkeit getrennt
+document.querySelectorAll('[data-day]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('[data-day]').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
-    filter = btn.dataset.imp;
+    dayFilter = btn.dataset.day;
+    render();
+  });
+});
+document.querySelectorAll('[data-imp]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-imp]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    impFilter = btn.dataset.imp;
     render();
   });
 });

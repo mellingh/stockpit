@@ -26,15 +26,20 @@
     </div>
 
     <section class="panel">
-      <div class="chart-toolbar" style="padding:0 0 14px">
-        <button class="rng active" data-imp="high">Nur wichtige</button>
-        <button class="rng" data-imp="med">Wichtig + Mittel</button>
-        <button class="rng" data-imp="all">Alle</button>
+      <div class="chart-toolbar" style="padding:0 0 6px">
+        <button class="rng active" data-day="heute">Heute</button>
+        <button class="rng" data-day="morgen">Morgen</button>
+        <button class="rng" data-day="woche">Ganze Woche</button>
         <div class="chart-legend">
-          <span><span class="dot red" style="width:8px;height:8px"></span> hohe Marktwirkung</span>
-          <span><span class="dot yellow" style="width:8px;height:8px"></span> mittel</span>
-          <span><span class="dot gray" style="width:8px;height:8px"></span> gering</span>
+          <span><span class="stars s3">★★★</span> hohe Marktwirkung</span>
+          <span><span class="stars s2">★★☆</span> mittel</span>
+          <span><span class="stars s1">★☆☆</span> gering</span>
         </div>
+      </div>
+      <div class="chart-toolbar" style="padding:0 0 14px">
+        <button class="rng" data-imp="high">Nur ★★★</button>
+        <button class="rng active" data-imp="med">★★★ + ★★</button>
+        <button class="rng" data-imp="all">Alle</button>
       </div>
       <div id="calendar"><div class="loading-line"><span class="spinner"></span>Kalender wird geladen …</div></div>
     </section>

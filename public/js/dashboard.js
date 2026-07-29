@@ -60,19 +60,33 @@ async function loadDashboard() {
   set('kpi-day', hasPositions ? fmtEur(d.dayChangeEur) : '—', signClass(d.dayChangeEur));
   document.getElementById('kpi-day-pct').textContent = d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : '';
 
-  // Termin-Radar
+  // Termin-Radar: Was steht an, wann genau, was wird erwartet
   if (d.termine?.length) {
+    const fmtTermin = (t) => {
+      const datum = new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const wann = t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`;
+      return { datum, wann };
+    };
     document.getElementById('termine-wrap').replaceChildren(
       el('section', { class: 'panel', style: 'margin-bottom:18px' },
-        el('h2', { class: 'panel-title' }, 'Termin-Radar'),
+        el('h2', { class: 'panel-title' }, 'Termin-Radar', el('span', { class: 'hint' }, ' · nächste 14 Tage')),
         el('div', { class: 'termine-strip' },
-          d.termine.map((t) =>
-            el('div', { class: 'termin' },
+          d.termine.map((t) => {
+            const { datum, wann } = fmtTermin(t);
+            return el('a', {
+              class: `termin${t.days <= 2 ? ' soon' : ''}`,
+              href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`,
+              title: `${t.name}: ${t.typ} am ${fmtDate(t.date)}${t.epsErwartet != null ? ` — Analysten erwarten EPS ${Number(t.epsErwartet).toFixed(2)}` : ''}`,
+            },
               el('b', {}, t.symbol),
-              `Quartalszahlen`,
-              el('span', { class: 'days' }, t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`)
-            )
-          )
+              el('span', {},
+                el('span', { class: 'termin-typ' }, t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
+                el('span', { class: 'termin-datum' }, ` · ${datum}`),
+                t.epsErwartet != null ? el('span', { class: 'termin-datum' }, ` · EPS erw. ${Number(t.epsErwartet).toFixed(2)}`) : null
+              ),
+              el('span', { class: 'days' }, wann)
+            );
+          })
         )
       )
     );
