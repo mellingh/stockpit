@@ -291,12 +291,27 @@ app.get(
         preis: quote.regularMarketPrice,
         veraenderungPct: quote.regularMarketChangePercent,
         vortag: quote.regularMarketPreviousClose,
+        eroeffnung: quote.regularMarketOpen ?? null,
+        tagesTief: quote.regularMarketDayLow ?? null,
+        tagesHoch: quote.regularMarketDayHigh ?? null,
+        w52Tief: quote.fiftyTwoWeekLow ?? null,
+        w52Hoch: quote.fiftyTwoWeekHigh ?? null,
+        volumen: quote.regularMarketVolume ?? null,
+        volumenSchnitt: sd.averageVolume ?? quote.averageDailyVolume3Month ?? null,
+        marktkap: quote.marketCap ?? null,
         zeit: quote.regularMarketTime,
         boerse: quote.fullExchangeName,
       },
       sektor: profile.sector ?? null,
       branche: profile.industry ?? null,
-      beschreibung: profile.longBusinessSummary ? profile.longBusinessSummary.slice(0, 400) : null,
+      // Firmen-Übersicht wie bei Yahoo Finance
+      uebersicht: {
+        beschreibung: profile.longBusinessSummary ?? null,
+        website: profile.website ?? null,
+        mitarbeiter: profile.fullTimeEmployees ?? null,
+        geschaeftsjahresende: ks.lastFiscalYearEnd ?? null,
+        land: profile.country ?? null,
+      },
       chart: chartPayload(history, technik, range),
       technik: technik ? { score: technik.score, ampel: technik.ampel, signals: technik.signals, values: technik.values } : null,
       fundamental,
@@ -486,7 +501,7 @@ app.get(
 app.get(
   '/api/calendar',
   wrap(async (req, res) => {
-    res.json({ events: await getCalendar() });
+    res.json(await getCalendar());
   })
 );
 

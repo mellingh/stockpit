@@ -34,10 +34,9 @@
               <span class="search-wrap"><input type="text" id="pos-search" placeholder="Name oder Ticker …" autocomplete="off" /></span>
             </label>
             <div id="pos-picked" class="notice" hidden></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <label class="field">Stückzahl<input type="number" step="any" min="0" name="shares" required /></label>
-              <label class="field">Kaufkurs (je Stück)<input type="number" step="any" min="0" name="buyPrice" /></label>
-              <label class="field">Kaufdatum<input type="date" name="buyDate" /></label>
+              <label class="field">Ø-Kaufkurs (je Stück)<input type="number" step="any" min="0" name="buyPrice" /></label>
             </div>
             <button class="btn" type="submit">Position hinzufügen</button>
           </form>

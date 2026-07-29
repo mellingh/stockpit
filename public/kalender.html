@@ -26,28 +26,27 @@
     </div>
 
     <section class="panel">
-      <div class="chart-toolbar" style="padding:0 0 6px">
+      <div class="chart-toolbar" style="padding:0 0 14px;flex-wrap:wrap">
+        <button class="rng" data-day="gestern">Gestern</button>
         <button class="rng active" data-day="heute">Heute</button>
         <button class="rng" data-day="morgen">Morgen</button>
-        <button class="rng" data-day="woche">Ganze Woche</button>
-        <div class="chart-legend">
-          <span><span class="stars s3">★★★</span> hohe Marktwirkung</span>
-          <span><span class="stars s2">★★☆</span> mittel</span>
-          <span><span class="stars s1">★☆☆</span> gering</span>
+        <button class="rng" data-day="woche">Diese Woche</button>
+        <div class="chart-legend" style="gap:10px">
+          <label for="imp-select" style="color:var(--ink-3)">Wichtigkeit</label>
+          <select id="imp-select" style="width:auto;padding:5px 10px;font-size:13px">
+            <option value="med" selected>★★★ + ★★</option>
+            <option value="high">Nur ★★★</option>
+            <option value="all">Alle</option>
+          </select>
         </div>
-      </div>
-      <div class="chart-toolbar" style="padding:0 0 14px">
-        <button class="rng" data-imp="high">Nur ★★★</button>
-        <button class="rng active" data-imp="med">★★★ + ★★</button>
-        <button class="rng" data-imp="all">Alle</button>
       </div>
       <div id="calendar"><div class="loading-line"><span class="spinner"></span>Kalender wird geladen …</div></div>
     </section>
   </main>
 
   <footer class="foot">
-    <b>Quelle:</b> ForexFactory-Wochenkalender (kostenloser öffentlicher Feed) · Zeiten in deiner lokalen Zeitzone ·
-    Alle Angaben ohne Gewähr — keine Anlageberatung.
+    <span id="cal-quelle">Quelle: wird geladen …</span> · Zeiten in deiner lokalen Zeitzone ·
+    „Aktuell“ grün/rot = besser/schlechter als Prognose · Alle Angaben ohne Gewähr — keine Anlageberatung.
   </footer>
 
   <script type="module" src="./js/kalender.js"></script>

@@ -22,7 +22,7 @@ Lokales Aktien-Portfolio-Dashboard für Micha (GitHub: mellingh). Deutsch als UI
 | `Xenova/finbert` via `@huggingface/transformers` | News-Sentiment, lokal, Download einmalig nach `models/` (gitignored) | englisch; dt. Fallback `Xenova/bert-base-multilingual-uncased-sentiment`; Modelle per env `SENTIMENT_MODEL_EN`/`_MULTI` tauschbar |
 | RSS (CNBC, MarketWatch, tagesschau) | Makro-News | Liste in `news.js` `MACRO_FEEDS` |
 | clinicaltrials.gov API v2 | Studien bei Healthcare-Aktien | Sponsor-Suche ist wortbasiert („Moderna“ findet „ModernaTX“ nicht) → Fallback über `query.term` + Sponsor-Filter ist in `trials.js` eingebaut |
-| ForexFactory-Feed (`nfs.faireconomy.media/ff_calendar_thisweek.json`) | Wirtschaftskalender | nur aktuelle Woche |
+| investing.com-Widget (`sslecal2.investing.com`, lang=8=Deutsch) | Wirtschaftskalender **mit Aktuell-Werten** | blockt Node-Fetch per TLS-Fingerprint (403) → Server ruft `curl` auf (ab Win10 vorinstalliert); Fallback: ForexFactory-Feed (`nfs.faireconomy.media/ff_calendar_thisweek.json`, ohne Aktuell) |
 | TradingView Lightweight Charts (aus node_modules über `/vendor` serviert) | Candlestick-Chart | Marker pro Tag bündeln (sonst stapeln sie sich) |
 
 ## Produktentscheidungen (nicht rückgängig machen / nicht wieder vorschlagen)
@@ -36,7 +36,8 @@ Lokales Aktien-Portfolio-Dashboard für Micha (GitHub: mellingh). Deutsch als UI
 ## Konventionen
 
 - UI-Texte deutsch, `Intl`-Formatierung `de-DE`, EUR als Anzeigewährung im Dashboard (FX über Yahoo `USDEUR=X`).
-- Design: dunkles Terminal-Design, Fonts lokal in `public/fonts/` (Fraunces/Instrument Sans/Spline Sans Mono), Chart-Kategorienfarben sind eine validierte Palette — nicht frei ändern.
+- Design (Michas Wunsch, Feedback-Runde 3): **TradingView/Finviz Dark Mode** — neutrales Schwarz/Grau (#0b0e13), Blau als Akzent (#4c8dff), Grün/Rot nur für Markt, Gelb (--warn) nur für Ampel/Sterne. Sans (Instrument Sans) für alles inkl. großer Zahlen, Mono für Kursdaten — keine Serifen mehr. Fonts lokal in `public/fonts/`. Chart-Kategorienfarben sind eine validierte Palette — nicht frei ändern.
+- Portfolio: **kein Kaufdatum** (bewusst entfernt — Micha kauft in Tranchen, es zählt nur Stückzahl + Ø-Kaufkurs).
 - `replaceChildren()` nie mit möglichen `null`-Kindern aufrufen (rendert als Text "null") — `setChildren()`-Helfer in `analyse.js` nutzen.
 - Fehler-Zustände immer benutzerfreundlich abfangen (Feed down, Ticker unbekannt, offline) — App darf nie leer/kaputt aussehen.
 - Ehrliche Grenzen im UI/README benennen statt Features vorzutäuschen. Überall gilt: keine Anlageberatung.

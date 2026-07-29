@@ -40,26 +40,26 @@ function ensureChart() {
   const opts = {
     layout: {
       background: { type: 'solid', color: 'transparent' },
-      textColor: '#807d72',
+      textColor: '#7b8294',
       fontFamily: "'Spline Sans Mono', monospace",
       fontSize: 11,
     },
     grid: {
-      vertLines: { color: 'rgba(44,44,40,0.6)' },
-      horzLines: { color: 'rgba(44,44,40,0.6)' },
+      vertLines: { color: 'rgba(38,44,58,0.6)' },
+      horzLines: { color: 'rgba(38,44,58,0.6)' },
     },
     crosshair: { mode: 0 },
-    rightPriceScale: { borderColor: '#2c2c28' },
-    timeScale: { borderColor: '#2c2c28' },
+    rightPriceScale: { borderColor: '#262c3a' },
+    timeScale: { borderColor: '#262c3a' },
     autoSize: true,
     localization: { locale: 'de-DE' },
   };
   chart = LightweightCharts.createChart($('chart'), opts);
   candleSeries = chart.addCandlestickSeries({
-    upColor: '#3fb968',
-    downColor: '#e66767',
-    wickUpColor: '#3fb968',
-    wickDownColor: '#e66767',
+    upColor: '#22c07e',
+    downColor: '#f0616d',
+    wickUpColor: '#22c07e',
+    wickDownColor: '#f0616d',
     borderVisible: false,
   });
   // Volumen-Balken unten im Chart (eigene, überlagerte Skala)
@@ -111,7 +111,7 @@ function applyChartData(chartData) {
     chartData.candles.map((c) => ({
       time: c.time,
       value: c.volume ?? 0,
-      color: c.close >= c.open ? 'rgba(63,185,104,0.35)' : 'rgba(230,103,103,0.35)',
+      color: c.close >= c.open ? 'rgba(34,192,126,0.35)' : 'rgba(240,97,109,0.35)',
     }))
   );
   sma50Series.setData(chartData.sma50);
@@ -141,7 +141,7 @@ function setChartData(chartData, news) {
         time,
         position: 'aboveBar',
         shape: dominant === 'negative' ? 'arrowDown' : dominant === 'positive' ? 'arrowUp' : 'circle',
-        color: dominant === 'negative' ? '#e66767' : dominant === 'positive' ? '#3fb968' : '#8a877a',
+        color: dominant === 'negative' ? '#f0616d' : dominant === 'positive' ? '#22c07e' : '#7b8294',
         text: d.count > 1 ? `${d.count} News` : 'News',
       };
     })
@@ -232,14 +232,90 @@ async function loadReport(symbol) {
   setChartData(a.chart, a.news);
 
   currentCurrency = a.currency;
+  renderQuoteStrip(a);
   renderTechnik(a);
   renderAnalysten(a);
   renderRatings(a);
   renderKennzahlen(a);
   renderFundamental(a);
   renderTermine(a);
+  renderUebersicht(a);
   renderNews(a);
   renderExtra(a);
+}
+
+// Wichtigste Metriken horizontal unter dem Chart (Yahoo-Stil)
+function renderQuoteStrip(a) {
+  const box = $('p-quotestrip');
+  const k = a.kurs;
+  const spanne = (lo, hi) => (lo != null && hi != null ? `${fmtNum(lo)} – ${fmtNum(hi)}` : '–');
+  const zellen = [
+    ['Kurs Vortag', fmtNum(k.vortag)],
+    ['Eröffnung', fmtNum(k.eroeffnung)],
+    ['Tagesspanne', spanne(k.tagesTief, k.tagesHoch)],
+    ['52-Wochen-Spanne', spanne(k.w52Tief, k.w52Hoch)],
+    ['Volumen', fmtCompact(k.volumen)],
+    ['Ø-Volumen', fmtCompact(k.volumenSchnitt)],
+    ['Marktkap.', k.marktkap != null ? `${fmtCompact(k.marktkap)} ${a.currency}` : '–'],
+    ['Beta', fmtNum(a.kennzahlen?.beta)],
+    ['KGV (12 Mon.)', fmtNum(a.fundamental?.kgv)],
+    ['EPS (12 Mon.)', fmtNum(a.kennzahlen?.epsTtm)],
+    ['Nächste Zahlen', fmtDate(a.termine?.earnings)],
+    ['Dividendenrendite', a.fundamental?.dividendenrendite != null ? fmtPct(a.fundamental.dividendenrendite, false) : '–'],
+    ['Ex-Dividende', fmtDate(a.termine?.exDividende)],
+    ['Ø-Kursziel', a.analysts?.targets?.mean != null ? fmtNum(a.analysts.targets.mean) : '–'],
+  ];
+  box.hidden = false;
+  box.replaceChildren(
+    el('div', { class: 'quote-strip' },
+      zellen.map(([label, wert]) =>
+        el('div', { class: 'qs-cell' }, el('span', { class: 'qs-label' }, label), el('span', { class: 'qs-value' }, String(wert)))
+      )
+    )
+  );
+}
+
+// Firmen-Übersicht wie bei Yahoo Finance
+function renderUebersicht(a) {
+  const box = $('p-uebersicht');
+  const u = a.uebersicht;
+  if (!u || (!u.beschreibung && !u.website)) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const kurz = u.beschreibung && u.beschreibung.length > 480 ? u.beschreibung.slice(0, 480) + ' …' : u.beschreibung;
+  const textNode = el('p', { class: 'uebersicht-text' }, kurz || '');
+  let expanded = false;
+  const mehrBtn =
+    u.beschreibung && u.beschreibung.length > 480
+      ? el('button', { class: 'btn ghost small', type: 'button', onclick: () => {
+          expanded = !expanded;
+          textNode.textContent = expanded ? u.beschreibung : kurz;
+          mehrBtn.textContent = expanded ? 'Weniger anzeigen' : 'Mehr anzeigen';
+        } }, 'Mehr anzeigen')
+      : null;
+
+  const fakten = [
+    u.mitarbeiter != null ? [fmtNum(u.mitarbeiter, 0), 'Vollzeitmitarbeiter'] : null,
+    u.geschaeftsjahresende ? [new Date(u.geschaeftsjahresende).toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }), 'Geschäftsjahresende'] : null,
+    a.sektor ? [a.sektor, 'Sektor'] : null,
+    a.branche ? [a.branche, 'Branche'] : null,
+  ].filter(Boolean);
+
+  setChildren(box,
+    el('h2', { class: 'panel-title' }, `${a.name} — Übersicht`),
+    textNode,
+    u.website ? el('a', { href: u.website, target: '_blank', rel: 'noopener', style: 'font-size:13px' }, u.website.replace(/^https?:\/\/(www\.)?/, '')) : null,
+    mehrBtn,
+    fakten.length
+      ? el('div', { class: 'uebersicht-fakten' },
+          fakten.map(([wert, label]) =>
+            el('div', {}, el('div', { class: 'uf-wert' }, wert), el('div', { class: 'uf-label' }, label))
+          )
+        )
+      : null
+  );
 }
 
 // Analysten-Historie: einzelne Banken mit Hoch-/Abstufungen
@@ -264,17 +340,20 @@ function renderRatings(a) {
         el('dt', {}, 'Rating'), el('dd', {}, latest.von && latest.von !== latest.zu ? `${latest.von} → ${latest.zu}` : latest.zu || '–')
       )
     ),
-    el('table', { class: 'data', style: 'margin-top:12px' },
-      el('thead', {}, el('tr', {},
-        el('th', {}, 'Datum'), el('th', {}, 'Analyst'), el('th', {}, 'Aktion'), el('th', {}, 'Rating')
-      )),
-      el('tbody', {},
-        a.ratings.slice(1).map((r) =>
-          el('tr', {},
-            el('td', { class: 'num', style: 'text-align:left' }, fmtDate(r.datum)),
-            el('td', {}, r.firma || '–'),
-            el('td', { class: aktionClass(r) }, r.aktion),
-            el('td', {}, r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–')
+    // Scroll-Container: schmale Panels dürfen die Tabelle nicht überlaufen lassen
+    el('div', { class: 'table-scroll' },
+      el('table', { class: 'data' },
+        el('thead', {}, el('tr', {},
+          el('th', {}, 'Datum'), el('th', {}, 'Analyst'), el('th', {}, 'Aktion'), el('th', {}, 'Rating')
+        )),
+        el('tbody', {},
+          a.ratings.slice(1).map((r) =>
+            el('tr', {},
+              el('td', { class: 'num', style: 'text-align:left' }, fmtDate(r.datum)),
+              el('td', {}, r.firma || '–'),
+              el('td', { class: aktionClass(r) }, r.aktion),
+              el('td', {}, r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–')
+            )
           )
         )
       )
@@ -358,7 +437,7 @@ function renderTechnik(a) {
   );
 }
 
-const RECO_COLORS = { strongBuy: '#3fb968', buy: '#8fce6f', hold: '#8a877a', sell: '#e0925f', strongSell: '#e66767' };
+const RECO_COLORS = { strongBuy: '#1fae72', buy: '#8fd695', hold: '#d6c063', sell: '#f0a35f', strongSell: '#f0616d' };
 const RECO_LABELS = { strongBuy: 'Strong Buy', buy: 'Kaufen', hold: 'Halten', sell: 'Verkaufen', strongSell: 'Strong Sell' };
 
 function renderAnalysten(a) {
@@ -401,6 +480,32 @@ function renderAnalysten(a) {
     );
   }
 
+  // Monatsverlauf der Empfehlungen als gestapelte Säulen (Yahoo-Stil)
+  let monthly = null;
+  if (an.trend?.length > 1) {
+    const keys = ['strongBuy', 'buy', 'hold', 'sell', 'strongSell'];
+    const maxTotal = Math.max(...an.trend.map((t) => keys.reduce((s, k) => s + (t[k] || 0), 0)), 1);
+    const cols = [...an.trend].reverse().map((t) => {
+      const total = keys.reduce((s, k) => s + (t[k] || 0), 0);
+      const monat = new Date();
+      monat.setMonth(monat.getMonth() + (parseInt(t.period, 10) || 0));
+      const stack = el('div', { class: 'reco-col-stack', style: `height:${Math.max(Math.round((total / maxTotal) * 100), 4)}%` },
+        keys.filter((k) => t[k] > 0).map((k) =>
+          el('span', { style: `flex:${t[k]};background:${RECO_COLORS[k]}`, title: `${RECO_LABELS[k]}: ${t[k]}` })
+        )
+      );
+      return el('div', { class: 'reco-col' },
+        el('span', { class: 'reco-col-total' }, String(total)),
+        el('div', { class: 'reco-col-plot' }, stack),
+        el('span', { class: 'reco-col-monat' }, monat.toLocaleDateString('de-DE', { month: 'short' }))
+      );
+    });
+    monthly = el('div', {},
+      el('div', { class: 'kpi-label', style: 'margin:16px 0 8px' }, 'Empfehlungen im Monatsverlauf'),
+      el('div', { class: 'reco-cols' }, cols)
+    );
+  }
+
   setChildren(box,
     el('h2', { class: 'panel-title' }, 'Analysten ', el('span', { class: 'hint' }, `· ${an.count ?? '?'} Analysten`)),
     el('div', { style: 'display:flex;align-items:baseline;gap:12px' },
@@ -410,6 +515,7 @@ function renderAnalysten(a) {
     ),
     bar,
     legend,
+    monthly,
     targetNode
   );
 }
@@ -470,7 +576,6 @@ function renderTermine(a) {
       children.push(el('div', { class: 'notice' }, `⚠ Quartalszahlen ${days === 0 ? 'heute' : `in ${days} Tag${days === 1 ? '' : 'en'}`} — erhöhte Kursschwankungen möglich.`));
     }
   }
-  if (a.beschreibung) children.push(el('p', { style: 'font-size:13px;color:var(--ink-3);margin:12px 0 0' }, a.beschreibung + ' …'));
   box.replaceChildren(...children);
 }
 

@@ -32,7 +32,6 @@ $('add-position').addEventListener('submit', async (e) => {
       symbol: picked.symbol,
       shares: form.shares.value,
       buyPrice: form.buyPrice.value || null,
-      buyDate: form.buyDate.value || null,
     });
     picked = null;
     form.reset();
@@ -66,8 +65,7 @@ async function renderPositions() {
         el('tr', {},
           el('th', {}, 'Wert'),
           el('th', { class: 'num' }, 'Stück'),
-          el('th', { class: 'num' }, 'Kaufkurs'),
-          el('th', {}, 'Kaufdatum'),
+          el('th', { class: 'num' }, 'Ø-Kaufkurs'),
           el('th', {}, '')
         )
       ),
@@ -77,7 +75,6 @@ async function renderPositions() {
             el('td', { class: 'name-cell' }, p.name, el('span', { class: 'sym' }, p.symbol)),
             el('td', { class: 'num' }, String(p.shares)),
             el('td', { class: 'num' }, fmtMoney(p.buyPrice, p.currency || p.waehrung)),
-            el('td', {}, fmtDate(p.buyDate)),
             el('td', { style: 'text-align:right;white-space:nowrap' },
               el('button', { class: 'btn ghost small', type: 'button', onclick: () => editPosition(p, row) }, 'Ändern'),
               ' ',
@@ -100,7 +97,7 @@ function editPosition(p, row) {
   const priceInput = el('input', { type: 'number', step: 'any', min: '0', value: p.buyPrice ?? '', style: 'width:110px' });
   row.children[1].replaceChildren(sharesInput);
   row.children[2].replaceChildren(priceInput);
-  row.children[4].replaceChildren(
+  row.children[3].replaceChildren(
     el('button', { class: 'btn small', type: 'button', onclick: async () => {
       await api.patch(`/api/positions/${p.id}`, {
         shares: Number(sharesInput.value),

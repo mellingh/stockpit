@@ -1,8 +1,8 @@
 /* ============================================================
    AKTIEN-COCKPIT — Design-System
-   Richtung: dunkles Handels-Terminal trifft Wirtschaftszeitung.
-   Warmes Anthrazit, Elfenbein-Text, Bernstein-Akzent,
-   Fraunces für große Zahlen, Mono für Kursdaten.
+   Richtung: TradingView/Finviz Dark Mode — neutrales Schwarz/Grau,
+   Weiß für Text, Grün/Rot für den Markt, Blau als Akzent.
+   Klare Sans (Instrument Sans) + Mono für Kursdaten.
    ============================================================ */
 
 @font-face {
@@ -27,26 +27,27 @@
 :root {
   color-scheme: dark;
 
-  /* Flächen — Hintergrund nahe Schwarz, Panels heben sich klarer ab */
-  --bg: #0c0c0b;
-  --panel: #171715;
-  --panel-2: #21211e;
-  --line: #2e2e29;
-  --line-strong: #403f38;
+  /* Flächen — neutrales Schwarz/Grau wie TradingView Dark */
+  --bg: #0b0e13;
+  --panel: #141821;
+  --panel-2: #1c212d;
+  --line: #262c3a;
+  --line-strong: #363e50;
 
-  /* Text — mehr Kontrast auf dunklem Grund */
-  --ink: #f6f4ec;
-  --ink-2: #c6c2b4;
-  --ink-3: #94907f;
+  /* Text — weiß/grau, hoher Kontrast */
+  --ink: #eceff5;
+  --ink-2: #aeb4c2;
+  --ink-3: #7b8294;
 
-  /* Akzent & Status */
-  --accent: #e5a83b;
-  --accent-soft: rgba(229, 168, 59, 0.14);
-  --up: #3fb968;
-  --up-soft: rgba(63, 185, 104, 0.13);
-  --down: #e66767;
-  --down-soft: rgba(230, 103, 103, 0.13);
-  --neutral: #8a877a;
+  /* Akzent (blau) & Marktfarben (grün/rot) */
+  --accent: #4c8dff;
+  --accent-soft: rgba(76, 141, 255, 0.13);
+  --up: #22c07e;
+  --up-soft: rgba(34, 192, 126, 0.12);
+  --down: #f0616d;
+  --down-soft: rgba(240, 97, 109, 0.12);
+  --neutral: #7b8294;
+  --warn: #e5a83b;
 
   /* Kategorien-Palette (validiert, dark) */
   --cat-1: #3987e5;
@@ -58,7 +59,8 @@
   --cat-7: #9085e9;
   --cat-8: #e66767;
 
-  --font-display: 'Fraunces', Georgia, serif;
+  /* Klare Sans-Hierarchie wie TradingView/Finviz — Gewicht statt Serifen */
+  --font-display: 'Instrument Sans', system-ui, sans-serif;
   --font-body: 'Instrument Sans', system-ui, sans-serif;
   --font-mono: 'Spline Sans Mono', ui-monospace, monospace;
 
@@ -75,8 +77,8 @@ body {
   margin: 0;
   min-height: 100%;
   background:
-    radial-gradient(1200px 500px at 70% -10%, rgba(229, 168, 59, 0.05), transparent 60%),
-    radial-gradient(900px 600px at -10% 110%, rgba(57, 135, 229, 0.04), transparent 55%),
+    radial-gradient(1200px 500px at 70% -10%, rgba(76, 141, 255, 0.05), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(34, 192, 126, 0.03), transparent 55%),
     var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
@@ -99,7 +101,7 @@ body::before {
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-::selection { background: var(--accent); color: #171205; }
+::selection { background: var(--accent); color: #fff; }
 
 /* ---------- Kopfzeile ---------- */
 
@@ -112,7 +114,7 @@ a:hover { text-decoration: underline; }
   gap: 28px;
   padding: 0 28px;
   height: 58px;
-  background: rgba(12, 12, 11, 0.92);
+  background: rgba(11, 14, 19, 0.92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -287,7 +289,7 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 table.data th {
   text-align: left;
@@ -324,9 +326,9 @@ table.data th.num { text-align: right; }
 /* ---------- Ampel & Badges ---------- */
 
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.dot.green { background: var(--up); box-shadow: 0 0 8px rgba(63,185,104,0.5); }
-.dot.yellow { background: var(--accent); box-shadow: 0 0 8px rgba(229,168,59,0.4); }
-.dot.red { background: var(--down); box-shadow: 0 0 8px rgba(230,103,103,0.5); }
+.dot.green { background: var(--up); box-shadow: 0 0 8px rgba(34,192,126,0.5); }
+.dot.yellow { background: var(--warn); box-shadow: 0 0 8px rgba(229,168,59,0.4); }
+.dot.red { background: var(--down); box-shadow: 0 0 8px rgba(240,97,109,0.5); }
 .dot.gray { background: var(--neutral); }
 
 .badge {
@@ -345,7 +347,7 @@ table.data th.num { text-align: right; }
 .badge.s-pos { color: var(--up); border-color: rgba(63,185,104,0.35); background: var(--up-soft); }
 .badge.s-neg { color: var(--down); border-color: rgba(230,103,103,0.35); background: var(--down-soft); }
 .badge.s-neu { color: var(--ink-2); background: var(--panel-2); }
-.badge.cat { color: var(--accent); border-color: rgba(229,168,59,0.3); background: var(--accent-soft); }
+.badge.cat { color: var(--accent); border-color: rgba(76,141,255,0.3); background: var(--accent-soft); }
 .badge.chip { font-family: var(--font-mono); font-size: 11px; }
 
 /* ---------- News-Feed ---------- */
@@ -367,7 +369,7 @@ table.data th.num { text-align: right; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.news-title { font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.news-title { font-size: 14px; font-weight: 600; line-height: 1.35; }
 .news-title a { color: var(--ink); }
 .news-title a:hover { color: var(--accent); text-decoration: none; }
 .news-badges { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -398,7 +400,7 @@ table.data th.num { text-align: right; }
 /* Wichtigkeits-Sterne (Wirtschaftskalender) */
 .stars { font-size: 13px; letter-spacing: 1px; white-space: nowrap; }
 .stars.s3 { color: var(--down); }
-.stars.s2 { color: var(--accent); }
+.stars.s2 { color: var(--warn); }
 .stars.s1 { color: var(--ink-3); }
 
 /* Kalender-Tabelle: Tages-Trennzeilen wie bei investing.com */
@@ -445,7 +447,7 @@ label.field { display: grid; gap: 5px; font-size: 12px; color: var(--ink-3); fon
 
 button.btn {
   background: var(--accent);
-  color: #171205;
+  color: #fff;
   font-weight: 700;
   border: none;
   border-radius: var(--radius-sm);
@@ -573,7 +575,7 @@ button:disabled { opacity: 0.5; cursor: wait; }
   font-size: 12px;
   cursor: pointer;
 }
-.chart-toolbar .rng.active { background: var(--accent); border-color: var(--accent); color: #171205; font-weight: 600; }
+.chart-toolbar .rng.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .chart-legend { margin-left: auto; display: flex; gap: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
 .chart-legend .swatch { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; }
 #chart { height: 420px; }
@@ -585,7 +587,7 @@ button:disabled { opacity: 0.5; cursor: wait; }
   top: 0; left: 0;
   z-index: 20;
   pointer-events: none;
-  background: rgba(23, 23, 21, 0.97);
+  background: rgba(20, 24, 33, 0.97);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -669,6 +671,53 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
 .reco-legend i { font-style: normal; display: inline-flex; align-items: center; gap: 5px; }
 .reco-legend .sq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 
+/* Kennzahlen-Zeile unter dem Chart (Yahoo-Stil) */
+.quote-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0 26px;
+}
+.qs-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+}
+.qs-label { color: var(--ink-3); }
+.qs-value {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 0;
+}
+
+/* Firmen-Übersicht (Yahoo-Stil) */
+.uebersicht-text { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; margin: 0 0 10px; }
+.uebersicht-fakten {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+  margin-top: 16px;
+}
+.uf-wert { font-weight: 700; font-size: 15px; }
+.uf-label { font-size: 12px; color: var(--ink-3); }
+
+/* Analysten: Empfehlungen im Monatsverlauf (gestapelte Säulen) */
+.reco-cols { display: flex; gap: 18px; height: 150px; }
+.reco-col { display: flex; flex-direction: column; align-items: center; width: 44px; }
+.reco-col-total { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); margin-bottom: 4px; }
+.reco-col-plot { flex: 1; width: 26px; display: flex; align-items: flex-end; min-height: 0; }
+.reco-col-stack { display: flex; flex-direction: column-reverse; width: 100%; border-radius: 4px; overflow: hidden; gap: 1px; }
+.reco-col-stack span { display: block; min-height: 2px; }
+.reco-col-monat { font-size: 11px; color: var(--ink-3); margin-top: 6px; text-transform: capitalize; }
+
+/* Breite Tabellen scrollen im eigenen Container statt zu überlaufen */
+.table-scroll { overflow-x: auto; margin-top: 12px; }
+
 /* Kursziel-Spanne */
 .target-range { margin-top: 14px; }
 .target-track { position: relative; height: 6px; border-radius: 3px; background: var(--panel-2); }
@@ -691,7 +740,7 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
 .termine-strip { display: flex; flex-wrap: wrap; gap: 10px; }
 .termin {
   display: flex; align-items: center; gap: 10px;
-  border: 1px solid rgba(229,168,59,0.35);
+  border: 1px solid rgba(76,141,255,0.35);
   background: var(--accent-soft);
   border-radius: var(--radius-sm);
   padding: 8px 14px;
