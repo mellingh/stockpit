@@ -173,9 +173,9 @@ a:hover { text-decoration: underline; }
 /* ---------- Seitengerüst ---------- */
 
 .page {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 30px 28px 80px;
+  padding: 26px 28px 70px;
 }
 
 .masthead { margin: 18px 0 26px; animation: rise 0.5s ease both; }
@@ -578,7 +578,7 @@ button:disabled { opacity: 0.5; cursor: wait; }
 .chart-toolbar .rng.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .chart-legend { margin-left: auto; display: flex; gap: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
 .chart-legend .swatch { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; }
-#chart { height: 420px; }
+#chart { height: 380px; }
 
 /* OHLCV-Tooltip im Chart */
 .chart-tooltip {
@@ -695,7 +695,41 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
   min-width: 0;
 }
 
-/* Firmen-Übersicht (Yahoo-Stil) */
+/* Firmen-Übersicht + Snowflake (SWS-Stil, Querkarte) */
+.ov-wrap {
+  display: grid;
+  grid-template-columns: 1.5fr auto;
+  gap: 10px 34px;
+  align-items: start;
+}
+@media (max-width: 820px) { .ov-wrap { grid-template-columns: 1fr; } }
+.ov-punkt { font-size: 13px; padding: 3px 0; }
+.ov-rechts { display: grid; justify-items: center; gap: 4px; }
+.ov-fazit { font-size: 12.5px; color: var(--ink-2); text-align: center; max-width: 240px; }
+
+.radar .radar-ring { fill: none; stroke: var(--line); stroke-width: 1; }
+.radar .radar-shape { fill: rgba(76, 141, 255, 0.35); stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.radar .radar-label { fill: var(--ink-3); font-size: 9px; font-family: var(--font-body); letter-spacing: 0.08em; font-weight: 600; }
+
+/* Aufklappbare Bereiche (details/summary) */
+details.clap { margin-top: 12px; border-top: 1px solid var(--line); }
+details.clap > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  user-select: none;
+}
+details.clap > summary::-webkit-details-marker { display: none; }
+details.clap > summary::before { content: '▸ '; }
+details.clap[open] > summary::before { content: '▾ '; }
+details.clap > summary:hover { text-decoration: underline; }
+
+/* Gesamteinschätzung */
+.gsub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
 .uebersicht-text { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; margin: 0 0 10px; }
 .uebersicht-fakten {
   display: grid;
@@ -748,6 +782,7 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
   color: var(--ink);
 }
 .termin:hover { text-decoration: none; border-color: var(--accent); }
+button.termin { cursor: pointer; font-family: var(--font-body); font-size: 13px; }
 .termin b { font-family: var(--font-mono); font-weight: 600; }
 .termin .days { color: var(--accent); font-weight: 700; }
 .termin .termin-datum { color: var(--ink-2); font-family: var(--font-mono); font-size: 12px; }
@@ -812,7 +847,7 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
 /* ---------- Fußzeile ---------- */
 
 footer.foot {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 26px 28px 40px;
   border-top: 1px solid var(--line);

@@ -14,6 +14,8 @@ import { classify, sentimentStatus, preload } from './sentiment.js';
 import { categorize, mapAffected, priceReaction, explain, overallAssessment, isRelevant } from './analysis.js';
 import { getTrials } from './trials.js';
 import { getCalendar } from './calendar.js';
+import { getRatingsWithTargets } from './ratings.js';
+import { computeSnowflake } from './snowflake.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PORT = process.env.PORT || 3001;
@@ -180,18 +182,24 @@ app.get(
         }
       : null;
 
-    // Analysten-Historie: einzelne Hoch-/Abstufungen mit Bank-Name.
-    // (Kursziele je einzelner Bank gibt es kostenlos nicht — nur den Konsens.)
+    // Analysten-Historie: bevorzugt stockanalysis.com (mit Kursziel je Bank,
+    // nur US-Ticker), sonst Yahoo (ohne Kursziele).
     const ACTION_LABELS = { up: 'Hochgestuft', down: 'Abgestuft', main: 'Bestätigt', reit: 'Bekräftigt', init: 'Neu aufgenommen' };
-    const ratings = (summary?.upgradeDowngradeHistory?.history ?? [])
-      .slice(0, 12)
-      .map((r) => ({
-        datum: r.epochGradeDate ?? null,
-        firma: r.firm,
-        aktion: ACTION_LABELS[r.action] ?? r.action ?? '',
-        von: r.fromGrade || null,
-        zu: r.toGrade || null,
-      }));
+    let ratings = await getRatingsWithTargets(symbol).catch(() => null);
+    let ratingsQuelle = 'stockanalysis.com';
+    if (!ratings) {
+      ratingsQuelle = 'Yahoo (ohne Kursziele)';
+      ratings = (summary?.upgradeDowngradeHistory?.history ?? [])
+        .slice(0, 12)
+        .map((r) => ({
+          datum: r.epochGradeDate ?? null,
+          firma: r.firm,
+          aktion: ACTION_LABELS[r.action] ?? r.action ?? '',
+          von: r.fromGrade || null,
+          zu: r.toGrade || null,
+          kursziel: null,
+        }));
+    }
 
     // Kennzahlen im Finviz-Stil (Yahoo-Rohdaten + eigene Berechnungen)
     const kennzahlen = isEtf
@@ -282,6 +290,9 @@ app.get(
       newsSentiments: news.map((n) => n.sentiment).filter((s) => !s.unavailable),
     });
 
+    // Snowflake-Profil (Simply-Wall-St-Stil) — nur für Aktien
+    const snowflake = computeSnowflake({ fundamental, kennzahlen, analysts, technik, termine });
+
     res.json({
       symbol,
       name,
@@ -317,7 +328,9 @@ app.get(
       fundamental,
       analysts,
       ratings,
+      ratingsQuelle,
       kennzahlen,
+      snowflake,
       termine,
       etf,
       trials,
@@ -360,8 +373,13 @@ app.get(
           ampel = analyzeTechnicals(history)?.ampel ?? null;
         } catch {}
 
+        // Für die Sektor-Allokation: ETF eigener Topf, Aktien nach Sektor
+        const istEtf = quote?.quoteType === 'ETF';
+        const sektor = istEtf ? 'ETFs' : (await getSector(pos.symbol)) ?? 'Sonstige';
+
         return {
           ...pos,
+          sektor,
           name: displayName(quote, pos.name || pos.symbol),
           preis: price,
           waehrung: quote?.currency ?? null,
@@ -428,9 +446,28 @@ app.get(
     }
     upcoming.sort((a, b) => a.days - b.days);
 
+    // Allokation nach Sektor (ETFs als eigene Gruppe) statt Einzelwerten
+    const SEKTOR_DE = {
+      Technology: 'Technologie', Healthcare: 'Biotech/Healthcare', 'Financial Services': 'Fintech/Finanzen',
+      'Consumer Cyclical': 'Konsum (zyklisch)', 'Consumer Defensive': 'Konsum (defensiv)', Energy: 'Energie',
+      Industrials: 'Industrie', 'Basic Materials': 'Rohstoffe', Utilities: 'Versorger',
+      'Communication Services': 'Kommunikation', 'Real Estate': 'Immobilien', ETFs: 'ETFs', Sonstige: 'Sonstige',
+    };
+    const sektorMap = new Map();
+    for (const p of positions) {
+      if (p.valueEur == null) continue;
+      const key = SEKTOR_DE[p.sektor] ?? p.sektor;
+      const eintrag = sektorMap.get(key) ?? { label: key, valueEur: 0, symbole: [] };
+      eintrag.valueEur += p.valueEur;
+      eintrag.symbole.push(p.symbol);
+      sektorMap.set(key, eintrag);
+    }
+    const allokation = [...sektorMap.values()].sort((a, b) => b.valueEur - a.valueEur);
+
     res.json({
       fx,
       totalEur,
+      allokation,
       gewinnEur: totalEur - costEur,
       gewinnPct: costEur ? ((totalEur - costEur) / costEur) * 100 : null,
       dayChangeEur,

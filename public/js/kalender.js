@@ -94,9 +94,13 @@ document.querySelectorAll('[data-day]').forEach((btn) => {
   });
 });
 
-document.getElementById('imp-select').addEventListener('change', (e) => {
-  impFilter = e.target.value;
-  render();
+document.querySelectorAll('[data-imp]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-imp]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    impFilter = btn.dataset.imp;
+    render();
+  });
 });
 
 api

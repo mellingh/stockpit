@@ -23,6 +23,7 @@ Lokales Aktien-Portfolio-Dashboard für Micha (GitHub: mellingh). Deutsch als UI
 | RSS (CNBC, MarketWatch, tagesschau) | Makro-News | Liste in `news.js` `MACRO_FEEDS` |
 | clinicaltrials.gov API v2 | Studien bei Healthcare-Aktien | Sponsor-Suche ist wortbasiert („Moderna“ findet „ModernaTX“ nicht) → Fallback über `query.term` + Sponsor-Filter ist in `trials.js` eingebaut |
 | investing.com-Widget (`sslecal2.investing.com`, lang=8=Deutsch) | Wirtschaftskalender **mit Aktuell-Werten** | blockt Node-Fetch per TLS-Fingerprint (403) → Server ruft `curl` auf (ab Win10 vorinstalliert); Fallback: ForexFactory-Feed (`nfs.faireconomy.media/ff_calendar_thisweek.json`, ohne Aktuell) |
+| stockanalysis.com (`/stocks/{ticker}/ratings/`, serverseitig gerendert) | Analysten-Ratings **mit Kursziel je Bank** | nur US-Ticker (mit Suffix → Yahoo-Fallback ohne Kursziele); Spalten von hinten parsen (vorne Mobil-Duplikate) |
 | TradingView Lightweight Charts (aus node_modules über `/vendor` serviert) | Candlestick-Chart | Marker pro Tag bündeln (sonst stapeln sie sich) |
 
 ## Produktentscheidungen (nicht rückgängig machen / nicht wieder vorschlagen)
@@ -31,6 +32,9 @@ Lokales Aktien-Portfolio-Dashboard für Micha (GitHub: mellingh). Deutsch als UI
 - **News-Relevanz-Filter** (`analysis.js` → `isRelevant`): Portfolio-/Watchlist-News immer und zuerst; Makro nur bei Marktbewegern (Fed/EZB/Zins/Inflation/Geopolitik/Präsident); Fokus-Sektoren **Fintech, Biotech, Tech** (Michas Schwerpunkte); Ratgeber-/Boulevard-Artikel raus.
 - Kursziele je einzelner Bank gibt es kostenlos nicht → nur Konsens-Spanne + Rating-Historie je Bank zeigen; ehrlich kommunizieren.
 - Gesamteinschätzung = Technik + Analysten + News-Sentiment, jede Komponente offen begründet (keine Blackbox).
+- **Snowflake-Analyse** (`server/snowflake.js`, SWS-Stil): 5 Dimensionen (Wert/Zukunft/Vergangenheit/Bilanz/Dividende) je 0–5, regelbasiert, plus Stärken/Risiken in Klartext — in der Übersichts-Querkarte der Analyse-Seite mit SVG-Radar (`radarChart` in ui.js).
+- Dashboard-Allokation gruppiert nach **Sektor** (ETFs eigener Topf), nicht nach Einzelwerten; Klumpenrisiko-Warnung bei >50 % in einer Position.
+- Platzsparen mit `<details>`-Akkordeons (`collapsible()` in ui.js) — Micha mag aufklappbare Elemente; nichts darf horizontal scrollen (Seite max 1440px, 3-spaltiges Grid).
 - Seeking Alpha, nasdaq.com, nyse.com, justETF: geprüft und verworfen (Paywall/redundant).
 
 ## Konventionen

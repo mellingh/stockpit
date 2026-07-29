@@ -5,6 +5,7 @@ import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
   signClass, sentimentBadge, categoryBadge, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, makeExplainable,
+  radarChart, collapsible,
 } from './ui.js';
 
 markActiveNav();
@@ -204,11 +205,13 @@ async function loadReport(symbol) {
   const gCard = $('r-gesamt');
   const gDetail = $('r-gesamt-detail');
   if (g) {
+    // Verständlich statt kryptisch: farbiges Urteil + "Score X von 100"
+    const scoreCls = g.ampel === 'green' ? 'pos' : g.ampel === 'red' ? 'neg' : '';
     gCard.replaceChildren(
-      ampelDot(g.ampel),
       el('div', {},
         el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
-        el('div', { class: 'gscore' }, `${AMPEL_TEXT[g.ampel]} · ${g.score > 0 ? '+' : ''}${g.score}`)
+        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel]),
+        el('div', { class: 'gsub' }, `Score ${g.score > 0 ? '+' : ''}${g.score} von 100 · Klick für Begründung`)
       )
     );
     gDetail.replaceChildren(
@@ -275,50 +278,77 @@ function renderQuoteStrip(a) {
   );
 }
 
-// Firmen-Übersicht wie bei Yahoo Finance
+// Firmen-Übersicht + Snowflake-Analyse (Simply-Wall-St-Stil) als Querkarte
 function renderUebersicht(a) {
   const box = $('p-uebersicht');
   const u = a.uebersicht;
-  if (!u || (!u.beschreibung && !u.website)) {
+  const sf = a.snowflake;
+  if ((!u || !u.beschreibung) && !sf) {
     box.hidden = true;
     return;
   }
   box.hidden = false;
-  const kurz = u.beschreibung && u.beschreibung.length > 480 ? u.beschreibung.slice(0, 480) + ' …' : u.beschreibung;
-  const textNode = el('p', { class: 'uebersicht-text' }, kurz || '');
-  let expanded = false;
-  const mehrBtn =
-    u.beschreibung && u.beschreibung.length > 480
-      ? el('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-          expanded = !expanded;
-          textNode.textContent = expanded ? u.beschreibung : kurz;
-          mehrBtn.textContent = expanded ? 'Weniger anzeigen' : 'Mehr anzeigen';
-        } }, 'Mehr anzeigen')
-      : null;
 
-  const fakten = [
-    u.mitarbeiter != null ? [fmtNum(u.mitarbeiter, 0), 'Vollzeitmitarbeiter'] : null,
-    u.geschaeftsjahresende ? [new Date(u.geschaeftsjahresende).toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }), 'Geschäftsjahresende'] : null,
-    a.sektor ? [a.sektor, 'Sektor'] : null,
-    a.branche ? [a.branche, 'Branche'] : null,
-  ].filter(Boolean);
-
-  setChildren(box,
-    el('h2', { class: 'panel-title' }, `${a.name} — Übersicht`),
-    textNode,
-    u.website ? el('a', { href: u.website, target: '_blank', rel: 'noopener', style: 'font-size:13px' }, u.website.replace(/^https?:\/\/(www\.)?/, '')) : null,
-    mehrBtn,
-    fakten.length
-      ? el('div', { class: 'uebersicht-fakten' },
-          fakten.map(([wert, label]) =>
-            el('div', {}, el('div', { class: 'uf-wert' }, wert), el('div', { class: 'uf-label' }, label))
-          )
+  // Linke Seite: Kurzbeschreibung + Stärken/Risiken
+  const kurz = u?.beschreibung && u.beschreibung.length > 260 ? u.beschreibung.slice(0, 260) + ' …' : u?.beschreibung;
+  const links = el('div', { class: 'ov-links' },
+    el('p', { class: 'uebersicht-text' }, kurz || ''),
+    sf?.staerken?.length
+      ? el('div', {},
+          el('div', { class: 'kpi-label', style: 'margin:10px 0 6px' }, 'Stärken'),
+          sf.staerken.map((t) => el('div', { class: 'ov-punkt pos' }, '▲ ', t))
+        )
+      : null,
+    sf?.risiken?.length
+      ? el('div', {},
+          el('div', { class: 'kpi-label', style: 'margin:10px 0 6px' }, 'Risiken'),
+          sf.risiken.map((t) => el('div', { class: 'ov-punkt neg' }, '▼ ', t))
         )
       : null
   );
+
+  // Rechte Seite: Snowflake-Radar + Fazit
+  const rechts = sf
+    ? el('div', { class: 'ov-rechts' },
+        radarChart([
+          { label: 'WERT', value: sf.scores.wert },
+          { label: 'ZUKUNFT', value: sf.scores.zukunft },
+          { label: 'VERGANGENH.', value: sf.scores.vergangenheit },
+          { label: 'BILANZ', value: sf.scores.bilanz },
+          { label: 'DIVIDENDE', value: sf.scores.dividende },
+        ]),
+        el('div', { class: 'ov-fazit' }, sf.fazit)
+      )
+    : null;
+
+  // Aufklappbarer Detail-Teil (Yahoo-Stil): volle Beschreibung + Firmenfakten
+  const fakten = [
+    u?.mitarbeiter != null ? [fmtNum(u.mitarbeiter, 0), 'Vollzeitmitarbeiter'] : null,
+    u?.geschaeftsjahresende ? [new Date(u.geschaeftsjahresende).toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }), 'Geschäftsjahresende'] : null,
+    a.sektor ? [a.sektor, 'Sektor'] : null,
+    a.branche ? [a.branche, 'Branche'] : null,
+  ].filter(Boolean);
+  const detail = collapsible(
+    'Mehr zur Firma',
+    el('div', { style: 'padding-top:10px' },
+      u?.beschreibung ? el('p', { class: 'uebersicht-text' }, u.beschreibung) : null,
+      u?.website ? el('a', { href: u.website, target: '_blank', rel: 'noopener', style: 'font-size:13px' }, u.website.replace(/^https?:\/\/(www\.)?/, '')) : null,
+      fakten.length
+        ? el('div', { class: 'uebersicht-fakten' },
+            fakten.map(([wert, label]) => el('div', {}, el('div', { class: 'uf-wert' }, wert), el('div', { class: 'uf-label' }, label)))
+          )
+        : null
+    )
+  );
+
+  setChildren(box,
+    el('h2', { class: 'panel-title' }, `${a.name} — Übersicht`, sf ? el('span', { class: 'hint' }, ' · Snowflake: 5 Dimensionen à 0–5 Punkte') : null),
+    el('div', { class: 'ov-wrap' }, links, rechts),
+    detail
+  );
 }
 
-// Analysten-Historie: einzelne Banken mit Hoch-/Abstufungen
+// Analysten-Historie: volle Breite, mit Kursziel je Bank (stockanalysis.com)
 function renderRatings(a) {
   const box = $('p-ratings');
   if (!a.ratings?.length) {
@@ -328,42 +358,53 @@ function renderRatings(a) {
   box.hidden = false;
   const latest = a.ratings[0];
   const aktionClass = (r) => (r.aktion === 'Hochgestuft' ? 'pos' : r.aktion === 'Abgestuft' ? 'neg' : '');
+  const hatKursziele = a.ratings.some((r) => r.kursziel != null);
 
-  box.replaceChildren(
-    el('h2', { class: 'panel-title' }, 'Analysten-Historie', el('span', { class: 'hint' }, ' · einzelne Banken')),
-    // "Aktuelle Bewertung" — wie bei Trade Republic
+  const zeile = (r) =>
+    el('tr', {},
+      el('td', { class: 'num', style: 'text-align:left' }, fmtDate(r.datum)),
+      el('td', {}, r.firma || '–'),
+      el('td', { class: aktionClass(r) }, r.aktion),
+      el('td', {}, r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–'),
+      hatKursziele ? el('td', { class: 'num' }, r.kursziel != null ? fmtMoney(r.kursziel, a.currency) : '–') : null
+    );
+
+  const kopf = el('thead', {}, el('tr', {},
+    el('th', {}, 'Datum'), el('th', {}, 'Analyst'), el('th', {}, 'Aktion'), el('th', {}, 'Rating'),
+    hatKursziele ? el('th', { class: 'num' }, 'Kursziel') : null
+  ));
+
+  const erste = a.ratings.slice(1, 7);
+  const rest = a.ratings.slice(7);
+  const tbody = el('tbody', {}, erste.map(zeile));
+  let mehrBtn = null;
+  if (rest.length) {
+    mehrBtn = el('button', { class: 'btn ghost small', type: 'button', style: 'margin-top:10px', onclick: () => {
+      rest.forEach((r) => tbody.append(zeile(r)));
+      mehrBtn.remove();
+    } }, `${rest.length} ältere anzeigen`);
+  }
+
+  setChildren(box,
+    el('h2', { class: 'panel-title' }, 'Analysten-Historie',
+      el('span', { class: 'hint' }, ` · einzelne Banken · Quelle: ${a.ratingsQuelle || '–'}`)),
     el('div', { class: 'rating-card' },
       el('dl', { class: 'facts' },
         el('dt', {}, 'Datum'), el('dd', {}, fmtDate(latest.datum)),
         el('dt', {}, 'Analyst'), el('dd', {}, latest.firma || '–'),
         el('dt', {}, 'Aktion'), el('dd', { class: aktionClass(latest) }, latest.aktion || '–'),
-        el('dt', {}, 'Rating'), el('dd', {}, latest.von && latest.von !== latest.zu ? `${latest.von} → ${latest.zu}` : latest.zu || '–')
+        el('dt', {}, 'Rating'), el('dd', {}, latest.zu || '–'),
+        latest.kursziel != null ? el('dt', {}, 'Kursziel') : null,
+        latest.kursziel != null ? el('dd', {}, fmtMoney(latest.kursziel, a.currency)) : null
       )
     ),
-    // Scroll-Container: schmale Panels dürfen die Tabelle nicht überlaufen lassen
-    el('div', { class: 'table-scroll' },
-      el('table', { class: 'data' },
-        el('thead', {}, el('tr', {},
-          el('th', {}, 'Datum'), el('th', {}, 'Analyst'), el('th', {}, 'Aktion'), el('th', {}, 'Rating')
-        )),
-        el('tbody', {},
-          a.ratings.slice(1).map((r) =>
-            el('tr', {},
-              el('td', { class: 'num', style: 'text-align:left' }, fmtDate(r.datum)),
-              el('td', {}, r.firma || '–'),
-              el('td', { class: aktionClass(r) }, r.aktion),
-              el('td', {}, r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–')
-            )
-          )
-        )
-      )
-    ),
-    el('div', { class: 'notice', style: 'margin-top:12px' },
-      'Kursziele einzelner Banken sind nur in Bezahl-Datenbanken verfügbar — die Konsens-Spanne steht im Analysten-Panel.')
+    el('div', { class: 'table-scroll' }, el('table', { class: 'data' }, kopf, tbody)),
+    mehrBtn,
+    !hatKursziele ? el('div', { class: 'notice', style: 'margin-top:10px' }, 'Für diesen Wert sind keine Kursziele je Bank frei verfügbar — die Konsens-Spanne steht im Analysten-Panel.') : null
   );
 }
 
-// Kennzahlen im Finviz-Stil
+// Kennzahlen im Finviz-Stil — aufklappbar, um Platz zu sparen
 function renderKennzahlen(a) {
   const box = $('p-kennzahlen');
   const k = a.kennzahlen;
@@ -394,7 +435,6 @@ function renderKennzahlen(a) {
     ['Volumen heute', fmtCompact(k.volumen)],
     ['Volumen (Ø)', fmtCompact(k.volumenSchnitt)],
   ];
-
   const perf = k.performance || {};
   const smaAb = k.smaAbstand || {};
   const perfRows = [
@@ -403,21 +443,21 @@ function renderKennzahlen(a) {
     ['Abstand SMA20', smaAb.sma20], ['Abstand SMA50', smaAb.sma50], ['Abstand SMA200', smaAb.sma200],
   ];
 
-  box.replaceChildren(
+  setChildren(box,
     el('h2', { class: 'panel-title' }, 'Kennzahlen', el('span', { class: 'hint' }, ' · Finviz-Stil')),
-    el('div', { class: 'facts-2col' },
-      el('dl', { class: 'facts' }, facts1.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
-      el('dl', { class: 'facts' }, facts2.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
-    ),
-    el('div', { class: 'kpi-label', style: 'margin:16px 0 6px' }, 'Performance & Trend-Abstand'),
+    el('div', { class: 'kpi-label', style: 'margin:0 0 6px' }, 'Performance & Trend-Abstand'),
     el('div', { class: 'facts-2col' },
       el('dl', { class: 'facts' }, perfRows.slice(0, 5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)])),
       el('dl', { class: 'facts' }, perfRows.slice(5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)]))
+    ),
+    collapsible('Alle Kennzahlen anzeigen',
+      el('div', { class: 'facts-2col', style: 'padding-top:10px' },
+        el('dl', { class: 'facts' }, facts1.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
+        el('dl', { class: 'facts' }, facts2.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
+      )
     )
   );
 }
-
-// ---------- Panels ----------
 
 function renderTechnik(a) {
   const box = $('p-technik');
@@ -585,8 +625,7 @@ function renderNews(a) {
   if (!a.news?.length) {
     children.push(el('div', { class: 'empty' }, 'Keine aktuellen News gefunden.'));
   } else {
-    children.push(
-      ...a.news.map((n) =>
+    const newsNode = (n) =>
         el('article', { class: 'news-item' },
           el('div', { class: 'news-meta' }, el('span', {}, n.source || '—'), el('span', {}, fmtAgo(n.pubDate))),
           el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
@@ -601,9 +640,13 @@ function renderNews(a) {
             n
           ),
           n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
-        )
-      )
-    );
+        );
+
+    // Platz sparen: erst 5 News, Rest aufklappbar
+    children.push(...a.news.slice(0, 5).map(newsNode));
+    if (a.news.length > 5) {
+      children.push(collapsible(`${a.news.length - 5} weitere News anzeigen`, a.news.slice(5).map(newsNode)));
+    }
   }
   box.replaceChildren(...children);
 }

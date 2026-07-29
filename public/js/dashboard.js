@@ -2,7 +2,7 @@
 // Termin-Radar und der KI-bewertete News-Feed.
 import { api } from './api.js';
 import {
-  el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, signClass, sentimentBadge, categoryBadge,
+  el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass, sentimentBadge, categoryBadge,
   ampelDot, AMPEL_TEXT, sparkline, donut, CAT_COLORS, markActiveNav, makeExplainable,
 } from './ui.js';
 
@@ -60,35 +60,65 @@ async function loadDashboard() {
   set('kpi-day', hasPositions ? fmtEur(d.dayChangeEur) : '—', signClass(d.dayChangeEur));
   document.getElementById('kpi-day-pct').textContent = d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : '';
 
-  // Termin-Radar: Was steht an, wann genau, was wird erwartet
+  // Termin-Radar: kompakte Chips, Klick klappt Details auf
   if (d.termine?.length) {
-    const fmtTermin = (t) => {
+    const strip = el('div', { class: 'termine-strip' });
+    const detailBox = el('div');
+    let offenesDetail = null;
+
+    for (const t of d.termine) {
       const datum = new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
       const wann = t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`;
-      return { datum, wann };
-    };
+      const chip = el('button', { class: `termin${t.days <= 2 ? ' soon' : ''}`, type: 'button', title: 'Klicken für Details' },
+        el('b', {}, t.symbol),
+        el('span', {},
+          el('span', { class: 'termin-typ' }, t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
+          el('span', { class: 'termin-datum' }, ` · ${datum}`)
+        ),
+        el('span', { class: 'days' }, wann)
+      );
+      chip.addEventListener('click', () => {
+        if (offenesDetail === t) {
+          detailBox.replaceChildren();
+          offenesDetail = null;
+          return;
+        }
+        offenesDetail = t;
+        const zeit = new Date(t.date).toLocaleString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+        const fakten = [
+          ['Unternehmen', t.name],
+          ['Ereignis', t.typ],
+          ['Termin', `${zeit} Uhr`],
+          t.epsErwartet != null ? ['Erwartetes EPS', Number(t.epsErwartet).toFixed(2)] : null,
+          t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
+        ].filter(Boolean);
+        detailBox.replaceChildren(
+          el('div', { class: 'news-explain-detail', style: 'margin-top:10px' },
+            el('dl', { class: 'facts' }, fakten.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
+            t.typ === 'Quartalszahlen' ? el('div', { class: 'dim', style: 'font-size:12px;margin-top:6px' }, 'Rund um Quartalszahlen sind stärkere Kursschwankungen üblich — Positionsgröße im Blick behalten.') : null,
+            el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:6px', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}` }, 'Zur Analyse →')
+          )
+        );
+      });
+      strip.append(chip);
+    }
+
     document.getElementById('termine-wrap').replaceChildren(
       el('section', { class: 'panel', style: 'margin-bottom:18px' },
-        el('h2', { class: 'panel-title' }, 'Termin-Radar', el('span', { class: 'hint' }, ' · nächste 14 Tage')),
-        el('div', { class: 'termine-strip' },
-          d.termine.map((t) => {
-            const { datum, wann } = fmtTermin(t);
-            return el('a', {
-              class: `termin${t.days <= 2 ? ' soon' : ''}`,
-              href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`,
-              title: `${t.name}: ${t.typ} am ${fmtDate(t.date)}${t.epsErwartet != null ? ` — Analysten erwarten EPS ${Number(t.epsErwartet).toFixed(2)}` : ''}`,
-            },
-              el('b', {}, t.symbol),
-              el('span', {},
-                el('span', { class: 'termin-typ' }, t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
-                el('span', { class: 'termin-datum' }, ` · ${datum}`),
-                t.epsErwartet != null ? el('span', { class: 'termin-datum' }, ` · EPS erw. ${Number(t.epsErwartet).toFixed(2)}`) : null
-              ),
-              el('span', { class: 'days' }, wann)
-            );
-          })
-        )
+        el('h2', { class: 'panel-title' }, 'Termin-Radar', el('span', { class: 'hint' }, ' · nächste 14 Tage · Klick für Details')),
+        strip,
+        detailBox
       )
+    );
+  }
+
+  // Klumpenrisiko: warnen, wenn eine Position das Depot dominiert
+  const groesste = d.positions.filter((p) => p.valueEur != null).sort((a, b) => b.valueEur - a.valueEur)[0];
+  if (groesste && d.totalEur > 0 && groesste.valueEur / d.totalEur > 0.5) {
+    const anteil = Math.round((groesste.valueEur / d.totalEur) * 100);
+    document.getElementById('termine-wrap').append(
+      el('div', { class: 'notice', style: 'margin-bottom:18px' },
+        `⚠ Klumpenrisiko: ${groesste.symbol} macht ${anteil} % deines Depots aus — ein einzelner schlechter Tag dieses Werts schlägt voll durch.`)
     );
   }
 
@@ -154,20 +184,19 @@ async function loadDashboard() {
     );
   }
 
-  // Allokation (Donut + Legende mit Direktwerten)
+  // Allokation nach Sektor (ETFs als eigene Gruppe) — vom Server gruppiert
   const allocBox = document.getElementById('allocation');
-  if (hasPositions && d.totalEur > 0) {
-    const sorted = [...d.positions].filter((p) => p.valueEur != null).sort((a, b) => b.valueEur - a.valueEur);
-    const top = sorted.slice(0, 7);
-    const rest = sorted.slice(7);
-    const slices = top.map((p, i) => ({
-      label: p.symbol,
-      value: p.valueEur,
+  if (hasPositions && d.totalEur > 0 && d.allokation?.length) {
+    const top = d.allokation.slice(0, 7);
+    const rest = d.allokation.slice(7);
+    const slices = top.map((g, i) => ({
+      label: g.label,
+      value: g.valueEur,
       color: CAT_COLORS[i],
-      text: `${fmtEur(p.valueEur)} (${fmtPct((p.valueEur / d.totalEur) * 100, false)})`,
+      text: `${fmtEur(g.valueEur)} (${fmtPct((g.valueEur / d.totalEur) * 100, false)}) · ${g.symbole.join(', ')}`,
     }));
     if (rest.length) {
-      const restSum = rest.reduce((s, p) => s + (p.valueEur ?? 0), 0);
+      const restSum = rest.reduce((s, g) => s + g.valueEur, 0);
       slices.push({ label: 'Weitere', value: restSum, color: CAT_COLORS[7], text: fmtEur(restSum) });
     }
     allocBox.replaceChildren(

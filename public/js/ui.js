@@ -210,6 +210,69 @@ export function donut(slices, size = 168, stroke = 26) {
   return svg;
 }
 
+// ---------- Snowflake-Radar (SVG-Pentagon, SWS-Stil) ----------
+
+export function radarChart(scores, size = 210) {
+  // scores: [{label, value 0..5}], 5 Achsen
+  const c = size / 2;
+  const rMax = size / 2 - 34;
+  const n = scores.length;
+  const angle = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
+  const pt = (i, r) => [c + r * Math.cos(angle(i)), c + r * Math.sin(angle(i))];
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.setAttribute('class', 'radar');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+
+  // Ringe (1–5)
+  for (let ring = 1; ring <= 5; ring++) {
+    const poly = document.createElementNS(svgNS, 'polygon');
+    poly.setAttribute('points', scores.map((_, i) => pt(i, (rMax * ring) / 5).join(',')).join(' '));
+    poly.setAttribute('class', 'radar-ring');
+    svg.append(poly);
+  }
+  // Achsen
+  scores.forEach((_, i) => {
+    const line = document.createElementNS(svgNS, 'line');
+    const [x, y] = pt(i, rMax);
+    line.setAttribute('x1', c); line.setAttribute('y1', c);
+    line.setAttribute('x2', x); line.setAttribute('y2', y);
+    line.setAttribute('class', 'radar-ring');
+    svg.append(line);
+  });
+  // Wertefläche
+  const shape = document.createElementNS(svgNS, 'polygon');
+  shape.setAttribute('points', scores.map((s, i) => pt(i, (rMax * Math.max(s.value, 0.15)) / 5).join(',')).join(' '));
+  shape.setAttribute('class', 'radar-shape');
+  svg.append(shape);
+  // Beschriftung
+  scores.forEach((s, i) => {
+    const [x, y] = pt(i, rMax + 18);
+    const text = document.createElementNS(svgNS, 'text');
+    text.setAttribute('x', x); text.setAttribute('y', y);
+    text.setAttribute('class', 'radar-label');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.textContent = s.label;
+    const title = document.createElementNS(svgNS, 'title');
+    title.textContent = `${s.label}: ${s.value}/5`;
+    text.append(title);
+    svg.append(text);
+  });
+  return svg;
+}
+
+// ---------- Aufklappbare Bereiche (platzsparend) ----------
+
+export function collapsible(summaryChildren, bodyChildren, open = false) {
+  const det = el('details', { class: 'clap' }, el('summary', {}, summaryChildren));
+  if (open) det.setAttribute('open', '');
+  det.append(...[bodyChildren].flat().filter(Boolean));
+  return det;
+}
+
 // ---------- Ticker-Suche mit Vorschlägen ----------
 
 export function attachSearch(input, onPick) {

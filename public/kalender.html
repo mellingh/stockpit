@@ -31,13 +31,11 @@
         <button class="rng active" data-day="heute">Heute</button>
         <button class="rng" data-day="morgen">Morgen</button>
         <button class="rng" data-day="woche">Diese Woche</button>
-        <div class="chart-legend" style="gap:10px">
-          <label for="imp-select" style="color:var(--ink-3)">Wichtigkeit</label>
-          <select id="imp-select" style="width:auto;padding:5px 10px;font-size:13px">
-            <option value="med" selected>★★★ + ★★</option>
-            <option value="high">Nur ★★★</option>
-            <option value="all">Alle</option>
-          </select>
+        <div class="chart-legend" style="gap:6px;align-items:center">
+          <span style="color:var(--ink-3);margin-right:4px">Wichtigkeit:</span>
+          <button class="rng" data-imp="high" title="Nur hohe Marktwirkung"><span class="stars s3">★★★</span></button>
+          <button class="rng active" data-imp="med" title="Hohe + mittlere Marktwirkung"><span class="stars s3">★★★</span><span class="stars s2">+★★</span></button>
+          <button class="rng" data-imp="all" title="Alle Termine">Alle</button>
         </div>
       </div>
       <div id="calendar"><div class="loading-line"><span class="spinner"></span>Kalender wird geladen …</div></div>
