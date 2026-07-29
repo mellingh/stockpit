@@ -132,22 +132,41 @@ export function buildNewsExplain(n) {
   return el('div', { class: 'news-explain-detail' }, parts.map((p) => el('div', {}, p)));
 }
 
-// Badge-Zeile klickbar machen: Klick blendet die Erklärung ein/aus
-export function makeExplainable(badgesRow, n) {
-  badgesRow.classList.add('clickable');
-  badgesRow.title = 'Klicken: Warum diese Einstufung?';
+// Jedes Badge einzeln klickbar: Sentiment erklärt Sentiment,
+// Kategorie erklärt Kategorie — kein Gruppen-Hover mehr.
+function attachBadgeExplain(badge, buildText) {
+  if (!badge) return badge;
+  badge.classList.add('explain');
   let detail = null;
-  badgesRow.addEventListener('click', (e) => {
-    if (e.target.closest('a')) return; // Ticker-Chips bleiben Links
+  badge.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (detail) {
       detail.remove();
       detail = null;
       return;
     }
-    detail = buildNewsExplain(n);
-    if (detail) badgesRow.after(detail);
+    const text = buildText();
+    if (!text) return;
+    detail = el('div', { class: 'news-explain-detail' }, ...[text].flat().map((t) => el('div', {}, t)));
+    badge.closest('.news-badges')?.after(detail);
   });
-  return badgesRow;
+  return badge;
+}
+
+export function explainableSentimentBadge(sentiment) {
+  const badge = sentimentBadge(sentiment);
+  return attachBadgeExplain(badge, () => {
+    const parts = [];
+    const fn = SENTIMENT_EXPLAIN[sentiment?.label];
+    if (fn) parts.push(fn(sentiment));
+    if (sentiment?.unavailable) parts.push('Hinweis: Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
+    return parts;
+  });
+}
+
+export function explainableCategoryBadge(category) {
+  const badge = categoryBadge(category);
+  return attachBadgeExplain(badge, () => CATEGORY_EXPLAIN[category?.id] || null);
 }
 
 // ---------- Sparkline (SVG) ----------

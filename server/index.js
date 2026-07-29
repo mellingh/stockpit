@@ -393,16 +393,24 @@ app.get(
       })
     );
 
-    const watchlist = data.watchlist.map((w) => {
-      const quote = quotes[w.symbol];
-      return {
-        ...w,
-        name: displayName(quote, w.name || w.symbol),
-        preis: quote?.regularMarketPrice ?? null,
-        waehrung: quote?.currency ?? null,
-        tagesPct: quote?.regularMarketChangePercent ?? null,
-      };
-    });
+    const watchlist = await Promise.all(
+      data.watchlist.map(async (w) => {
+        const quote = quotes[w.symbol];
+        let sparkline = [];
+        try {
+          const history = await yahoo.getHistory(w.symbol, '6m');
+          sparkline = history.slice(-30).map((q) => Math.round(q.close * 100) / 100);
+        } catch {}
+        return {
+          ...w,
+          name: displayName(quote, w.name || w.symbol),
+          preis: quote?.regularMarketPrice ?? null,
+          waehrung: quote?.currency ?? null,
+          tagesPct: quote?.regularMarketChangePercent ?? null,
+          sparkline,
+        };
+      })
+    );
 
     const totalEur = positions.reduce((s, p) => s + (p.valueEur ?? 0), 0);
     const costEur = positions.reduce(

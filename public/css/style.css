@@ -381,9 +381,9 @@ table.data th.num { text-align: right; }
   margin-top: 2px;
 }
 
-/* Klick auf Badges → Einordnung */
-.news-badges.clickable { cursor: pointer; }
-.news-badges.clickable:hover .badge:not(.chip) { border-color: var(--accent); }
+/* Einzelne Badges klickbar → Einordnung (kein Gruppen-Hover) */
+.badge.explain { cursor: pointer; }
+.badge.explain:hover { border-color: var(--accent); background: var(--accent-soft); }
 .news-explain-detail {
   display: grid;
   gap: 6px;
@@ -727,8 +727,35 @@ details.clap > summary::before { content: '▸ '; }
 details.clap[open] > summary::before { content: '▾ '; }
 details.clap > summary:hover { text-decoration: underline; }
 
-/* Gesamteinschätzung */
-.gsub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+/* Gesamteinschätzung: Skala von bärisch bis bullisch */
+.gsub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+.gmeter {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  margin-top: 8px;
+  min-width: 170px;
+  background: linear-gradient(90deg, var(--down), var(--warn), var(--up));
+  opacity: 0.85;
+}
+.gmeter-tick {
+  position: absolute;
+  top: -4px;
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--panel);
+  transform: translateX(-50%);
+}
+.gmeter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
 
 .uebersicht-text { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; margin: 0 0 10px; }
 .uebersicht-fakten {
@@ -770,6 +797,24 @@ details.clap > summary:hover { text-decoration: underline; }
 .donut-legend .lname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .donut-legend .lval { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
 
+/* Allokations-Legende: Prozent markant, Details als Zweitzeile */
+.alloc-row { align-items: flex-start !important; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.alloc-row:last-child { border-bottom: none; }
+.alloc-row .sq { margin-top: 5px; }
+.alloc-main { flex: 1; min-width: 0; }
+.alloc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.alloc-top .lname { font-weight: 600; font-size: 14px; }
+.alloc-pct { font-family: var(--font-mono); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.alloc-sub {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); margin-top: 1px;
+}
+.alloc-syms { letter-spacing: 0.03em; }
+
+/* Kompakte Tabellen-Variante (z. B. Analysten-Historie) */
+table.data.compact td { padding: 8px 10px; }
+table.data.compact th { padding: 5px 10px; }
+
 /* Termin-Radar */
 .termine-strip { display: flex; flex-wrap: wrap; gap: 10px; }
 .termin {
@@ -781,12 +826,17 @@ details.clap > summary:hover { text-decoration: underline; }
   font-size: 13px;
   color: var(--ink);
 }
-.termin:hover { text-decoration: none; border-color: var(--accent); }
 button.termin { cursor: pointer; font-family: var(--font-body); font-size: 13px; }
+/* Hover konsistent für alle Chips — auch die roten (soon) */
+.termin:hover, .termin.soon:hover {
+  text-decoration: none;
+  border-color: var(--ink-2);
+  filter: brightness(1.15);
+}
 .termin b { font-family: var(--font-mono); font-weight: 600; }
 .termin .days { color: var(--accent); font-weight: 700; }
 .termin .termin-datum { color: var(--ink-2); font-family: var(--font-mono); font-size: 12px; }
-.termin.soon { border-color: rgba(230,103,103,0.5); background: var(--down-soft); }
+.termin.soon { border-color: rgba(240,97,109,0.5); background: var(--down-soft); }
 .termin.soon .days { color: var(--down); }
 
 /* Studien */

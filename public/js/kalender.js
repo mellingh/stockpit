@@ -19,7 +19,7 @@ const IMPACT_STARS = {
 };
 
 let events = [];
-let impFilter = 'med';
+let impFilter = 'all';
 let dayFilter = 'heute';
 
 const dayKey = (d) => new Date(d).toLocaleDateString('de-DE');

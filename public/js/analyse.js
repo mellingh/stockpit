@@ -4,7 +4,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
-  signClass, sentimentBadge, categoryBadge, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, makeExplainable,
+  signClass, sentimentBadge, categoryBadge, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, explainableSentimentBadge, explainableCategoryBadge,
   radarChart, collapsible,
 } from './ui.js';
 
@@ -205,13 +205,18 @@ async function loadReport(symbol) {
   const gCard = $('r-gesamt');
   const gDetail = $('r-gesamt-detail');
   if (g) {
-    // Verständlich statt kryptisch: farbiges Urteil + "Score X von 100"
+    // Urteil + Skala von Bärisch bis Bullisch (statt kryptischer Zahl)
     const scoreCls = g.ampel === 'green' ? 'pos' : g.ampel === 'red' ? 'neg' : '';
+    const meterPos = Math.max(2, Math.min(98, (g.score + 100) / 2)); // -100..100 → 0..100 %
     gCard.replaceChildren(
-      el('div', {},
+      el('div', { style: 'width:100%' },
         el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
         el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel]),
-        el('div', { class: 'gsub' }, `Score ${g.score > 0 ? '+' : ''}${g.score} von 100 · Klick für Begründung`)
+        el('div', { class: 'gmeter', title: `Position auf der Skala von klar bärisch bis klar bullisch` },
+          el('span', { class: 'gmeter-tick', style: `left:${meterPos}%` })
+        ),
+        el('div', { class: 'gmeter-labels' }, el('span', {}, 'bärisch'), el('span', {}, 'neutral'), el('span', {}, 'bullisch')),
+        el('div', { class: 'gsub' }, 'Klick für Begründung')
       )
     );
     gDetail.replaceChildren(
@@ -241,7 +246,6 @@ async function loadReport(symbol) {
   renderRatings(a);
   renderKennzahlen(a);
   renderFundamental(a);
-  renderTermine(a);
   renderUebersicht(a);
   renderNews(a);
   renderExtra(a);
@@ -374,8 +378,9 @@ function renderRatings(a) {
     hatKursziele ? el('th', { class: 'num' }, 'Kursziel') : null
   ));
 
-  const erste = a.ratings.slice(1, 7);
-  const rest = a.ratings.slice(7);
+  // Kompakt: die neueste Bewertung ist einfach Zeile 1 der Tabelle
+  const erste = a.ratings.slice(0, 6);
+  const rest = a.ratings.slice(6);
   const tbody = el('tbody', {}, erste.map(zeile));
   let mehrBtn = null;
   if (rest.length) {
@@ -388,17 +393,7 @@ function renderRatings(a) {
   setChildren(box,
     el('h2', { class: 'panel-title' }, 'Analysten-Historie',
       el('span', { class: 'hint' }, ` · einzelne Banken · Quelle: ${a.ratingsQuelle || '–'}`)),
-    el('div', { class: 'rating-card' },
-      el('dl', { class: 'facts' },
-        el('dt', {}, 'Datum'), el('dd', {}, fmtDate(latest.datum)),
-        el('dt', {}, 'Analyst'), el('dd', {}, latest.firma || '–'),
-        el('dt', {}, 'Aktion'), el('dd', { class: aktionClass(latest) }, latest.aktion || '–'),
-        el('dt', {}, 'Rating'), el('dd', {}, latest.zu || '–'),
-        latest.kursziel != null ? el('dt', {}, 'Kursziel') : null,
-        latest.kursziel != null ? el('dd', {}, fmtMoney(latest.kursziel, a.currency)) : null
-      )
-    ),
-    el('div', { class: 'table-scroll' }, el('table', { class: 'data' }, kopf, tbody)),
+    el('div', { class: 'table-scroll', style: 'margin-top:0' }, el('table', { class: 'data compact' }, kopf, tbody)),
     mehrBtn,
     !hatKursziele ? el('div', { class: 'notice', style: 'margin-top:10px' }, 'Für diesen Wert sind keine Kursziele je Bank frei verfügbar — die Konsens-Spanne steht im Analysten-Panel.') : null
   );
@@ -599,26 +594,6 @@ function renderFundamental(a) {
   );
 }
 
-function renderTermine(a) {
-  const box = $('p-termine');
-  const rows = [
-    ['Nächste Quartalszahlen', fmtDate(a.termine?.earnings)],
-    ['Ex-Dividende', fmtDate(a.termine?.exDividende)],
-    ['Dividendenzahlung', fmtDate(a.termine?.dividende)],
-  ];
-  const children = [
-    el('h2', { class: 'panel-title' }, 'Termine'),
-    el('dl', { class: 'facts' }, rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])),
-  ];
-  if (a.termine?.earnings) {
-    const days = Math.round((new Date(a.termine.earnings) - Date.now()) / 86400000);
-    if (days >= 0 && days <= 14) {
-      children.push(el('div', { class: 'notice' }, `⚠ Quartalszahlen ${days === 0 ? 'heute' : `in ${days} Tag${days === 1 ? '' : 'en'}`} — erhöhte Kursschwankungen möglich.`));
-    }
-  }
-  box.replaceChildren(...children);
-}
-
 function renderNews(a) {
   const box = $('p-news');
   const children = [el('h2', { class: 'panel-title' }, `News zu ${a.name}`, el('span', { class: 'hint' }, ' · KI-bewertet, mit Kursreaktion'))];
@@ -629,15 +604,12 @@ function renderNews(a) {
         el('article', { class: 'news-item' },
           el('div', { class: 'news-meta' }, el('span', {}, n.source || '—'), el('span', {}, fmtAgo(n.pubDate))),
           el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-          makeExplainable(
-            el('div', { class: 'news-badges' },
-              sentimentBadge(n.sentiment),
-              categoryBadge(n.category),
-              n.reaction?.dayChangePct != null
-                ? el('span', { class: `badge ${signClass(n.reaction.dayChangePct)}` }, `Kurs am Tag: ${fmtPct(n.reaction.dayChangePct)}`)
-                : null
-            ),
-            n
+          el('div', { class: 'news-badges' },
+            explainableSentimentBadge(n.sentiment),
+            explainableCategoryBadge(n.category),
+            n.reaction?.dayChangePct != null
+              ? el('span', { class: `badge ${signClass(n.reaction.dayChangePct)}` }, `Kurs am Tag: ${fmtPct(n.reaction.dayChangePct)}`)
+              : null
           ),
           n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
         );

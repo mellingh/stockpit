@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass, sentimentBadge, categoryBadge,
-  ampelDot, AMPEL_TEXT, sparkline, donut, CAT_COLORS, markActiveNav, makeExplainable,
+  ampelDot, AMPEL_TEXT, sparkline, donut, CAT_COLORS, markActiveNav, explainableSentimentBadge, explainableCategoryBadge,
 } from './ui.js';
 
 markActiveNav();
@@ -140,8 +140,7 @@ async function loadDashboard() {
           el('th', { class: 'num' }, 'Heute'),
           el('th', {}, '30 Tage'),
           el('th', { class: 'num' }, 'Wert (EUR)'),
-          el('th', { class: 'num' }, 'G/V'),
-          el('th', {}, 'Signal')
+          el('th', { class: 'num' }, 'G/V')
         )
       ),
       el('tbody', {},
@@ -155,8 +154,7 @@ async function loadDashboard() {
             el('td', { class: `num ${signClass(p.gewinnEur)}` },
               `${fmtEur(p.gewinnEur)}`,
               el('span', { class: 'dim' }, ` (${fmtPct(p.gewinnPct)})`)
-            ),
-            el('td', {}, el('span', { class: 'badge' }, ampelDot(p.ampel), AMPEL_TEXT[p.ampel] || '–'))
+            )
           )
         )
       )
@@ -164,19 +162,28 @@ async function loadDashboard() {
     posBox.replaceChildren(table);
   }
 
-  // Watchlist
+  // Watchlist: eigene, beschriftete Tabelle (gleiche Lesart wie Positionen)
   const watchBox = document.getElementById('watchlist');
   if (!d.watchlist.length) {
     watchBox.replaceChildren(el('div', { class: 'empty' }, 'Keine beobachteten Werte. Im Portfolio hinzufügen.'));
   } else {
     watchBox.replaceChildren(
       el('table', { class: 'data' },
+        el('thead', {},
+          el('tr', {},
+            el('th', {}, 'Wert'),
+            el('th', { class: 'num' }, 'Kurs'),
+            el('th', { class: 'num' }, 'Heute'),
+            el('th', {}, '30 Tage')
+          )
+        ),
         el('tbody', {},
           d.watchlist.map((w) =>
             el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(w.symbol)}`) },
               el('td', { class: 'name-cell' }, w.name, el('span', { class: 'sym' }, w.symbol)),
               el('td', { class: 'num' }, fmtMoney(w.preis, w.waehrung)),
-              el('td', { class: `num ${signClass(w.tagesPct)}` }, fmtPct(w.tagesPct))
+              el('td', { class: `num ${signClass(w.tagesPct)}` }, fmtPct(w.tagesPct)),
+              el('td', {}, sparkline(w.sparkline))
             )
           )
         )
@@ -193,21 +200,32 @@ async function loadDashboard() {
       label: g.label,
       value: g.valueEur,
       color: CAT_COLORS[i],
-      text: `${fmtEur(g.valueEur)} (${fmtPct((g.valueEur / d.totalEur) * 100, false)}) · ${g.symbole.join(', ')}`,
+      pct: (g.valueEur / d.totalEur) * 100,
+      symbole: g.symbole ?? [],
+      text: `${fmtEur(g.valueEur)} (${fmtPct((g.valueEur / d.totalEur) * 100, false)})`,
     }));
     if (rest.length) {
       const restSum = rest.reduce((s, g) => s + g.valueEur, 0);
-      slices.push({ label: 'Weitere', value: restSum, color: CAT_COLORS[7], text: fmtEur(restSum) });
+      slices.push({ label: 'Weitere', value: restSum, color: CAT_COLORS[7], pct: (restSum / d.totalEur) * 100, symbole: [], text: fmtEur(restSum) });
     }
+    // Legende: Prozent groß und markant, Symbole + Betrag als Zweitzeile
     allocBox.replaceChildren(
       el('div', { class: 'donut-wrap' },
         donut(slices),
         el('div', { class: 'donut-legend' },
           slices.map((s) =>
-            el('div', { class: 'row' },
+            el('div', { class: 'row alloc-row' },
               el('span', { class: 'sq', style: `background:${s.color}` }),
-              el('span', { class: 'lname' }, s.label),
-              el('span', { class: 'lval' }, s.text)
+              el('div', { class: 'alloc-main' },
+                el('div', { class: 'alloc-top' },
+                  el('span', { class: 'lname' }, s.label),
+                  el('span', { class: 'alloc-pct' }, fmtPct(s.pct, false))
+                ),
+                el('div', { class: 'alloc-sub' },
+                  s.symbole.length ? el('span', { class: 'alloc-syms' }, s.symbole.join(' · ')) : null,
+                  el('span', {}, fmtEur(s.value))
+                )
+              )
             )
           )
         )
@@ -243,16 +261,13 @@ async function loadNews() {
         el('span', {}, fmtAgo(n.pubDate))
       ),
       el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-      makeExplainable(
-        el('div', { class: 'news-badges' },
-          sentimentBadge(n.sentiment),
-          categoryBadge(n.category),
-          (n.betroffen || []).slice(0, 4).map((b) =>
-            el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
-              b.symbol, b.why === 'direkt' ? '' : ' ~')
-          )
-        ),
-        n
+      el('div', { class: 'news-badges' },
+        explainableSentimentBadge(n.sentiment),
+        explainableCategoryBadge(n.category),
+        (n.betroffen || []).slice(0, 4).map((b) =>
+          el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
+            b.symbol, b.why === 'direkt' ? '' : ' ~')
+        )
       ),
       n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
     )
