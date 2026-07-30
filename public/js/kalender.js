@@ -250,8 +250,6 @@ api
   .get('/api/calendar')
   .then((d) => {
     events = d.events || [];
-    const quelle = document.getElementById('cal-quelle');
-    if (quelle) quelle.textContent = `Quelle: ${d.quelle}`;
     render();
   })
   .catch((err) => {

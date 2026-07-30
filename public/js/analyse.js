@@ -294,32 +294,17 @@ async function loadReport(symbol) {
   $('report').hidden = false;
   document.title = `Stockpit — ${a.name}`;
 
-  // Kopf
+  // Kopf: Badges + (falls frisch) Quartalszahlen als Badge in derselben Zeile
   $('r-name').textContent = a.name;
-  setChildren($('r-meta'), 
-    el('span', { class: 'badge chip' }, a.symbol),
-    a.kurs.boerse ? el('span', { class: 'badge' }, a.kurs.boerse) : null,
-    a.type === 'ETF' ? el('span', { class: 'badge cat' }, 'ETF') : null,
-    a.sektor ? el('span', { class: 'badge' }, a.sektor) : null,
-    a.branche ? el('span', { class: 'badge' }, a.branche) : null
-  );
-  $('r-price').textContent = fmtMoney(a.kurs.preis, a.currency);
-  $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
-  $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
-
-  // Frische Quartalszahlen: kompakter Chip NEBEN der Überschrift,
-  // Reihenfolge wie im Dashboard — erst erwartet, dann Ist
   const z = a.zahlen;
-  const zBox = $('r-zahlen');
+  let zahlenBadge = null;
   if (z?.gemeldet) {
     const fmtEps = (v) => (v > 0 ? '+' : '') + Number(v).toFixed(2).replace('.', ',');
     const tage = Math.floor((Date.now() - z.gemeldet) / 86400000);
     const wann = tage <= 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
     const cls = z.ueberraschungPct > 0 ? 'pos' : z.ueberraschungPct < 0 ? 'neg' : '';
-    zBox.hidden = false;
-    zBox.className = `zahlen-chip ${cls}`;
-    setChildren(zBox,
-      el('span', { class: 'zk-label' }, `Quartalszahlen ${wann}`),
+    zahlenBadge = el('span', { class: `zahlen-chip ${cls}` },
+      el('span', { class: 'zk-label' }, `Zahlen ${wann}`),
       z.epsErwartet != null ? el('span', {}, `EPS erw. ${fmtEps(z.epsErwartet)}`) : null,
       z.epsTatsaechlich != null
         ? el('span', { class: `zk-ist ${cls}` },
@@ -328,10 +313,18 @@ async function loadReport(symbol) {
           )
         : el('span', { class: 'zk-ist dim' }, 'Ergebnis folgt')
     );
-  } else {
-    zBox.hidden = true;
-    zBox.replaceChildren();
   }
+  setChildren($('r-meta'),
+    el('span', { class: 'badge chip' }, a.symbol),
+    a.kurs.boerse ? el('span', { class: 'badge' }, a.kurs.boerse) : null,
+    a.type === 'ETF' ? el('span', { class: 'badge cat' }, 'ETF') : null,
+    a.sektor ? el('span', { class: 'badge' }, a.sektor) : null,
+    a.branche ? el('span', { class: 'badge' }, a.branche) : null,
+    zahlenBadge
+  );
+  $('r-price').textContent = fmtMoney(a.kurs.preis, a.currency);
+  $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
+  $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
 
   // Vor-/nachbörslicher Kurs (nur wenn die Börse ihn liefert, v. a. US-Werte)
   const ab = a.kurs.ausserboerslich;
@@ -347,15 +340,13 @@ async function loadReport(symbol) {
     pp.replaceChildren();
   }
 
-  // Gesamteinschätzung: nur das Urteil — Klick springt zur Einordnung
-  // (Stärken/Risiken + Snowflake in der Übersichtskarte)
-  // Gesamteinschätzung: kompakter Chip mit Ampel-Punkt und getöntem Rand
-  // unter den Badges (die großen Kopf-Karten sind seit Runde 22 weg)
+  // Gesamteinschätzung: schlicht NEBEN dem Namen — nur Punkt + Urteil,
+  // ohne Rahmen (Micha, Runde 24). Klick springt weiter zur Einordnung.
   const g = a.gesamt;
   const gCard = $('r-gesamt');
   if (g) {
     gCard.hidden = false;
-    gCard.className = `gesamt-chip ${g.ampel === 'green' ? 'g-pos' : g.ampel === 'red' ? 'g-neg' : 'g-neu'}`;
+    gCard.className = `gesamt-inline ${g.ampel === 'green' ? 'g-pos' : g.ampel === 'red' ? 'g-neg' : 'g-neu'}`;
     gCard.replaceChildren(
       el('span', { class: `dot ${g.ampel}` }),
       AMPEL_TEXT[g.ampel]
@@ -388,11 +379,11 @@ async function loadReport(symbol) {
   renderX(a);
 }
 
-// "Meinungen & Quick-Links": X-Suchen vertrauter Accounts (from:Account $TICKER)
-// plus Ein-Klick-Sprünge zu Yahoo/SimplyWallSt/TradingView/Finviz mit dem
-// aktuellen Symbol ({TICKER}-Platzhalter im URL-Template). Die Verwaltung
-// erkennt selbst: @handle → X-Account, URL → Webseite. Akkordeon bleibt
-// nach Hinzufügen/Entfernen offen.
+// "Meinungen & Links": X-Suchen vertrauter Accounts (from:Account $TICKER)
+// plus Ein-Klick-Sprünge zu externen Seiten ({TICKER}-Platzhalter).
+// Verwaltet wird über den +-Knopf im Titel: ein Overlay ÜBER der Karte
+// (statt Akkordeon — das machte die Karte lang und klobig). Das eine
+// Eingabefeld erkennt selbst: @handle → X-Account, URL → Webseite.
 async function renderX(a, verwaltenOffen = false) {
   const box = $('p-x');
   const ticker = a.symbol.split('.')[0].toUpperCase();
@@ -409,89 +400,93 @@ async function renderX(a, verwaltenOffen = false) {
   const suchLink = (h) =>
     `https://x.com/search?q=${encodeURIComponent(`from:${h} $${ticker}`)}&src=typed_query&f=live`;
 
-  const links = el('div', { class: 'x-links' },
-    accounts.map((h) =>
+  // Eine durchgehende Liste: erst X-Accounts (X-Logo), dann Seiten (Globus)
+  const zeilen = [
+    ...accounts.map((h) =>
       el('a', { class: 'x-link', href: suchLink(h), target: '_blank', rel: 'noopener', title: `X-Suche: from:${h} $${ticker} — Anzeige auf x.com braucht ggf. Login` },
         xLogo(13),
         el('b', {}, `@${h}`),
         el('span', { class: 'x-cash' }, `$${ticker} ↗`))
-    )
-  );
-
-  const webButtons = el('div', { class: 'x-links' },
-    webLinks.map((l) =>
+    ),
+    ...webLinks.map((l) =>
       el('a', { class: 'x-link', href: l.url.replaceAll('{TICKER}', ticker), target: '_blank', rel: 'noopener', title: l.url.replaceAll('{TICKER}', ticker) },
         globusIcon(13),
         el('b', {}, l.name),
         el('span', { class: 'x-cash' }, `${ticker} ↗`))
-    )
-  );
+    ),
+  ];
 
-  // Verwaltung: EIN Feld für beides — @handle → X-Account, URL → Webseite.
-  // Enthält die URL das aktuelle Symbol, wird es zum {TICKER}-Platzhalter,
-  // damit der Link auch bei anderen Aktien funktioniert.
-  const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
-  const input = el('input', { type: 'text', placeholder: '@handle oder Seiten-URL …', autocomplete: 'off', style: 'flex:1;min-width:160px' });
-  const form = el('form', { class: 'inline-add', style: 'margin:0 0 10px' },
-    input,
-    el('button', { class: 'btn small', type: 'submit' }, 'Hinzufügen')
-  );
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const wert = input.value.trim();
-    if (!wert) return;
-    try {
-      if (/^@?[A-Za-z0-9_]{1,15}$/.test(wert)) {
-        await api.post('/api/xusers', { handle: wert });
-      } else {
-        let url = /^https?:\/\//i.test(wert) ? wert : `https://${wert}`;
-        if (ticker.length >= 2) {
-          url = url.replace(new RegExp(`(?<![A-Za-z0-9])${ticker}(?![A-Za-z0-9])`, 'gi'), '{TICKER}');
-        }
-        await api.post('/api/weblinks', { url });
-      }
-      renderX(a, true);
-    } catch (err) {
-      hinweis.hidden = false;
-      hinweis.textContent = `Fehler: ${err.message}`;
-    }
-  });
-  const entfernRow = (label, onRemove) =>
-    el('div', { class: 'x-row' },
-      el('span', { class: 'x-row-label' }, label),
-      el('button', { class: 'btn danger small', type: 'button', onclick: onRemove }, 'Entfernen')
+  // Overlay-Verwaltung (öffnet über der Karte)
+  const oeffneVerwaltung = () => {
+    box.querySelector('.karten-overlay')?.remove();
+
+    const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
+    const input = el('input', { type: 'text', placeholder: '@handle oder Seiten-URL …', autocomplete: 'off', style: 'flex:1;min-width:150px' });
+    const form = el('form', { class: 'inline-add', style: 'margin:0 0 6px' },
+      input,
+      el('button', { class: 'btn small', type: 'submit' }, 'Hinzufügen')
     );
-  const verwalten = collapsible('Accounts & Links verwalten',
-    el('div', { style: 'padding-top:10px' },
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const wert = input.value.trim();
+      if (!wert) return;
+      try {
+        if (/^@?[A-Za-z0-9_]{1,15}$/.test(wert)) {
+          await api.post('/api/xusers', { handle: wert });
+        } else {
+          let url = /^https?:\/\//i.test(wert) ? wert : `https://${wert}`;
+          if (ticker.length >= 2) {
+            url = url.replace(new RegExp(`(?<![A-Za-z0-9])${ticker}(?![A-Za-z0-9])`, 'gi'), '{TICKER}');
+          }
+          await api.post('/api/weblinks', { url });
+        }
+        renderX(a, true);
+      } catch (err) {
+        hinweis.hidden = false;
+        hinweis.textContent = `Fehler: ${err.message}`;
+      }
+    });
+
+    const entfernRow = (label, onRemove) =>
+      el('div', { class: 'x-row' },
+        el('span', { class: 'x-row-label' }, label),
+        el('button', { class: 'btn danger small', type: 'button', onclick: onRemove }, 'Entfernen')
+      );
+
+    const overlay = el('div', { class: 'karten-overlay' },
+      el('div', { class: 'ko-kopf' },
+        el('span', { class: 'ko-titel' }, 'Accounts & Links verwalten'),
+        el('button', { class: 'icon-btn', type: 'button', title: 'Schließen', onclick: () => overlay.remove() }, '✕')
+      ),
       form,
       hinweis,
-      accounts.map((h) =>
-        entfernRow(`@${h}`, async () => {
-          await api.del(`/api/xusers/${encodeURIComponent(h)}`);
-          renderX(a, true);
-        })
-      ),
-      webLinks.map((l) =>
-        entfernRow(l.name, async () => {
-          await api.del(`/api/weblinks?url=${encodeURIComponent(l.url)}`);
-          renderX(a, true);
-        })
+      el('div', { class: 'ko-liste' },
+        accounts.map((h) =>
+          entfernRow(`@${h}`, async () => {
+            await api.del(`/api/xusers/${encodeURIComponent(h)}`);
+            renderX(a, true);
+          })
+        ),
+        webLinks.map((l) =>
+          entfernRow(l.name, async () => {
+            await api.del(`/api/weblinks?url=${encodeURIComponent(l.url)}`);
+            renderX(a, true);
+          })
+        )
       )
-    ),
-    verwaltenOffen
-  );
+    );
+    box.append(overlay);
+    input.focus();
+  };
 
   setChildren(box,
-    el('h2', { class: 'panel-title' }, 'Meinungen auf', xLogo(14)),
-    el('div', { class: 'x-sub' }, `Die neuesten Posts deiner Accounts zu $${ticker} — ein Klick öffnet die X-Suche.`),
-    accounts.length
-      ? links
-      : el('div', { class: 'empty' }, 'Noch keine X-Accounts hinterlegt — unten hinzufügen.'),
-    webLinks.length
-      ? [el('div', { class: 'kpi-label', style: 'margin:14px 0 8px' }, 'Direkt öffnen'), webButtons]
-      : null,
-    verwalten
+    el('h2', { class: 'panel-title' }, 'Meinungen & Links',
+      el('button', { class: 'plus-btn', type: 'button', title: 'Accounts & Links verwalten', onclick: oeffneVerwaltung }, '+')),
+    zeilen.length
+      ? el('div', { class: 'x-links' }, zeilen)
+      : el('div', { class: 'empty' }, 'Noch nichts hinterlegt — über das Plus hinzufügen.')
   );
+  if (verwaltenOffen) oeffneVerwaltung();
 }
 
 // Schlichter Globus (Lucide-Stil) für die Web-Quick-Links
@@ -693,7 +688,7 @@ function renderRatings(a) {
 
   setChildren(box,
     el('h2', { class: 'panel-title' }, 'Analysten-Historie',
-      el('span', { class: 'hint' }, ` · einzelne Banken · Quelle: ${a.ratingsQuelle || '–'}`)),
+      el('span', { class: 'hint' }, ' · einzelne Banken')),
     el('div', { class: 'table-scroll', style: 'margin-top:0' }, el('table', { class: 'data compact' }, kopf, tbody)),
     mehrBtn,
     !hatKursziele ? el('div', { class: 'notice', style: 'margin-top:10px' }, 'Für diesen Wert sind keine Kursziele je Bank frei verfügbar — die Konsens-Spanne steht im Analysten-Panel.') : null
