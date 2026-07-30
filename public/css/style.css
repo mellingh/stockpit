@@ -442,6 +442,26 @@ table.data th.num { text-align: right; font-family: var(--font-body); font-size:
 }
 .trow .tinfo .eps.pos { color: var(--up); }
 .trow .tinfo .eps.neg { color: var(--down); }
+/* Zwei Kernwerte nebeneinander (EPS erw. | Ist, Prog. | Ist): klarer Trenner */
+.trow .tinfo .eps + .eps {
+  border-left: 1px solid var(--line-strong);
+  padding-left: 12px;
+  margin-left: 12px;
+}
+/* Währungs-Textchip (USD/EUR) in den Markt-Event-Zeilen */
+.badge.chip-sm.cur { color: var(--ink-2); border-color: var(--line-strong); letter-spacing: 0.06em; }
+
+/* Aufklappbare Termin-Erklärung im Wirtschaftskalender */
+.cal-detail td {
+  background: var(--panel-2);
+  padding: 12px 16px 14px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.cal-erk { display: grid; gap: 6px; max-width: 980px; }
+.cal-erk b { color: var(--ink); font-weight: 600; }
+.cal-deutung { color: var(--ink-3); }
 
 .trow {
   display: flex;
@@ -785,8 +805,16 @@ button:disabled { opacity: 0.5; cursor: wait; }
   margin-bottom: 4px;
 }
 
-.price-card { text-align: right; font-variant-numeric: tabular-nums; }
-.price-card .hc-label { text-align: left; }
+/* Kurs-Karte: linksbündig wie der Rest der Seite; Pre-Market/Nachbörslich
+   als eigene Spalte rechts daneben (abgetrennt per Linie) */
+.price-card {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 16px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.price-card .pc-main { display: flex; flex-direction: column; }
 .price-card .now {
   font-family: var(--font-display);
   font-size: clamp(24px, 2.8vw, 32px);
@@ -794,18 +822,17 @@ button:disabled { opacity: 0.5; cursor: wait; }
   line-height: 1.1;
 }
 .price-card .chg { font-family: var(--font-mono); font-size: 13px; margin-top: 2px; }
-/* Vor-/nachbörslicher Kurs: eigener, abgetrennter Bereich am Kartenboden.
-   Wichtig: [hidden] muss das display:flex schlagen — sonst bleibt während
-   der regulären Handelszeit eine leere Sektion mit Trennlinie stehen. */
+/* Wichtig: [hidden] muss das display:flex schlagen — sonst bleibt während
+   der regulären Handelszeit eine leere Spalte mit Trennlinie stehen. */
 .price-card .prepost {
   font-family: var(--font-mono);
-  font-size: 12px;
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  border-left: 1px solid var(--line);
+  padding-left: 16px;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
 }
 .price-card .prepost[hidden] { display: none; }
 

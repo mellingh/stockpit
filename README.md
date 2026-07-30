@@ -39,6 +39,10 @@ ohne Abos, ohne API-Keys, ohne Login, ohne Kosten.
 
 Doppelklick auf **`start.bat`** — fertig.
 
+Tipp: Einmal **`verknuepfung-erstellen.bat`** doppelklicken legt eine
+**„Stockpit"-Verknüpfung auf den Desktop** — danach startest du die App von dort,
+ohne den Ordner zu öffnen.
+
 Beim allerersten Start werden automatisch die Abhängigkeiten installiert (1–2 Minuten)
 und das KI-Modell heruntergeladen (~110 MB, einmalig). Danach öffnet sich das Dashboard
 im Browser unter `http://localhost:3001`.

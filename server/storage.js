@@ -12,6 +12,13 @@ const DEFAULT_DATA = {
   positions: [], // {id, symbol, name, shares, buyPrice, currency, buyDate}
   watchlist: [], // {symbol, name}
   xAccounts: ['TheLongInvest', 'Biotech2k1', 'thestockwhale'], // X-Handles für die "Meinungen auf X"-Links (Michas Standard-Trio)
+  // Quick-Links auf externe Seiten; {TICKER} wird durch das Symbol ersetzt
+  webLinks: [
+    { name: 'Yahoo Finance', url: 'https://de.finance.yahoo.com/quote/{TICKER}/' },
+    { name: 'Simply Wall St', url: 'https://simplywall.st/stocks?search={TICKER}' },
+    { name: 'TradingView', url: 'https://de.tradingview.com/chart/?symbol={TICKER}' },
+    { name: 'Finviz', url: 'https://finviz.com/quote.ashx?t={TICKER}' },
+  ],
 };
 
 let data = null;
@@ -97,6 +104,30 @@ export function removeXAccount(handle) {
   data.xAccounts = (data.xAccounts ?? []).filter((h) => h.toLowerCase() !== handle.toLowerCase());
   save();
   return data.xAccounts;
+}
+
+// ---------- Web-Quick-Links (Analyse-Seitenspalte) ----------
+
+export function getWebLinks() {
+  load();
+  return data.webLinks ?? [];
+}
+
+export function addWebLink(link) {
+  load();
+  if (!data.webLinks) data.webLinks = [];
+  if (!data.webLinks.some((l) => l.url === link.url)) {
+    data.webLinks.push(link);
+    save();
+  }
+  return data.webLinks;
+}
+
+export function removeWebLink(url) {
+  load();
+  data.webLinks = (data.webLinks ?? []).filter((l) => l.url !== url);
+  save();
+  return data.webLinks;
 }
 
 // Alle Symbole, die den Nutzer interessieren (Positionen + Watchlist)

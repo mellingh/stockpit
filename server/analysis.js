@@ -141,12 +141,21 @@ export function priceReaction(newsItem, history) {
   const volSchnitt = volFenster.length >= 20 ? volFenster.reduce((a, b) => a + b, 0) / volFenster.length : null;
   const volTag = history[idx]?.volume ?? null;
 
+  // Kurs-Kontext: Wo stand die Aktie, als die News kam?
+  const closeTag = history[idx].close;
+  const fensterLang = history.slice(Math.max(0, idx - 252), idx + 1);
+  const hoch = Math.max(...fensterLang.map((q) => q.high ?? q.close));
+  const vorwoche = idx >= 6 ? round1(((history[idx - 1].close - history[idx - 6].close) / history[idx - 6].close) * 100) : null;
+
   return {
     date: new Date(history[idx].date).toISOString().slice(0, 10),
     dayChangePct: round1(changeOf(idx)),
     nextDayChangePct: round1(changeOf(idx + 1)),
     typischPct: typisch != null ? round1(typisch) : null,
     volRel: volSchnitt && volTag ? Math.round((volTag / volSchnitt) * 10) / 10 : null,
+    abstandHochPct: hoch > 0 ? round1(((closeTag - hoch) / hoch) * 100) : null,
+    langesFenster: fensterLang.length >= 240, // ~1 Handelsjahr → "52-Wochen-Hoch"
+    vorwochePct: vorwoche,
   };
 }
 
@@ -198,7 +207,27 @@ export function explain(newsItem, reaction, symbolName) {
     saetze.push('Die Meldung selbst ist neutral formuliert — die Bewegung dürfte eher andere Ursachen haben (Gesamtmarkt, Sektor, andere Nachrichten).');
   }
 
-  // 3. Kam Volumen mit? (bestätigt oder relativiert die Bewegung)
+  // 3. Vorgeschichte: Traf die Meldung auf Stärke oder Schwäche?
+  if (reaction.vorwochePct != null && Math.abs(reaction.vorwochePct) >= 3) {
+    saetze.push(
+      `Die Meldung traf auf eine bereits ${reaction.vorwochePct > 0 ? 'starke' : 'schwache'} Phase (${fmtPctDe(reaction.vorwochePct)} in den fünf Handelstagen davor)${
+        reaction.vorwochePct < 0 && s === 'negative' ? ' — in so einer Lage wirken schlechte Nachrichten oft stärker nach' :
+        reaction.vorwochePct > 0 && s === 'positive' ? ' — gute Nachrichten befeuern einen laufenden Anstieg zusätzlich' : ''
+      }.`
+    );
+  }
+
+  // 4. Das größere Bild: Wo stand die Aktie zu dem Zeitpunkt?
+  if (reaction.abstandHochPct != null) {
+    const hochWort = reaction.langesFenster ? '52-Wochen-Hoch' : 'Hoch der letzten Monate';
+    if (reaction.abstandHochPct <= -30) {
+      saetze.push(`Zum Zeitpunkt der Meldung lag der Kurs bereits ${String(Math.abs(reaction.abstandHochPct)).replace('.', ',')} % unter dem ${hochWort} — die Erwartungen waren also schon stark gedrückt.`);
+    } else if (reaction.abstandHochPct >= -5) {
+      saetze.push(`Der Kurs notierte nahe dem ${hochWort} — dort ist viel Optimismus eingepreist, was Aktien anfälliger für Enttäuschungen macht.`);
+    }
+  }
+
+  // 5. Kam Volumen mit? (bestätigt oder relativiert die Bewegung)
   if (reaction.volRel != null && !kaum) {
     if (reaction.volRel >= 1.5)
       saetze.push(`Das Handelsvolumen lag bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — viele Anleger waren beteiligt, was die Bewegung belastbarer macht.`);
@@ -206,7 +235,7 @@ export function explain(newsItem, reaction, symbolName) {
       saetze.push(`Das Handelsvolumen lag nur bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — die Bewegung entstand bei dünnem Handel und ist entsprechend wenig belastbar.`);
   }
 
-  // 4. Wie ging es weiter?
+  // 6. Wie ging es weiter?
   const next = reaction.nextDayChangePct;
   if (next != null) {
     const gleicheRichtung = (chg > 0 && next > 0) || (chg < 0 && next < 0);

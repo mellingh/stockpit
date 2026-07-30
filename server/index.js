@@ -802,6 +802,35 @@ app.delete('/api/xusers/:handle', (req, res) => {
   res.json(store.removeXAccount(req.params.handle));
 });
 
+// Web-Quick-Links ({TICKER} im URL-Template wird clientseitig ersetzt)
+
+app.get('/api/weblinks', (req, res) => {
+  res.json(store.getWebLinks());
+});
+
+app.post('/api/weblinks', (req, res) => {
+  const roh = String(req.body.url || '').trim();
+  let parsed;
+  try {
+    parsed = new URL(roh.replace(/\{TICKER\}/g, 'TEST')); // Platzhalter für die Validierung
+  } catch {
+    return res.status(400).json({ error: 'Ungültige URL' });
+  }
+  if (!/^https?:$/.test(parsed.protocol) || roh.length > 300) {
+    return res.status(400).json({ error: 'Nur http(s)-Links bis 300 Zeichen' });
+  }
+  // Anzeigename aus der Domain ableiten ("finviz.com" → "Finviz")
+  const host = parsed.hostname.replace(/^www\./, '');
+  const name = host.split('.')[0].charAt(0).toUpperCase() + host.split('.')[0].slice(1);
+  res.json(store.addWebLink({ name, url: roh }));
+});
+
+app.delete('/api/weblinks', (req, res) => {
+  const url = String(req.query.url || '');
+  if (!url) return res.status(400).json({ error: 'url fehlt' });
+  res.json(store.removeWebLink(url));
+});
+
 // ---------- Start ----------
 
 // Nur an localhost binden — die App gehört auf diesen Rechner,

@@ -115,14 +115,29 @@ export function getArticleSummary(url) {
   }).catch(() => null);
 }
 
-// Fehlende Teaser für eine News-Liste parallel nachladen (mutiert die Items)
+// Teaser ins Deutsche übersetzen: freier Google-Translate-Endpunkt
+// (client=gtx, ohne Key — inoffiziell wie Yahoo, dafür kostenlos).
+// Pro Text einen Tag gecacht; jeder Fehler → Original unverändert behalten.
+export function uebersetzen(text) {
+  if (!text) return Promise.resolve(text);
+  return cached(`uebersetzung:${text}`, DAY, async () => {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
+    if (!res.ok) return text;
+    const data = await res.json();
+    const uebersetzt = (data?.[0] ?? []).map((seg) => seg?.[0] ?? '').join('').trim();
+    return uebersetzt || text;
+  }).catch(() => text);
+}
+
+// Fehlende Teaser für eine News-Liste nachladen und auf Deutsch bringen
+// (mutiert die Items)
 export async function fillSummaries(items) {
   await Promise.all(
-    items
-      .filter((n) => !n.summary && n.link)
-      .map(async (n) => {
-        n.summary = await getArticleSummary(n.link);
-      })
+    items.map(async (n) => {
+      if (!n.summary && n.link) n.summary = await getArticleSummary(n.link);
+      if (n.summary) n.summary = await uebersetzen(n.summary);
+    })
   );
 }
 

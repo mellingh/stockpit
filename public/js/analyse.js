@@ -295,8 +295,8 @@ async function loadReport(symbol) {
   if (ab?.preis != null) {
     pp.hidden = false;
     setChildren(pp,
-      el('span', { class: 'dim' }, ab.phase === 'pre' ? 'Pre-Market ' : 'Nachbörslich '),
-      el('span', { class: signClass(ab.pct) }, `${fmtMoney(ab.preis, a.currency)} (${fmtPct(ab.pct)})`)
+      el('div', { class: 'hc-label', style: 'margin:0' }, ab.phase === 'pre' ? 'Pre-Market' : 'Nachbörslich'),
+      el('div', { class: signClass(ab.pct) }, `${fmtMoney(ab.preis, a.currency)} (${fmtPct(ab.pct)})`)
     );
   } else {
     pp.hidden = true;
@@ -345,16 +345,18 @@ async function loadReport(symbol) {
   renderX(a);
 }
 
-// "Meinungen auf X": ein Klick öffnet die X-Suche eines vertrauten Accounts,
-// bereits nach dem Ticker gefiltert (from:Account $TICKER) — spart das
-// manuelle Suchen. Die Account-Liste ist direkt in der Karte verwaltbar;
-// nach Hinzufügen/Entfernen bleibt das Verwalten-Akkordeon offen.
+// "Meinungen & Quick-Links": X-Suchen vertrauter Accounts (from:Account $TICKER)
+// plus Ein-Klick-Sprünge zu Yahoo/SimplyWallSt/TradingView/Finviz mit dem
+// aktuellen Symbol ({TICKER}-Platzhalter im URL-Template). Die Verwaltung
+// erkennt selbst: @handle → X-Account, URL → Webseite. Akkordeon bleibt
+// nach Hinzufügen/Entfernen offen.
 async function renderX(a, verwaltenOffen = false) {
   const box = $('p-x');
   const ticker = a.symbol.split('.')[0].toUpperCase();
   let accounts = [];
+  let webLinks = [];
   try {
-    accounts = await api.get('/api/xusers');
+    [accounts, webLinks] = await Promise.all([api.get('/api/xusers'), api.get('/api/weblinks')]);
   } catch {
     box.hidden = true;
     return;
@@ -373,36 +375,64 @@ async function renderX(a, verwaltenOffen = false) {
     )
   );
 
-  // Verwaltung: Handle hinzufügen / entfernen
+  const webButtons = el('div', { class: 'x-links' },
+    webLinks.map((l) =>
+      el('a', { class: 'x-link', href: l.url.replaceAll('{TICKER}', ticker), target: '_blank', rel: 'noopener', title: l.url.replaceAll('{TICKER}', ticker) },
+        globusIcon(13),
+        el('b', {}, l.name),
+        el('span', { class: 'x-cash' }, `${ticker} ↗`))
+    )
+  );
+
+  // Verwaltung: EIN Feld für beides — @handle → X-Account, URL → Webseite.
+  // Enthält die URL das aktuelle Symbol, wird es zum {TICKER}-Platzhalter,
+  // damit der Link auch bei anderen Aktien funktioniert.
   const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
-  const input = el('input', { type: 'text', placeholder: 'z. B. @Biotech2k1', autocomplete: 'off', style: 'flex:1;min-width:160px' });
+  const input = el('input', { type: 'text', placeholder: '@handle oder Seiten-URL …', autocomplete: 'off', style: 'flex:1;min-width:160px' });
   const form = el('form', { class: 'inline-add', style: 'margin:0 0 10px' },
     input,
     el('button', { class: 'btn small', type: 'submit' }, 'Hinzufügen')
   );
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!input.value.trim()) return;
+    const wert = input.value.trim();
+    if (!wert) return;
     try {
-      await api.post('/api/xusers', { handle: input.value });
+      if (/^@?[A-Za-z0-9_]{1,15}$/.test(wert)) {
+        await api.post('/api/xusers', { handle: wert });
+      } else {
+        let url = /^https?:\/\//i.test(wert) ? wert : `https://${wert}`;
+        if (ticker.length >= 2) {
+          url = url.replace(new RegExp(`(?<![A-Za-z0-9])${ticker}(?![A-Za-z0-9])`, 'gi'), '{TICKER}');
+        }
+        await api.post('/api/weblinks', { url });
+      }
       renderX(a, true);
     } catch (err) {
       hinweis.hidden = false;
       hinweis.textContent = `Fehler: ${err.message}`;
     }
   });
-  const verwalten = collapsible('Accounts verwalten',
+  const entfernRow = (label, onRemove) =>
+    el('div', { class: 'x-row' },
+      el('span', { class: 'x-row-label' }, label),
+      el('button', { class: 'btn danger small', type: 'button', onclick: onRemove }, 'Entfernen')
+    );
+  const verwalten = collapsible('Accounts & Links verwalten',
     el('div', { style: 'padding-top:10px' },
       form,
       hinweis,
       accounts.map((h) =>
-        el('div', { class: 'x-row' },
-          el('span', {}, `@${h}`),
-          el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
-            await api.del(`/api/xusers/${encodeURIComponent(h)}`);
-            renderX(a, true);
-          } }, 'Entfernen')
-        )
+        entfernRow(`@${h}`, async () => {
+          await api.del(`/api/xusers/${encodeURIComponent(h)}`);
+          renderX(a, true);
+        })
+      ),
+      webLinks.map((l) =>
+        entfernRow(l.name, async () => {
+          await api.del(`/api/weblinks?url=${encodeURIComponent(l.url)}`);
+          renderX(a, true);
+        })
       )
     ),
     verwaltenOffen
@@ -414,8 +444,33 @@ async function renderX(a, verwaltenOffen = false) {
     accounts.length
       ? links
       : el('div', { class: 'empty' }, 'Noch keine X-Accounts hinterlegt — unten hinzufügen.'),
+    webLinks.length
+      ? [el('div', { class: 'kpi-label', style: 'margin:14px 0 8px' }, 'Direkt öffnen'), webButtons]
+      : null,
     verwalten
   );
+}
+
+// Schlichter Globus (Lucide-Stil) für die Web-Quick-Links
+function globusIcon(size = 13) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('class', 'x-logo');
+  const c = document.createElementNS(svgNS, 'circle');
+  c.setAttribute('cx', '12'); c.setAttribute('cy', '12'); c.setAttribute('r', '10');
+  svg.append(c);
+  for (const d of ['M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20', 'M2 12h20']) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', d);
+    svg.append(p);
+  }
+  return svg;
 }
 
 // Offizielles X-Logo (schlicht, currentColor)

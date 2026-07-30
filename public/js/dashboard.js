@@ -73,6 +73,11 @@ function editPosition(p, row, spalten) {
       )
     )
   );
+  // Spaltenköpfe (Kurs/Heute/Trend …) passen nicht zum Editor — solange
+  // bearbeitet wird, ausblenden; loadDashboard() baut sie danach wieder auf
+  editor.dataset.editor = '1';
+  const thead = row.closest('table')?.querySelector('thead');
+  if (thead) thead.hidden = true;
   row.replaceWith(editor);
   stueck.focus();
 }
@@ -90,7 +95,9 @@ function prepostMini(ab) {
 
 function set(id, content, cls) {
   const node = document.getElementById(id);
-  node.classList.remove('skel');
+  // Farb-Klassen immer zurücksetzen — sonst bleibt z. B. nach dem Löschen
+  // einer Position (Wert kurz null → grau) das Grau dauerhaft kleben
+  node.classList.remove('skel', 'pos', 'neg', 'dim');
   node.textContent = content;
   if (cls) node.classList.add(cls);
   return node;
@@ -156,7 +163,8 @@ async function loadDashboard() {
       const kurzTitel = t.name.replace(/\s*\((Monat|Jahr|Quartal)\)/g, '');
       return el('a', { class: 'trow', href: './kalender.html', title: `${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}` },
         el('span', { class: 'wann' }, wannVon(t)),
-        el('span', { class: 'badge chip-sm' }, t.waehrung === 'USD' ? '🇺🇸' : '🇪🇺'),
+        // Textchip statt Flaggen-Emoji — das war im Dark Mode kaum erkennbar
+        el('span', { class: 'badge chip-sm cur' }, t.waehrung),
         el('span', { class: 'tinfo' },
           kurzTitel,
           t.prognose ? el('span', { class: 'eps' }, `Prog. ${t.prognose}`) : null,
