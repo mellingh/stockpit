@@ -57,6 +57,14 @@ const wrap = (fn) => (req, res) =>
     res.status(500).json({ error: err.message });
   });
 
+// Ticker-Symbole validieren, bevor sie in externe URLs/Anfragen wandern
+// (z. B. AAPL, SAP.DE, BRK-B, EURUSD=X, ^GSPC)
+const SYMBOL_RE = /^[A-Za-z0-9.\-^=]{1,20}$/;
+app.param('symbol', (req, res, next, symbol) => {
+  if (!SYMBOL_RE.test(symbol)) return res.status(400).json({ error: 'Ungültiges Symbol' });
+  next();
+});
+
 // ---------- Status & Suche ----------
 
 app.get('/api/status', (req, res) => {
@@ -621,7 +629,9 @@ app.delete('/api/watchlist/:symbol', (req, res) => {
 
 // ---------- Start ----------
 
-app.listen(PORT, () => {
+// Nur an localhost binden — die App gehört auf diesen Rechner,
+// nicht ins (Heim-)Netzwerk
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`\n  Stockpit läuft: http://localhost:${PORT}\n`);
   preload(); // Sentiment-Modell im Hintergrund laden
 });
