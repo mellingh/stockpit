@@ -231,8 +231,8 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
 /* "+ Position hinzufügen"-Knopf unter der Tabelle (Inline-Hinzufügen) */
 .add-row { margin-top: 14px; }
 
-/* Inline-Formular zwischen Tabelle und Knopf — alles auf 42px-Höhe,
-   damit Felder und Button sauber auf einer Linie sitzen */
+/* Inline-Formular zwischen Tabelle und Knopf — Felder und Button auf
+   EINER kompakten Höhe (38px; im Panel wirken 42px klobig) */
 .inline-add {
   display: flex;
   flex-wrap: wrap;
@@ -240,8 +240,12 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
   align-items: center;
   margin: 14px 0 2px;
 }
-.inline-add input { height: 42px; }
-.inline-add .btn { height: 42px; padding: 0 18px; }
+.inline-add input[type='text'], .inline-add input[type='number'] { height: 38px; font-size: 13.5px; }
+.inline-add .btn { height: 38px; padding: 0 16px; font-size: 13px; }
+
+/* In der schmalen X-Karte noch eine Stufe kompakter */
+#p-x .inline-add input[type='text'] { height: 34px; font-size: 13px; }
+#p-x .inline-add .btn { height: 34px; padding: 0 13px; font-size: 12.5px; }
 .panel-title .hint { letter-spacing: 0; text-transform: none; font-weight: 400; color: var(--ink-3); }
 
 /* ---------- Hero (Dashboard) ---------- */
@@ -684,8 +688,8 @@ button:disabled { opacity: 0.5; cursor: wait; }
 }
 .search-wrap.search-lg input {
   padding-left: 44px;
-  height: 48px;
-  font-size: 15px;
+  height: 44px;
+  font-size: 14.5px;
 }
 .suggestions {
   position: absolute;
@@ -1053,6 +1057,12 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
 
 /* Aufklappbare Bereiche (details/summary) */
 details.clap { margin-top: 12px; border-top: 1px solid var(--line); }
+/* Bei News KEINE eigene Linie: die Einordnung hängt direkt an ihrer News,
+   getrennt wird nur zwischen den News (border-bottom der news-item).
+   Gleiches für "Mehr anzeigen" direkt nach einer News — sonst Doppellinien. */
+.news-item details.clap { border-top: none; margin-top: 0; }
+.news-item details.clap > summary { padding-top: 2px; }
+.news-item + details.clap { border-top: none; margin-top: 0; }
 details.clap > summary {
   cursor: pointer;
   list-style: none;
