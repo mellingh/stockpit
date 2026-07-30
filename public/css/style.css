@@ -252,7 +252,9 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
   gap: 18px;
   margin-bottom: 18px;
 }
-.hero .panel { display: flex; flex-direction: column; justify-content: space-between; min-height: 138px; }
+/* height:100% statt nur min-height: die drei Karten sind exakt gleich hoch,
+   auch wenn die erste (größere Zahl + FX-Zeile) mehr Inhalt hat */
+.hero .panel { display: flex; flex-direction: column; justify-content: space-between; min-height: 138px; height: 100%; }
 .hero .panel:nth-child(2) { animation-delay: 0.06s; }
 .hero .panel:nth-child(3) { animation-delay: 0.12s; }
 
@@ -885,7 +887,11 @@ tr:hover .row-actions .icon-btn { opacity: 1; }
   border: 1px solid var(--line-strong);
   color: var(--ink-2);
   border-radius: var(--radius-sm);
-  padding: 4px 12px;
+  /* feste Höhe: aktive/inaktive Pills (fett vs. normal) bleiben exakt gleich hoch */
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
   font-family: var(--font-mono);
   font-size: 12px;
   cursor: pointer;

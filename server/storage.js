@@ -11,7 +11,7 @@ const FILE = path.join(DATA_DIR, 'portfolio.json');
 const DEFAULT_DATA = {
   positions: [], // {id, symbol, name, shares, buyPrice, currency, buyDate}
   watchlist: [], // {symbol, name}
-  xAccounts: ['Biotech2k1'], // X-Handles für die "Meinungen auf X"-Links
+  xAccounts: ['TheLongInvest', 'Biotech2k1', 'thestockwhale'], // X-Handles für die "Meinungen auf X"-Links (Michas Standard-Trio)
 };
 
 let data = null;
