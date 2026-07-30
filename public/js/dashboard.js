@@ -75,22 +75,28 @@ async function loadDashboard() {
           ? 'morgen'
           : new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
-    const eigeneZeile = (t) => {
-      const eps = t.epsErwartet != null ? ` · EPS erw. ${(t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')}` : '';
-      return el('a', { class: 'trow', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`, title: `${t.name} — ${t.typ}, ${fmtDate(t.date)}` },
-        el('span', { class: `wann ${t.days <= 1 ? 'soon' : ''}` }, wannVon(t)),
-        el('span', { class: 'badge chip chip-strong' }, t.symbol),
-        el('span', { class: 'tinfo' }, `${t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende'}${eps}`)
+    const eigeneZeile = (t) =>
+      el('a', { class: 'trow', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`, title: `${t.name} — ${t.typ}, ${fmtDate(t.date)}` },
+        el('span', { class: 'wann' }, wannVon(t)),
+        el('span', { class: 'badge chip chip-sm' }, t.symbol),
+        el('span', { class: 'tinfo' },
+          t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende',
+          t.epsErwartet != null
+            ? el('span', { class: `eps ${t.epsErwartet > 0 ? 'pos' : t.epsErwartet < 0 ? 'neg' : ''}` },
+                `EPS erw. ${(t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')}`)
+            : null
+        )
       );
-    };
 
     const marktZeile = (t) => {
       const kurzTitel = t.name.replace(/\s*\((Monat|Jahr|Quartal)\)/g, '');
-      const prog = t.prognose ? ` · Prog. ${t.prognose}` : '';
       return el('a', { class: 'trow', href: './kalender.html', title: `${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}` },
-        el('span', { class: `wann ${t.days <= 1 ? 'soon' : ''}` }, wannVon(t)),
-        el('span', { class: 'badge' }, t.waehrung === 'USD' ? '🇺🇸' : '🇪🇺'),
-        el('span', { class: 'tinfo' }, `${kurzTitel}${prog}`)
+        el('span', { class: 'wann' }, wannVon(t)),
+        el('span', { class: 'badge chip-sm' }, t.waehrung === 'USD' ? '🇺🇸' : '🇪🇺'),
+        el('span', { class: 'tinfo' },
+          kurzTitel,
+          t.prognose ? el('span', { class: 'eps' }, `Prog. ${t.prognose}`) : null
+        )
       );
     };
 
@@ -99,26 +105,15 @@ async function loadDashboard() {
         el('h2', { class: 'panel-title' }, 'Wichtige Termine', el('span', { class: 'hint' }, ' · nächste 14 Tage')),
         el('div', { class: 'termine-grid' },
           el('div', { class: 'termine-col' },
-            el('div', { class: 'tcol-head eigene' }, 'Deine Werte'),
+            el('div', { class: 'tcol-head' }, 'Deine Werte'),
             eigene.length ? eigene.map(eigeneZeile) : el('div', { class: 'empty', style: 'padding:10px 0' }, 'Keine Termine deiner Werte.')
           ),
           el('div', { class: 'termine-col' },
-            el('div', { class: 'tcol-head markt' }, 'Markt-Events',
-              el('a', { class: 'tcol-link', href: './kalender.html' }, 'alle im Kalender →')),
+            el('div', { class: 'tcol-head' }, 'Markt-Events'),
             markt.length ? markt.map(marktZeile) : el('div', { class: 'empty', style: 'padding:10px 0' }, 'Keine großen Markt-Events.')
           )
         )
       )
-    );
-  }
-
-  // Klumpenrisiko: warnen, wenn eine Position das Depot dominiert
-  const groesste = d.positions.filter((p) => p.valueEur != null).sort((a, b) => b.valueEur - a.valueEur)[0];
-  if (groesste && d.totalEur > 0 && groesste.valueEur / d.totalEur > 0.5) {
-    const anteil = Math.round((groesste.valueEur / d.totalEur) * 100);
-    document.getElementById('termine-wrap').append(
-      el('div', { class: 'notice', style: 'margin-bottom:18px' },
-        `⚠ Klumpenrisiko: ${groesste.symbol} macht ${anteil} % deines Depots aus — ein einzelner schlechter Tag dieses Werts schlägt voll durch.`)
     );
   }
 

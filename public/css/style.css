@@ -390,19 +390,33 @@ table.data th.num { text-align: right; }
 @media (max-width: 900px) { .termine-grid { grid-template-columns: 1fr; } }
 
 .tcol-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: var(--ink-3);
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line-strong);
 }
-.tcol-head.eigene { color: var(--up); }
-.tcol-head.markt { color: var(--accent); }
-.tcol-link { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+/* Kleine, dezente Chips + luftige Kernwerte in den Termin-Zeilen */
+.badge.chip-sm {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  color: var(--accent);
+  border-color: rgba(76, 141, 255, 0.35);
+  background: transparent;
+}
+.trow .tinfo .eps {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-left: 14px;
+}
+.trow .tinfo .eps.pos { color: var(--up); }
+.trow .tinfo .eps.neg { color: var(--down); }
 
 .trow {
   display: flex;
@@ -423,7 +437,6 @@ table.data th.num { text-align: right; }
   flex: none;
   width: 88px;
 }
-.trow .wann.soon { color: var(--down); font-weight: 600; }
 .trow .badge { flex: none; }
 .trow .tinfo {
   flex: 1;
