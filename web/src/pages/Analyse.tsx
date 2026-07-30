@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '@/lib/router';
 import { Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
@@ -750,7 +750,7 @@ function Report({ symbol }: { symbol: string }) {
 // ---------- Seite ----------
 
 export default function AnalysePage() {
-  const [params] = useSearchParams();
+  const params = useSearchParams();
   const navigate = useNavigate();
   const symbol = params.get('symbol');
   const waehlen = (s: string) => navigate(`/analyse?symbol=${encodeURIComponent(s)}`);

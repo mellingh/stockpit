@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Link, usePathname } from '@/lib/router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -40,31 +40,40 @@ const NAV = [
   { to: '/kalender', label: 'Kalender' },
 ];
 
+/** Seite anhand des Pfads wählen — alte v1-URLs (.html) bleiben gültig */
+function Seite() {
+  const pfad = usePathname();
+  if (pfad.startsWith('/analyse')) return <AnalysePage />;
+  if (pfad.startsWith('/kalender')) return <KalenderPage />;
+  return <DashboardPage />;
+}
+
 export default function App() {
+  const pfad = usePathname();
+  const istAktiv = (to: string) =>
+    to === '/' ? pfad === '/' || pfad.startsWith('/index') : pfad.startsWith(to);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className="mx-auto flex h-[54px] w-full max-w-[1460px] items-center gap-7 px-5">
-          <NavLink to="/" className="font-display text-[19px] font-bold tracking-tight text-ink">
+          <Link to="/" className="font-display text-[19px] font-bold tracking-tight text-ink">
             Stock<span className="text-accent">pit</span>
-          </NavLink>
+          </Link>
           <nav className="flex items-center gap-1">
             {NAV.map((n) => (
-              <NavLink
+              <Link
                 key={n.to}
                 to={n.to}
-                end={n.to === '/'}
-                className={({ isActive }) =>
-                  cn(
-                    'rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors',
-                    isActive
-                      ? 'bg-accent-soft text-accent'
-                      : 'text-ink2 hover:bg-panel2 hover:text-ink'
-                  )
-                }
+                className={cn(
+                  'rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors',
+                  istAktiv(n.to)
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-ink2 hover:bg-panel2 hover:text-ink'
+                )}
               >
                 {n.label}
-              </NavLink>
+              </Link>
             ))}
           </nav>
           <div className="ml-auto">
@@ -85,15 +94,7 @@ export default function App() {
       </header>
 
       <main className="mx-auto w-full max-w-[1460px] flex-1 px-5 pb-16 pt-7">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/analyse" element={<AnalysePage />} />
-          <Route path="/kalender" element={<KalenderPage />} />
-          {/* alte v1-URLs weiterhin unterstützen */}
-          <Route path="/index.html" element={<DashboardPage />} />
-          <Route path="/analyse.html" element={<AnalysePage />} />
-          <Route path="/kalender.html" element={<KalenderPage />} />
-        </Routes>
+        <Seite />
       </main>
 
       <footer className="border-t border-line py-5 text-center text-[12px] text-ink3">

@@ -72,6 +72,14 @@ hat Micha verworfen — Repo und Ordner heißen ebenfalls stockpit).
 - Fundamentaldaten haben kein eigenes Panel: Kernwerte im Kennzahlen-Strip unterm Chart, Rest im Kennzahlen-Akkordeon (ETF-Profil bleibt eigenes Panel).
 - Seeking Alpha, nasdaq.com, nyse.com, justETF: geprüft und verworfen (Paywall/redundant).
 
+## Stockpit v2 (Branch feature/react-shadcn-redesign)
+
+- **Neues Frontend unter `web/`**: Vite 7 + React 19 + TypeScript (strict) + Tailwind v4 + shadcn-Stil-Komponenten (Quellcode in `web/src/components/ui/`, KEINE shadcn-CLI). Server (`server/`) blieb 1:1; Express liefert `web/dist/` mit SPA-Fallback NACH den /api-Routen. `start.bat` installiert/baut die Oberfläche beim Erststart. `public/` bleibt bis zur Abnahme als Referenz liegen.
+- **Kein react-router**: bewusst entfernt (Audit-Altlasten in SSR-Features + 16 KB) — Mini-Router in `web/src/lib/router.tsx` (`Link`, `useNavigate`, `useSearchParams`, `usePathname`); alte `.html`-URLs bleiben gültig. `npm audit` im web/ ist SAUBER (0) und soll es bleiben.
+- **Datenfluss**: typisierter API-Client (`lib/api.ts`, Typen = exakte Server-JSONs) + TanStack-Query-Hooks (`lib/queries.ts`); Portfolio-/Links-Mutations invalidieren automatisch — keine manuellen Reload-Ketten mehr.
+- **Design-System „Terminal Luxe"** (`web/src/index.css` @theme): tiefes blaustichiges Schwarz (#07090e), Glas-Panels (Hairline + Innen-Highlight), Signalblau #5e9eff, up #2fd18d / down #ff5d6c NUR für Markt, Fonts lokal (Bricolage Grotesque = Display, Schibsted Grotesk = Body, Red Hat Mono = Kursdaten), Puls-Linie unter der Topbar, Panels mit animate-rise-Stagger. Kompakte Daten-Dichte, kein Marketing-Look.
+- **Alle v1-Produktentscheidungen gelten in v2 weiter** (nicht-wieder-einbauen-Liste, deutsche UI, englische Kennzahlen-Leiste, EPS erw. grau/Ist farbig, Löschen ohne Rückfrage, Einordnungs-Bullets ohne Floskeln, Kalender-Lexikon in `web/src/lib/event-lexikon.ts` — dort erweitern).
+
 ## Konventionen
 
 - UI-Texte deutsch, `Intl`-Formatierung `de-DE`, EUR als Anzeigewährung im Dashboard (FX über Yahoo `USDEUR=X`).
