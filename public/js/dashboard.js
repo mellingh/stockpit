@@ -60,104 +60,54 @@ async function loadDashboard() {
   set('kpi-day', hasPositions ? fmtEur(d.dayChangeEur) : '—', signClass(d.dayChangeEur));
   document.getElementById('kpi-day-pct').textContent = d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : '';
 
-  // Wichtige Termine: eine Tabelle, klar getrennt in "Deine Werte" und
-  // "Markt-Events". Jede Zeile klappt ihre Details darunter auf.
+  // Wichtige Termine: zwei kompakte Spalten nebeneinander — links "Deine
+  // Werte", rechts "Markt-Events". Das Entscheidende (EPS-Erwartung,
+  // Prognose) steht direkt in der Zeile; Klick führt zur Analyse bzw.
+  // zum Kalender. Kein Aufklappen, minimaler Platz.
   if (d.termine?.length) {
     const eigene = d.termine.filter((t) => t.typ !== 'Markt');
-    const markt = d.termine.filter((t) => t.typ === 'Markt');
-    const tbody = el('tbody');
-    let offene = null;
+    const markt = d.termine.filter((t) => t.typ === 'Markt').slice(0, 3);
 
-    const detailZeile = (t) => {
-      const istMarkt = t.typ === 'Markt';
-      const zeit = new Date(t.date).toLocaleString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-      const fakten = istMarkt
-        ? [
-            ['Vollständiger Titel', t.name],
-            ['Termin', `${zeit} Uhr`],
-            ['Währungsraum', t.waehrung === 'USD' ? '🇺🇸 USA' : '🇪🇺 Eurozone'],
-            t.prognose ? ['Prognose', t.prognose] : null,
-            t.vorher ? ['Vorheriger Wert', t.vorher] : null,
-          ].filter(Boolean)
-        : [
-            ['Unternehmen', t.name],
-            ['Termin', `${zeit} Uhr`],
-            t.epsErwartet != null ? ['Erwartetes EPS', (t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')] : null,
-            t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
-          ].filter(Boolean);
-      return el('tr', { class: 'detail-row' },
-        el('td', { colspan: '4' },
-          el('div', { class: 'news-explain-detail' },
-            el('dl', { class: 'facts' }, fakten.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
-            el('div', { class: 'dim', style: 'font-size:12px;margin-top:8px' },
-              istMarkt
-                ? 'Marktweiter Termin — kann alle deine Werte gleichzeitig bewegen.'
-                : t.typ === 'Quartalszahlen'
-                  ? 'Rund um Quartalszahlen sind stärkere Kursschwankungen üblich — Positionsgröße im Blick behalten.'
-                  : 'Ab dem Ex-Dividenden-Tag wird die Aktie ohne Dividendenanspruch gehandelt.'),
-            istMarkt
-              ? el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:10px', href: './kalender.html' }, 'Alle Termine im Kalender →')
-              : el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:10px', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}` }, `${t.symbol} analysieren →`)
-          )
-        )
+    const wannVon = (t) =>
+      t.days === 0
+        ? `heute ${new Date(t.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+        : t.days === 1
+          ? 'morgen'
+          : new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+    const eigeneZeile = (t) => {
+      const eps = t.epsErwartet != null ? ` · EPS erw. ${(t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')}` : '';
+      return el('a', { class: 'trow', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`, title: `${t.name} — ${t.typ}, ${fmtDate(t.date)}` },
+        el('span', { class: `wann ${t.days <= 1 ? 'soon' : ''}` }, wannVon(t)),
+        el('span', { class: 'badge chip chip-strong' }, t.symbol),
+        el('span', { class: 'tinfo' }, `${t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende'}${eps}`)
       );
     };
 
-    const gruppe = (label, liste, klasse) => {
-      if (!liste.length) return;
-      tbody.append(
-        el('tr', { class: `group-sep ${klasse}` },
-          el('td', { colspan: '4' }, label, el('span', { class: 'group-count' }, ` ${liste.length}`))
-        )
+    const marktZeile = (t) => {
+      const kurzTitel = t.name.replace(/\s*\((Monat|Jahr|Quartal)\)/g, '');
+      const prog = t.prognose ? ` · Prog. ${t.prognose}` : '';
+      return el('a', { class: 'trow', href: './kalender.html', title: `${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}` },
+        el('span', { class: `wann ${t.days <= 1 ? 'soon' : ''}` }, wannVon(t)),
+        el('span', { class: 'badge' }, t.waehrung === 'USD' ? '🇺🇸' : '🇪🇺'),
+        el('span', { class: 'tinfo' }, `${kurzTitel}${prog}`)
       );
-      for (const t of liste) {
-        const istMarkt = t.typ === 'Markt';
-        const wann = t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`;
-        const datum = new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-        const uhr = new Date(t.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-        const zeile = el('tr', { class: 'rowlink termin-row' },
-          el('td', { style: 'width:132px' },
-            el('span', { class: `wann ${t.days <= 1 ? 'soon' : ''}` }, wann),
-            el('span', { class: 'sym', style: 'display:block' }, `${datum} · ${uhr}`)
-          ),
-          el('td', { style: 'width:112px' },
-            istMarkt
-              ? el('span', { class: 'badge' }, t.waehrung === 'USD' ? '🇺🇸 USA' : '🇪🇺 EUR')
-              : el('a', { class: 'badge chip chip-strong', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`, onclick: (e) => e.stopPropagation() }, t.symbol)
-          ),
-          el('td', { class: 'name-cell' },
-            istMarkt ? t.name : t.typ,
-            !istMarkt ? el('span', { class: 'sym' }, t.name) : null
-          ),
-          el('td', { style: 'width:34px;text-align:right' }, chevronIcon(16))
-        );
-        zeile.addEventListener('click', () => {
-          if (offene?.zeile === zeile) {
-            offene.detail.remove();
-            zeile.classList.remove('open');
-            offene = null;
-            return;
-          }
-          if (offene) {
-            offene.detail.remove();
-            offene.zeile.classList.remove('open');
-          }
-          const detail = detailZeile(t);
-          zeile.after(detail);
-          zeile.classList.add('open');
-          offene = { zeile, detail };
-        });
-        tbody.append(zeile);
-      }
     };
-
-    gruppe('Deine Werte', eigene, 'eigene');
-    gruppe('Markt-Events', markt, 'markt');
 
     document.getElementById('termine-wrap').replaceChildren(
-      el('section', { class: 'panel', style: 'margin-bottom:18px' },
-        el('h2', { class: 'panel-title' }, 'Wichtige Termine', el('span', { class: 'hint' }, ' · nächste 14 Tage · Zeile anklicken für Details')),
-        el('table', { class: 'data compact termine-table' }, tbody)
+      el('section', { class: 'panel', style: 'margin-bottom:18px;padding-bottom:14px' },
+        el('h2', { class: 'panel-title' }, 'Wichtige Termine', el('span', { class: 'hint' }, ' · nächste 14 Tage')),
+        el('div', { class: 'termine-grid' },
+          el('div', { class: 'termine-col' },
+            el('div', { class: 'tcol-head eigene' }, 'Deine Werte'),
+            eigene.length ? eigene.map(eigeneZeile) : el('div', { class: 'empty', style: 'padding:10px 0' }, 'Keine Termine deiner Werte.')
+          ),
+          el('div', { class: 'termine-col' },
+            el('div', { class: 'tcol-head markt' }, 'Markt-Events',
+              el('a', { class: 'tcol-link', href: './kalender.html' }, 'alle im Kalender →')),
+            markt.length ? markt.map(marktZeile) : el('div', { class: 'empty', style: 'padding:10px 0' }, 'Keine großen Markt-Events.')
+          )
+        )
       )
     );
   }
