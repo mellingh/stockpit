@@ -124,12 +124,21 @@ export interface ChartData {
   sma200: { time: string; value: number }[];
 }
 
+export interface RecoTrend {
+  period: string;
+  strongBuy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strongSell: number;
+}
+
 export interface Analysts {
   mean: number;
   key?: string;
   count: number | null;
-  trend: Record<string, number | string>[];
-  breakdown: Record<string, number | string> | null;
+  trend: RecoTrend[];
+  breakdown: RecoTrend | null;
   targets: { low: number | null; mean: number | null; high: number | null; upsidePct: number | null };
 }
 
