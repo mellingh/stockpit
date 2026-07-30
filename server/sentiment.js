@@ -11,25 +11,30 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const MODEL_EN = process.env.SENTIMENT_MODEL_EN || 'Xenova/finbert';
 const MODEL_MULTI = process.env.SENTIMENT_MODEL_MULTI || 'Xenova/bert-base-multilingual-uncased-sentiment';
 
+// Single-Flight: das Lade-Promise wird sofort gemerkt, damit parallele
+// Anfragen dasselbe Modell-Laden abwarten statt es doppelt anzustoßen
 let pipelines = { en: null, multi: null };
 let loadState = { status: 'idle', error: null }; // idle | loading | ready | error
 
-async function getPipeline(lang) {
+function getPipeline(lang) {
   const key = lang === 'de' ? 'multi' : 'en';
   if (pipelines[key]) return pipelines[key];
 
   loadState.status = 'loading';
-  try {
+  pipelines[key] = (async () => {
     const { pipeline, env } = await import('@huggingface/transformers');
     env.cacheDir = path.join(ROOT, 'models');
     const model = key === 'multi' ? MODEL_MULTI : MODEL_EN;
-    pipelines[key] = await pipeline('text-classification', model);
+    const pipe = await pipeline('text-classification', model);
     loadState.status = 'ready';
-    return pipelines[key];
-  } catch (err) {
+    return pipe;
+  })().catch((err) => {
+    // Fehlversuch nicht festhalten — nächster Aufruf probiert es erneut
+    pipelines[key] = null;
     loadState = { status: 'error', error: String(err?.message || err) };
     throw err;
-  }
+  });
+  return pipelines[key];
 }
 
 // Das mehrsprachige Modell liefert Sterne-Labels ("1 star" … "5 stars")

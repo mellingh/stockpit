@@ -227,6 +227,32 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
   gap: 10px;
 }
 .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* +-Knopf im Panel-Titel (Inline-Hinzufügen) */
+.add-btn {
+  flex: none;
+  order: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Inline-Formular unter dem Panel-Titel */
+.inline-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
 .panel-title .hint { letter-spacing: 0; text-transform: none; font-weight: 400; color: var(--ink-3); }
 
 /* ---------- Hero (Dashboard) ---------- */
@@ -498,6 +524,28 @@ table.data th.num { text-align: right; }
 }
 .chart-ohlc b { font-weight: 500; font-variant-numeric: tabular-nums; }
 .chart-ohlc .ohlc-vol b { color: var(--ink-2); }
+
+/* Einordnung als knappe Bullet-Liste */
+.einordnung-liste {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  list-style: none;
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.einordnung-liste li { padding-left: 14px; position: relative; }
+.einordnung-liste li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
 
 /* Aufklapp-Pfeil (Termin-Radar u. Ä.) — klassisches Chevron, gut sichtbar */
 .chev {

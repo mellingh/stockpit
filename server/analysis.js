@@ -196,9 +196,9 @@ export function explain(newsItem, reaction, symbolName) {
   // 3. Kam Volumen mit? (bestätigt oder relativiert die Bewegung)
   if (reaction.volRel != null && !kaum) {
     if (reaction.volRel >= 1.5)
-      saetze.push(`Der Umsatz lag bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — viele Anleger waren beteiligt, was die Bewegung belastbarer macht.`);
+      saetze.push(`Das Handelsvolumen lag bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — viele Anleger waren beteiligt, was die Bewegung belastbarer macht.`);
     else if (reaction.volRel <= 0.7)
-      saetze.push(`Der Umsatz lag nur bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — die Bewegung entstand bei dünnem Handel und ist entsprechend wenig belastbar.`);
+      saetze.push(`Das Handelsvolumen lag nur bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — die Bewegung entstand bei dünnem Handel und ist entsprechend wenig belastbar.`);
   }
 
   // 4. Wie ging es weiter?

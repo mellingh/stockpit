@@ -19,6 +19,12 @@ export function cached(key, ttlMs, fetcher) {
   return promise;
 }
 
+// Eintrag gezielt verwerfen (z. B. wenn ein Platzhalter-Ergebnis
+// nicht einen ganzen Tag im Cache kleben soll)
+export function uncache(key) {
+  store.delete(key);
+}
+
 export const MINUTE = 60_000;
 export const HOUR = 3_600_000;
 export const DAY = 86_400_000;

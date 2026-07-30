@@ -91,7 +91,7 @@ export function ampelDot(ampel, title) {
   return el('span', { class: `dot ${ampel || 'gray'}`, title: title || '' });
 }
 
-export const AMPEL_TEXT = { green: 'Bullisch', yellow: 'Neutral', red: 'Bärisch' };
+export const AMPEL_TEXT = { green: 'Bullish', yellow: 'Neutral', red: 'Bearish' };
 
 // ---------- Erklärung zu News-Badges (Klick blendet Einordnung ein) ----------
 
@@ -209,7 +209,7 @@ export function newsEinordnung(n) {
   if (!parts.length) return null;
   return collapsible(
     'Einordnung',
-    el('div', { class: 'news-explain-detail', style: 'margin-top:8px' }, parts.map((p) => el('div', {}, p)))
+    el('ul', { class: 'einordnung-liste' }, parts.map((p) => el('li', {}, p)))
   );
 }
 

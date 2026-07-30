@@ -71,11 +71,12 @@ async function renderPositions() {
       ),
       el('tbody', {},
         d.positions.map((p) => {
-          const row = el('tr', {},
+          // Zeile springt zur Analyse — Buttons stoppen den Klick-Durchgriff
+          const row = el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(p.symbol)}`) },
             el('td', { class: 'name-cell' }, p.name, el('span', { class: 'sym' }, p.symbol)),
             el('td', { class: 'num' }, String(p.shares)),
             el('td', { class: 'num' }, fmtMoney(p.buyPrice, p.currency || p.waehrung)),
-            el('td', { style: 'text-align:right;white-space:nowrap' },
+            el('td', { style: 'text-align:right;white-space:nowrap', onclick: (e) => e.stopPropagation() },
               el('button', { class: 'btn ghost small', type: 'button', onclick: () => editPosition(p, row) }, 'Ändern'),
               ' ',
               el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
@@ -129,9 +130,9 @@ async function renderWatchlist() {
     el('table', { class: 'data' },
       el('tbody', {},
         d.watchlist.map((w) =>
-          el('tr', {},
+          el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(w.symbol)}`) },
             el('td', { class: 'name-cell' }, w.name, el('span', { class: 'sym' }, w.symbol)),
-            el('td', { style: 'text-align:right' },
+            el('td', { style: 'text-align:right', onclick: (e) => e.stopPropagation() },
               el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
                 await api.del(`/api/watchlist/${encodeURIComponent(w.symbol)}`);
                 renderWatchlist();

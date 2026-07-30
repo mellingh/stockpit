@@ -5,7 +5,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cached, MINUTE, HOUR, DAY } from './cache.js';
+import { cached, uncache, MINUTE, HOUR, DAY } from './cache.js';
 import * as yahoo from './yahoo.js';
 import { analyzeTechnicals } from './indicators.js';
 import * as store from './storage.js';
@@ -27,8 +27,12 @@ app.use('/vendor', express.static(path.join(ROOT, 'node_modules/lightweight-char
 
 // Sentiment einer Schlagzeile — pro Titel einen Tag gecacht,
 // damit dieselbe News nicht mehrfach durch das Modell läuft.
-function classifyCached(title, lang) {
-  return cached(`sent:${title}`, DAY, () => classify(title, lang));
+// Wichtig: Ein "Modell noch nicht bereit"-Platzhalter darf NICHT im Cache
+// kleben bleiben, sonst zeigt die News einen Tag lang keine Einordnung.
+async function classifyCached(title, lang) {
+  const result = await cached(`sent:${title}`, DAY, () => classify(title, lang));
+  if (result?.unavailable) uncache(`sent:${title}`);
+  return result;
 }
 
 // Sektor einer Aktie (für das Betroffenheits-Mapping), einen Tag gecacht

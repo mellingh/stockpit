@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass,
-  sparkline, donut, CAT_COLORS, markActiveNav, newsBadgesRow, newsEinordnung, chevronIcon,
+  sparkline, donut, CAT_COLORS, markActiveNav, newsBadgesRow, newsEinordnung, chevronIcon, attachSearch,
 } from './ui.js';
 
 markActiveNav();
@@ -272,6 +272,78 @@ async function loadNews() {
     : [];
   box.replaceChildren(...notices, ...filterInfo, ...nodes);
 }
+
+// ---------- Inline-Hinzufügen direkt im Dashboard (+-Knöpfe) ----------
+
+function bindAddForm(btnId, boxId, bauen) {
+  const btn = document.getElementById(btnId);
+  const box = document.getElementById(boxId);
+  if (!btn || !box) return;
+  let gebaut = false;
+  btn.addEventListener('click', () => {
+    if (!gebaut) {
+      bauen(box);
+      gebaut = true;
+    }
+    box.hidden = !box.hidden;
+    if (!box.hidden) box.querySelector('input')?.focus();
+  });
+}
+
+// Position: Wert suchen, Stückzahl + Ø-Kaufkurs eingeben, fertig
+bindAddForm('add-pos-btn', 'add-pos-form', (box) => {
+  let gewaehlt = null;
+  const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
+  const suche = el('input', { type: 'text', placeholder: 'Name oder Ticker …', autocomplete: 'off' });
+  const form = el('form', { class: 'inline-add' },
+    el('span', { class: 'search-wrap', style: 'flex:2;min-width:180px' }, suche),
+    el('input', { type: 'number', step: 'any', min: '0', name: 'shares', placeholder: 'Stück', required: 'required', style: 'flex:1;min-width:90px' }),
+    el('input', { type: 'number', step: 'any', min: '0', name: 'buyPrice', placeholder: 'Ø-Kaufkurs', style: 'flex:1;min-width:110px' }),
+    el('button', { class: 'btn small', type: 'submit' }, 'Hinzufügen')
+  );
+  attachSearch(suche, (r) => {
+    gewaehlt = r;
+    suche.value = `${r.symbol} — ${r.name}`;
+    hinweis.hidden = true;
+  });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!gewaehlt) {
+      hinweis.hidden = false;
+      hinweis.textContent = 'Bitte zuerst über die Suche einen Wert auswählen.';
+      return;
+    }
+    const knopf = form.querySelector('button');
+    knopf.disabled = true;
+    try {
+      await api.post('/api/positions', { symbol: gewaehlt.symbol, shares: form.shares.value, buyPrice: form.buyPrice.value || null });
+      gewaehlt = null;
+      form.reset();
+      box.hidden = true;
+      loadDashboard();
+      loadNews();
+    } catch (err) {
+      hinweis.hidden = false;
+      hinweis.textContent = `Fehler: ${err.message}`;
+    } finally {
+      knopf.disabled = false;
+    }
+  });
+  box.append(form, hinweis);
+});
+
+// Watchlist: Wert suchen → direkt beobachten
+bindAddForm('add-watch-btn', 'add-watch-form', (box) => {
+  const suche = el('input', { type: 'text', placeholder: 'Name oder Ticker suchen — Auswahl landet direkt auf der Watchlist', autocomplete: 'off' });
+  attachSearch(suche, async (r) => {
+    suche.value = '';
+    box.hidden = true;
+    await api.post('/api/watchlist', { symbol: r.symbol }).catch(() => {});
+    loadDashboard();
+    loadNews();
+  });
+  box.append(el('div', { class: 'inline-add' }, el('span', { class: 'search-wrap', style: 'flex:1' }, suche)));
+});
 
 loadDashboard();
 loadNews();
