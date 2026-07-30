@@ -15,8 +15,10 @@ const DEFAULT_DATA = {
   // Quick-Links auf externe Seiten; {TICKER} wird durch das Symbol ersetzt
   webLinks: [
     { name: 'Yahoo Finance', url: 'https://de.finance.yahoo.com/quote/{TICKER}/' },
-    // SWS hat keine verlinkbare Ticker-Suche — Google-Site-Suche, Treffer 1 = Firmenseite
-    { name: 'Simply Wall St', url: 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}' },
+    // SWS-Firmen-URLs haben individuelle Slugs — die eigene Server-Route
+    // löst sie über die SWS-Such-API auf und leitet weiter (relative URL,
+    // funktioniert damit unabhängig von Port/Rechner)
+    { name: 'Simply Wall St', url: '/api/goto/sws/{TICKER}' },
     { name: 'TradingView', url: 'https://de.tradingview.com/chart/?symbol={TICKER}' },
     { name: 'Finviz', url: 'https://finviz.com/quote.ashx?t={TICKER}' },
   ],
@@ -40,7 +42,7 @@ export const SITE_PATTERNS = {
   'zacks.com': { name: 'Zacks', url: 'https://www.zacks.com/stock/quote/{TICKER}' },
   'gurufocus.com': { name: 'GuruFocus', url: 'https://www.gurufocus.com/stock/{TICKER}/summary' },
   'benzinga.com': { name: 'Benzinga', url: 'https://www.benzinga.com/quote/{TICKER}' },
-  'simplywall.st': { name: 'Simply Wall St', url: 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}' },
+  'simplywall.st': { name: 'Simply Wall St', url: '/api/goto/sws/{TICKER}' },
 };
 
 export function sitePattern(url) {
@@ -65,8 +67,11 @@ function load() {
   // {TICKER} (z. B. eingefügte Startseiten) über die bekannten
   // Seiten-Muster reparieren (Runde 23)
   for (const l of data.webLinks ?? []) {
-    if (l.url === 'https://simplywall.st/stocks?search={TICKER}') {
-      l.url = 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}';
+    if (
+      l.url === 'https://simplywall.st/stocks?search={TICKER}' ||
+      l.url === 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}'
+    ) {
+      l.url = '/api/goto/sws/{TICKER}';
     }
     if (!l.url.includes('{TICKER}')) {
       const muster = sitePattern(l.url);

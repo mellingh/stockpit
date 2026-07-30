@@ -4,6 +4,7 @@
 // mit einer lokalen KI. Kein Login, keine API-Keys, keine Kosten.
 import express from 'express';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { cached, uncache, MINUTE, HOUR, DAY } from './cache.js';
 import * as yahoo from './yahoo.js';
@@ -723,6 +724,44 @@ app.get(
     }
 
     res.json({ items: out, feedErrors: macro.errors, gefiltert: candidates.length - relevant.length });
+  })
+);
+
+// ---------- Simply-Wall-St-Weiterleitung ----------
+// SWS-Firmen-URLs enthalten individuelle Slugs (z. B. /stocks/us/software/
+// nasdaq-pgy/pagaya-technologies) und sind nicht pro Ticker konstruierbar.
+// Die interne Such-API von simplywall.st löst sie auf (kostenlos, kein Key,
+// inoffiziell wie Yahoo) — via curl, pro Symbol einen Tag gecacht.
+
+function swsFirmenPfad(symbol) {
+  return cached(`sws:${symbol}`, DAY, async () => {
+    const { stdout } = await new Promise((resolve, reject) => {
+      execFile(
+        'curl',
+        ['-s', '--max-time', '8',
+          '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+          `https://simplywall.st/api/search/${encodeURIComponent(symbol)}`],
+        { maxBuffer: 1024 * 1024, windowsHide: true },
+        (err, out) => (err ? reject(err) : resolve({ stdout: out }))
+      );
+    });
+    const treffer = JSON.parse(stdout);
+    if (!Array.isArray(treffer) || !treffer.length) return null;
+    const exakt = treffer.find((t) => t.ticker?.toUpperCase() === symbol.toUpperCase());
+    return (exakt ?? treffer[0])?.url ?? null;
+  });
+}
+
+app.get(
+  '/api/goto/sws/:symbol',
+  wrap(async (req, res) => {
+    const base = req.params.symbol.split('.')[0];
+    const pfad = await swsFirmenPfad(base).catch(() => null);
+    res.redirect(
+      pfad
+        ? `https://simplywall.st${pfad}`
+        : `https://www.google.com/search?q=site%3Asimplywall.st+${encodeURIComponent(base)}`
+    );
   })
 );
 
