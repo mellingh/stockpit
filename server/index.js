@@ -490,10 +490,19 @@ app.get(
       /(zinsentscheid|zinssatz|fed|fomc|ezb|leitzins|verbraucherpreis|cpi|pce|inflation|arbeitsmarkt|arbeitslosen|nonfarm|payroll|beschäftigung|bip\b|gdp|pressekonferenz|geldpolitik)/i;
     try {
       const kal = await getCalendar();
+      // Varianten derselben Kennzahl (Monat/Jahr/Quartal) auf einen Eintrag
+      // eindampfen — sonst steht viermal fast dasselbe im Panel
+      const gesehen = new Set();
       const marktTermine = (kal.events || [])
         .filter((e) => e.wichtigkeit === 'High' && (e.waehrung === 'USD' || e.waehrung === 'EUR') && MARKT_EVENTS.test(e.titel))
         .map((e) => ({ ...e, days: Math.floor((new Date(e.zeit) - new Date(new Date().toDateString())) / DAY) }))
         .filter((e) => e.days >= 0)
+        .filter((e) => {
+          const kern = e.titel.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+          if (gesehen.has(`${e.waehrung}:${kern}`)) return false;
+          gesehen.add(`${e.waehrung}:${kern}`);
+          return true;
+        })
         .slice(0, 4)
         .map((e) => ({
           typ: 'Markt',

@@ -379,10 +379,37 @@ table.data th.num { text-align: right; }
 }
 .badge.chip-strong:hover { background: var(--accent); color: #fff; text-decoration: none; }
 
-/* Markt-Termine (Fed, EZB, Inflation …) im Termin-Panel: blau statt gelb */
-.termin.markt { border-color: rgba(76, 141, 255, 0.4); background: var(--accent-soft); }
-.termin.markt .days { color: var(--accent); }
-.termin.markt b { color: var(--accent); }
+/* ---------- Wichtige Termine: gruppierte, aufklappbare Tabelle ---------- */
+
+.termine-table { margin-top: -4px; }
+.termine-table .group-sep td {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 14px 16px 6px;
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--ink-3);
+}
+.termine-table .group-sep.eigene td { color: var(--up); }
+.termine-table .group-sep.markt td { color: var(--accent); }
+.termine-table .group-sep:first-child td { padding-top: 2px; }
+.termine-table .group-count {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.termine-table .wann { font-family: var(--font-mono); font-size: 13px; }
+.termine-table .wann.soon { color: var(--down); font-weight: 600; }
+.termine-table .termin-row.open { background: var(--panel-2); }
+.termine-table .termin-row.open .chev { transform: rotate(180deg); }
+.termine-table .detail-row td {
+  padding: 0 16px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.termine-table .detail-row .news-explain-detail { margin: 0; }
 
 /* Tabellen: Namen einheitlich groß wie die Zahlenspalten */
 .name-cell { font-size: 14px; }

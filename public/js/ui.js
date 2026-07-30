@@ -178,7 +178,10 @@ const SIGNAL_NEG =
 // Kurs-Kontext, Signalwörter aus der Schlagzeile, verständliche KI-Sicherheit
 export function newsEinordnung(n) {
   const parts = [];
-  if (n.erklaerung) parts.push(n.erklaerung);
+  // Server liefert mehrere Analyse-Sätze (Bewegung vs. üblich, Sentiment-Abgleich,
+  // Volumen, Folgetag) — ältere Fassungen lieferten einen einzelnen String
+  if (Array.isArray(n.erklaerung)) parts.push(...n.erklaerung);
+  else if (n.erklaerung) parts.push(n.erklaerung);
 
   const s = n.sentiment;
   if (s?.unavailable) {

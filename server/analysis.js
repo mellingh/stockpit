@@ -106,7 +106,9 @@ export function isRelevant(newsItem) {
 
 // ---------- News ↔ Kursbewegung ----------
 
-// Findet die Tagesveränderung am News-Tag und am Folgetag
+// Kursreaktion am News-Tag — inklusive Vergleichsmaßstäben, damit die
+// Erklärung später etwas aussagt: Wie groß war die Bewegung für DIESE Aktie?
+// Kam Volumen mit? Wie ging es am Folgetag weiter?
 export function priceReaction(newsItem, history) {
   const t = toTime(newsItem.pubDate);
   if (!t || !history?.length) return null;
@@ -118,32 +120,97 @@ export function priceReaction(newsItem, history) {
   const changeOf = (i) =>
     i > 0 && i < history.length ? ((history[i].close - history[i - 1].close) / history[i - 1].close) * 100 : null;
 
+  // Typische Tagesschwankung der letzten ~60 Handelstage (mittlere absolute
+  // Veränderung) — der Maßstab für "viel" oder "wenig"
+  const fenster = history.slice(Math.max(idx - 60, 1), idx);
+  const absAenderungen = fenster
+    .map((_, i) => changeOf(Math.max(idx - 60, 1) + i))
+    .filter((v) => v != null)
+    .map(Math.abs);
+  const typisch = absAenderungen.length >= 20
+    ? absAenderungen.reduce((a, b) => a + b, 0) / absAenderungen.length
+    : null;
+
+  // Volumen am News-Tag gegen den Schnitt der Vorwochen
+  const volFenster = fenster.map((q) => q.volume).filter((v) => v > 0);
+  const volSchnitt = volFenster.length >= 20 ? volFenster.reduce((a, b) => a + b, 0) / volFenster.length : null;
+  const volTag = history[idx]?.volume ?? null;
+
   return {
     date: new Date(history[idx].date).toISOString().slice(0, 10),
     dayChangePct: round1(changeOf(idx)),
     nextDayChangePct: round1(changeOf(idx + 1)),
+    typischPct: typisch != null ? round1(typisch) : null,
+    volRel: volSchnitt && volTag ? Math.round((volTag / volSchnitt) * 10) / 10 : null,
   };
 }
 
 const round1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 
-// Erklärungstext: setzt Sentiment und Kursreaktion in Verbindung
+const fmtPctDe = (v) => `${v > 0 ? '+' : ''}${String(v).replace('.', ',')} %`;
+
+// Analytische Einordnung: mehrere konkrete Sätze statt einer Floskel.
+// Rückgabe: Array von Sätzen (Frontend rendert sie als eigene Zeilen).
 export function explain(newsItem, reaction, symbolName) {
   if (!reaction || reaction.dayChangePct == null) return null;
+  const saetze = [];
   const s = newsItem.sentiment?.label;
   const chg = reaction.dayChangePct;
-  const dir = chg > 0 ? `+${chg} %` : `${chg} %`;
-  const cat = newsItem.category?.label ? ` (${newsItem.category.label})` : '';
+  const stark = Math.abs(chg);
+  const typisch = reaction.typischPct;
+  const datum = new Date(reaction.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  if (s === 'positive' && chg > 0.5)
-    return `${symbolName} ${dir} am ${reaction.date} — die positive News${cat} passt zur Kursreaktion.`;
-  if (s === 'negative' && chg < -0.5)
-    return `${symbolName} ${dir} am ${reaction.date} — die negative News${cat} passt zur Kursreaktion.`;
-  if (s === 'positive' && chg < -0.5)
-    return `Divergenz: News positiv${cat}, Kurs trotzdem ${dir} — Markt hatte womöglich mehr erwartet oder andere Faktoren überwiegen.`;
-  if (s === 'negative' && chg > 0.5)
-    return `Divergenz: News negativ${cat}, Kurs trotzdem ${dir} — Schlimmeres war wohl eingepreist oder andere Faktoren überwiegen.`;
-  return `${symbolName} ${dir} am ${reaction.date} — kaum Kursreaktion auf diese News${cat}.`;
+  // 1. Was ist passiert — und ist das für DIESE Aktie viel oder wenig?
+  if (typisch != null && typisch > 0) {
+    const faktor = stark / typisch;
+    const einordnung =
+      faktor >= 2.5 ? `weit mehr als die üblichen ±${String(typisch).replace('.', ',')} % Tagesschwankung — ein deutlicher Ausschlag`
+      : faktor >= 1.5 ? `mehr als die üblichen ±${String(typisch).replace('.', ',')} % Tagesschwankung — eine überdurchschnittliche Reaktion`
+      : faktor >= 0.6 ? `im Rahmen der üblichen ±${String(typisch).replace('.', ',')} % Tagesschwankung — nichts Außergewöhnliches`
+      : `deutlich unter der üblichen ±${String(typisch).replace('.', ',')} %-Schwankung — der Markt hat kaum reagiert`;
+    saetze.push(`${symbolName} schloss am ${datum} bei ${fmtPctDe(chg)}: ${einordnung}.`);
+  } else {
+    saetze.push(`${symbolName} schloss am ${datum} bei ${fmtPctDe(chg)}.`);
+  }
+
+  // 2. Passt die Kursbewegung zur Tonlage der Nachricht?
+  const kaum = stark < 0.5 || (typisch != null && typisch > 0 && stark / typisch < 0.6);
+  if (kaum) {
+    saetze.push(
+      s === 'neutral'
+        ? 'Nachrichtenton und Kursverlauf passen zusammen: beides ohne klare Richtung.'
+        : `Trotz ${s === 'positive' ? 'positiver' : 'negativer'} Tonlage blieb der Kurs ruhig — die Meldung war für den Markt offenbar keine Überraschung oder bereits eingepreist.`
+    );
+  } else if ((s === 'positive' && chg > 0) || (s === 'negative' && chg < 0)) {
+    saetze.push(
+      `Die Kursbewegung passt zur ${s === 'positive' ? 'positiven' : 'negativen'} Tonlage der Meldung — sie ist damit eine plausible Erklärung für den Tag${newsItem.category?.id !== 'other' ? ` (Kategorie: ${newsItem.category.label})` : ''}.`
+    );
+  } else if (s === 'positive' && chg < 0) {
+    saetze.push('Auffällige Divergenz: Die Meldung klingt gut, der Kurs fiel trotzdem. Typische Gründe: Die Erwartungen lagen höher, Anleger nehmen Gewinne mit, oder ein stärkerer Faktor (Gesamtmarkt, Sektor) überlagert die Nachricht.');
+  } else if (s === 'negative' && chg > 0) {
+    saetze.push('Auffällige Divergenz: Die Meldung klingt schlecht, der Kurs stieg trotzdem. Das spricht dafür, dass Schlimmeres befürchtet war, die Nachricht schon im Kurs steckte, oder der Gesamtmarkt kräftig zog.');
+  } else {
+    saetze.push('Die Meldung selbst ist neutral formuliert — die Bewegung dürfte eher andere Ursachen haben (Gesamtmarkt, Sektor, andere Nachrichten).');
+  }
+
+  // 3. Kam Volumen mit? (bestätigt oder relativiert die Bewegung)
+  if (reaction.volRel != null && !kaum) {
+    if (reaction.volRel >= 1.5)
+      saetze.push(`Der Umsatz lag bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — viele Anleger waren beteiligt, was die Bewegung belastbarer macht.`);
+    else if (reaction.volRel <= 0.7)
+      saetze.push(`Der Umsatz lag nur bei ${String(reaction.volRel).replace('.', ',')}× des Normalwerts — die Bewegung entstand bei dünnem Handel und ist entsprechend wenig belastbar.`);
+  }
+
+  // 4. Wie ging es weiter?
+  const next = reaction.nextDayChangePct;
+  if (next != null) {
+    const gleicheRichtung = (chg > 0 && next > 0) || (chg < 0 && next < 0);
+    if (Math.abs(next) < 0.5) saetze.push(`Am Folgetag beruhigte sich der Kurs (${fmtPctDe(next)}).`);
+    else if (gleicheRichtung) saetze.push(`Am Folgetag setzte sich die Richtung fort (${fmtPctDe(next)}) — der Markt hat die Nachricht also nicht nur kurz abgehakt.`);
+    else saetze.push(`Am Folgetag drehte der Kurs wieder (${fmtPctDe(next)}) — die erste Reaktion war teilweise eine Übertreibung.`);
+  }
+
+  return saetze;
 }
 
 // ---------- Gesamteinschätzung ----------

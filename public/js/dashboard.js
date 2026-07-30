@@ -60,73 +60,104 @@ async function loadDashboard() {
   set('kpi-day', hasPositions ? fmtEur(d.dayChangeEur) : '—', signClass(d.dayChangeEur));
   document.getElementById('kpi-day-pct').textContent = d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : '';
 
-  // Termin-Radar: kompakte Chips, Klick klappt Details auf
+  // Wichtige Termine: eine Tabelle, klar getrennt in "Deine Werte" und
+  // "Markt-Events". Jede Zeile klappt ihre Details darunter auf.
   if (d.termine?.length) {
-    const strip = el('div', { class: 'termine-strip' });
-    const detailBox = el('div');
-    let offenesDetail = null;
+    const eigene = d.termine.filter((t) => t.typ !== 'Markt');
+    const markt = d.termine.filter((t) => t.typ === 'Markt');
+    const tbody = el('tbody');
+    let offene = null;
 
-    for (const t of d.termine) {
+    const detailZeile = (t) => {
       const istMarkt = t.typ === 'Markt';
-      const datum = new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-      const wann = t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`;
-      const chip = el('button', { class: `termin${!istMarkt && t.days <= 2 ? ' soon' : ''}${istMarkt ? ' markt' : ''}`, type: 'button', title: 'Klicken für Details' },
-        istMarkt ? el('b', {}, '🏛 Markt') : el('b', {}, t.symbol),
-        el('span', {},
-          el('span', { class: 'termin-typ' },
-            istMarkt ? (t.name.length > 34 ? t.name.slice(0, 34) + '…' : t.name) : t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
-          el('span', { class: 'termin-datum' }, ` · ${datum}`)
-        ),
-        el('span', { class: 'days' }, wann),
-        chevronIcon(16)
-      );
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.termin.open').forEach((c) => c.classList.remove('open'));
-        if (offenesDetail === t) {
-          detailBox.replaceChildren();
-          offenesDetail = null;
-          return;
-        }
-        offenesDetail = t;
-        chip.classList.add('open');
-        const zeit = new Date(t.date).toLocaleString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-        const fakten = istMarkt
-          ? [
-              ['Ereignis', t.name],
-              ['Termin', `${zeit} Uhr`],
-              ['Währungsraum', t.waehrung === 'USD' ? '🇺🇸 USA' : '🇪🇺 Eurozone'],
-              t.prognose ? ['Prognose', t.prognose] : null,
-              t.vorher ? ['Vorherig', t.vorher] : null,
-            ].filter(Boolean)
-          : [
-              ['Unternehmen', t.name],
-              ['Ereignis', t.typ],
-              ['Termin', `${zeit} Uhr`],
-              t.epsErwartet != null ? ['Erwartetes EPS', (t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')] : null,
-              t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
-            ].filter(Boolean);
-        detailBox.replaceChildren(
-          el('div', { class: 'news-explain-detail', style: 'margin-top:10px' },
+      const zeit = new Date(t.date).toLocaleString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+      const fakten = istMarkt
+        ? [
+            ['Vollständiger Titel', t.name],
+            ['Termin', `${zeit} Uhr`],
+            ['Währungsraum', t.waehrung === 'USD' ? '🇺🇸 USA' : '🇪🇺 Eurozone'],
+            t.prognose ? ['Prognose', t.prognose] : null,
+            t.vorher ? ['Vorheriger Wert', t.vorher] : null,
+          ].filter(Boolean)
+        : [
+            ['Unternehmen', t.name],
+            ['Termin', `${zeit} Uhr`],
+            t.epsErwartet != null ? ['Erwartetes EPS', (t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')] : null,
+            t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
+          ].filter(Boolean);
+      return el('tr', { class: 'detail-row' },
+        el('td', { colspan: '4' },
+          el('div', { class: 'news-explain-detail' },
             el('dl', { class: 'facts' }, fakten.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
+            el('div', { class: 'dim', style: 'font-size:12px;margin-top:8px' },
+              istMarkt
+                ? 'Marktweiter Termin — kann alle deine Werte gleichzeitig bewegen.'
+                : t.typ === 'Quartalszahlen'
+                  ? 'Rund um Quartalszahlen sind stärkere Kursschwankungen üblich — Positionsgröße im Blick behalten.'
+                  : 'Ab dem Ex-Dividenden-Tag wird die Aktie ohne Dividendenanspruch gehandelt.'),
             istMarkt
-              ? el('div', { class: 'dim', style: 'font-size:12px;margin-top:6px' }, 'Marktweiter Termin — betrifft potenziell alle deine Werte.')
-              : t.typ === 'Quartalszahlen'
-                ? el('div', { class: 'dim', style: 'font-size:12px;margin-top:6px' }, 'Rund um Quartalszahlen sind stärkere Kursschwankungen üblich — Positionsgröße im Blick behalten.')
-                : null,
-            istMarkt
-              ? el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:6px', href: './kalender.html' }, 'Zum Kalender →')
-              : el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:6px', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}` }, 'Zur Analyse →')
+              ? el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:10px', href: './kalender.html' }, 'Alle Termine im Kalender →')
+              : el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:10px', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}` }, `${t.symbol} analysieren →`)
           )
+        )
+      );
+    };
+
+    const gruppe = (label, liste, klasse) => {
+      if (!liste.length) return;
+      tbody.append(
+        el('tr', { class: `group-sep ${klasse}` },
+          el('td', { colspan: '4' }, label, el('span', { class: 'group-count' }, ` ${liste.length}`))
+        )
+      );
+      for (const t of liste) {
+        const istMarkt = t.typ === 'Markt';
+        const wann = t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`;
+        const datum = new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const uhr = new Date(t.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        const zeile = el('tr', { class: 'rowlink termin-row' },
+          el('td', { style: 'width:132px' },
+            el('span', { class: `wann ${t.days <= 1 ? 'soon' : ''}` }, wann),
+            el('span', { class: 'sym', style: 'display:block' }, `${datum} · ${uhr}`)
+          ),
+          el('td', { style: 'width:112px' },
+            istMarkt
+              ? el('span', { class: 'badge' }, t.waehrung === 'USD' ? '🇺🇸 USA' : '🇪🇺 EUR')
+              : el('a', { class: 'badge chip chip-strong', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`, onclick: (e) => e.stopPropagation() }, t.symbol)
+          ),
+          el('td', { class: 'name-cell' },
+            istMarkt ? t.name : t.typ,
+            !istMarkt ? el('span', { class: 'sym' }, t.name) : null
+          ),
+          el('td', { style: 'width:34px;text-align:right' }, chevronIcon(16))
         );
-      });
-      strip.append(chip);
-    }
+        zeile.addEventListener('click', () => {
+          if (offene?.zeile === zeile) {
+            offene.detail.remove();
+            zeile.classList.remove('open');
+            offene = null;
+            return;
+          }
+          if (offene) {
+            offene.detail.remove();
+            offene.zeile.classList.remove('open');
+          }
+          const detail = detailZeile(t);
+          zeile.after(detail);
+          zeile.classList.add('open');
+          offene = { zeile, detail };
+        });
+        tbody.append(zeile);
+      }
+    };
+
+    gruppe('Deine Werte', eigene, 'eigene');
+    gruppe('Markt-Events', markt, 'markt');
 
     document.getElementById('termine-wrap').replaceChildren(
       el('section', { class: 'panel', style: 'margin-bottom:18px' },
-        el('h2', { class: 'panel-title' }, 'Wichtige Termine', el('span', { class: 'hint' }, ' · dein Portfolio + große Markt-Events · Klick für Details')),
-        strip,
-        detailBox
+        el('h2', { class: 'panel-title' }, 'Wichtige Termine', el('span', { class: 'hint' }, ' · nächste 14 Tage · Zeile anklicken für Details')),
+        el('table', { class: 'data compact termine-table' }, tbody)
       )
     );
   }
