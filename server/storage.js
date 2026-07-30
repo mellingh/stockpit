@@ -11,6 +11,7 @@ const FILE = path.join(DATA_DIR, 'portfolio.json');
 const DEFAULT_DATA = {
   positions: [], // {id, symbol, name, shares, buyPrice, currency, buyDate}
   watchlist: [], // {symbol, name}
+  xAccounts: ['Biotech2k1'], // X-Handles für die "Meinungen auf X"-Links
 };
 
 let data = null;
@@ -72,6 +73,30 @@ export function removeWatch(symbol) {
   load();
   data.watchlist = data.watchlist.filter((w) => w.symbol !== symbol);
   save();
+}
+
+// ---------- X-Accounts (für die Schnell-Links auf der Analyse-Seite) ----------
+
+export function getXAccounts() {
+  load();
+  return data.xAccounts ?? [];
+}
+
+export function addXAccount(handle) {
+  load();
+  if (!data.xAccounts) data.xAccounts = [];
+  if (!data.xAccounts.some((h) => h.toLowerCase() === handle.toLowerCase())) {
+    data.xAccounts.push(handle);
+    save();
+  }
+  return data.xAccounts;
+}
+
+export function removeXAccount(handle) {
+  load();
+  data.xAccounts = (data.xAccounts ?? []).filter((h) => h.toLowerCase() !== handle.toLowerCase());
+  save();
+  return data.xAccounts;
 }
 
 // Alle Symbole, die den Nutzer interessieren (Positionen + Watchlist)

@@ -87,8 +87,11 @@ const SECTOR_FOCUS =
 const JUNK =
   /\b(my (adviser|advisor|friend|husband|wife|mom|dad|brother|sister|son|daughter)|i['’]m \d\d|i am \d\d|inherit(ed|ance)?|medicaid|medicare|social security|401\(k\)|\bIRA\b|retirement (question|plan|dream)|dear (abby|quentin|moneyist)|the moneyist|horoscope|lottery|powerball|best credit cards?|mortgage rates? this week|student loans?|home prices? in|real estate tips|crossword|recipe)\b/i;
 
-// newsItem braucht title + betroffen (aus mapAffected)
-export function isRelevant(newsItem) {
+// newsItem braucht title + betroffen (aus mapAffected).
+// hatWerte: Sobald Positionen/Watchlist existieren, wird der Feed streng —
+// nur noch News zu den eigenen Werten plus die ganz großen Marktbeweger.
+// Allgemeine Sektor-News gibt es nur, solange das Depot leer ist.
+export function isRelevant(newsItem, hatWerte = false) {
   const title = newsItem.title || '';
   const direct = (newsItem.betroffen || []).some((b) => b.why === 'direkt');
 
@@ -96,10 +99,12 @@ export function isRelevant(newsItem) {
   if (direct) return true;
   // Ratgeber-/Boulevard-Müll: nie
   if (JUNK.test(title)) return false;
-  // Große Marktbeweger oder Fokus-Sektoren (Fintech/Biotech/Tech)
+  // Große Marktbeweger (Fed, EZB, Inflation, Krieg …): immer
   if (MARKET_MOVERS.test(title)) return true;
+  // Mit eigenen Werten: alles andere raus — der Feed soll kurz bleiben
+  if (hatWerte) return false;
+  // Leeres Depot: Fokus-Sektoren (Fintech/Biotech/Tech) als Startbefüllung
   if (SECTOR_FOCUS.test(title)) return true;
-  // Sektor-Betroffenheit der eigenen Werte (z. B. Fed → Tech-Positionen)
   if ((newsItem.betroffen || []).length) return true;
   return false;
 }

@@ -51,6 +51,7 @@ async function fetchFeed(feed) {
       source: feed.name,
       lang: feed.lang,
       macro: true,
+      summary: cleanSummary(item.description ?? item.summary ?? null),
     }));
   });
 }
@@ -67,6 +68,22 @@ export async function getMacroNews() {
 export async function getNewsForSymbols(symbols) {
   const results = await Promise.allSettled(symbols.map((s) => getTickerNews(s)));
   return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+}
+
+// RSS-Beschreibung zu einem kurzen "Worum es geht"-Teaser aufbereiten:
+// HTML raus, Entities auflösen, an Wortgrenze kürzen
+function cleanSummary(raw) {
+  if (raw == null) return null;
+  const text = decodeEntities(
+    String(typeof raw === 'object' ? raw['#text'] ?? '' : raw)
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+  if (text.length < 40) return null; // zu kurz, um etwas zu erklären
+  if (text.length <= 280) return text;
+  const cut = text.slice(0, 280);
+  return `${cut.slice(0, cut.lastIndexOf(' '))} …`;
 }
 
 // HTML-Entities in Schlagzeilen auflösen ("El Ni&#xf1;o" → "El Niño")

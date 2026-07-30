@@ -55,6 +55,19 @@ async function trackedWithSectors() {
 const displayName = (quote, fallback) =>
   (quote?.longName || quote?.shortName || fallback || '').replace(/\s{2,}.*/, '').trim() || fallback;
 
+// Vor-/nachbörslicher Kurs (US-Börsen liefern das, XETRA & Co. meist nicht).
+// marketState: PREPRE/PRE → Pre-Market, POST/POSTPOST/CLOSED → After-Hours.
+function ausserboerslich(quote) {
+  const state = quote?.marketState || '';
+  if (state.startsWith('PRE') && quote.preMarketPrice != null) {
+    return { phase: 'pre', preis: quote.preMarketPrice, pct: quote.preMarketChangePercent ?? null };
+  }
+  if ((state.startsWith('POST') || state === 'CLOSED') && quote.postMarketPrice != null) {
+    return { phase: 'post', preis: quote.postMarketPrice, pct: quote.postMarketChangePercent ?? null };
+  }
+  return null;
+}
+
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
     console.error(`[api] ${req.path}:`, err.message);
@@ -347,6 +360,7 @@ app.get(
         marktkap: quote.marketCap ?? null,
         zeit: quote.regularMarketTime,
         boerse: quote.fullExchangeName,
+        ausserboerslich: ausserboerslich(quote),
       },
       sektor: profile.sector ?? null,
       branche: profile.industry ?? null,
@@ -419,6 +433,7 @@ app.get(
           preis: price,
           waehrung: quote?.currency ?? null,
           tagesPct: quote?.regularMarketChangePercent ?? null,
+          ausserboerslich: quote ? ausserboerslich(quote) : null,
           valueEur,
           gewinnEur: valueEur != null && costEur != null ? valueEur - costEur : null,
           gewinnPct: valueEur != null && costEur ? ((valueEur - costEur) / costEur) * 100 : null,
@@ -442,6 +457,7 @@ app.get(
           preis: quote?.regularMarketPrice ?? null,
           waehrung: quote?.currency ?? null,
           tagesPct: quote?.regularMarketChangePercent ?? null,
+          ausserboerslich: quote ? ausserboerslich(quote) : null,
           sparkline,
         };
       })
@@ -568,14 +584,22 @@ app.get(
     ]);
 
     // Erst kategorisieren + zuordnen, dann Relevanz filtern:
-    // Eigene Werte immer, Makro nur bei echten Marktbewegern,
-    // Fokus-Sektoren (Fintech/Biotech/Tech) ja, Ratgeber-Müll nie.
-    const candidates = dedupeAndSort([...tickerNews, ...macro.items]).map((item) => {
-      const enriched = { ...item, category: categorize(item.title) };
-      enriched.betroffen = mapAffected(enriched, holdings);
-      return enriched;
-    });
-    const relevant = candidates.filter(isRelevant);
+    // Nichts älter als eine Woche. Mit eigenen Werten wird der Feed streng —
+    // nur News zu Positionen/Watchlist plus echte Marktbeweger; allgemeine
+    // Sektor-News gibt es nur bei leerem Depot. Ratgeber-Müll nie.
+    const WOCHE = 7 * DAY;
+    const candidates = dedupeAndSort([...tickerNews, ...macro.items])
+      .filter((item) => {
+        const t = toTime(item.pubDate);
+        return t > 0 && Date.now() - t <= WOCHE;
+      })
+      .map((item) => {
+        const enriched = { ...item, category: categorize(item.title) };
+        enriched.betroffen = mapAffected(enriched, holdings);
+        return enriched;
+      });
+    const hatWerte = holdings.length > 0;
+    const relevant = candidates.filter((item) => isRelevant(item, hatWerte));
 
     // Eigene Werte zuerst, innerhalb der Gruppen nach Zeit
     relevant.sort((a, b) => {
@@ -586,7 +610,7 @@ app.get(
     });
 
     const out = [];
-    for (const enriched of relevant.slice(0, 35)) {
+    for (const enriched of relevant.slice(0, 20)) {
       enriched.sentiment = await classifyCached(enriched.title, enriched.lang);
 
       // Bei direkter Zuordnung: Kursreaktion + Erklärung
@@ -663,6 +687,28 @@ app.post(
 app.delete('/api/watchlist/:symbol', (req, res) => {
   store.removeWatch(req.params.symbol);
   res.json({ ok: true });
+});
+
+// ---------- X-Accounts (Schnell-Links "Meinungen auf X" auf der Analyse-Seite) ----------
+
+// Gültige X-Handles: 1–15 Zeichen, Buchstaben/Zahlen/Unterstrich
+const X_HANDLE_RE = /^[A-Za-z0-9_]{1,15}$/;
+
+app.get('/api/xusers', (req, res) => {
+  res.json(store.getXAccounts());
+});
+
+app.post('/api/xusers', (req, res) => {
+  const handle = String(req.body.handle || '').trim().replace(/^@/, '');
+  if (!X_HANDLE_RE.test(handle)) {
+    return res.status(400).json({ error: 'Ungültiger X-Nutzername (1–15 Zeichen, nur Buchstaben, Zahlen, _)' });
+  }
+  res.json(store.addXAccount(handle));
+});
+
+app.delete('/api/xusers/:handle', (req, res) => {
+  if (!X_HANDLE_RE.test(req.params.handle)) return res.status(400).json({ error: 'Ungültiger X-Nutzername' });
+  res.json(store.removeXAccount(req.params.handle));
 });
 
 // ---------- Start ----------

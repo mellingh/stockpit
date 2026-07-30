@@ -193,6 +193,20 @@ async function loadReport(symbol) {
   $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
   $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
 
+  // Vor-/nachbörslicher Kurs (nur wenn die Börse ihn liefert, v. a. US-Werte)
+  const ab = a.kurs.ausserboerslich;
+  const pp = $('r-prepost');
+  if (ab?.preis != null) {
+    pp.hidden = false;
+    setChildren(pp,
+      el('span', { class: 'dim' }, ab.phase === 'pre' ? 'Pre-Market ' : 'Nachbörslich '),
+      el('span', { class: signClass(ab.pct) }, `${fmtMoney(ab.preis, a.currency)} (${fmtPct(ab.pct)})`)
+    );
+  } else {
+    pp.hidden = true;
+    pp.replaceChildren();
+  }
+
   // Gesamteinschätzung: nur das Urteil — Klick springt zur Einordnung
   // (Stärken/Risiken + Snowflake in der Übersichtskarte)
   const g = a.gesamt;
@@ -229,6 +243,77 @@ async function loadReport(symbol) {
   renderUebersicht(a);
   renderNews(a);
   renderExtra(a);
+  renderX(a);
+}
+
+// "Meinungen auf X": ein Klick öffnet die X-Suche eines vertrauten Accounts,
+// bereits nach dem Ticker gefiltert (from:Account $TICKER) — spart das
+// manuelle Suchen. Die Account-Liste ist direkt in der Karte verwaltbar.
+async function renderX(a) {
+  const box = $('p-x');
+  const ticker = a.symbol.split('.')[0].toUpperCase();
+  let accounts = [];
+  try {
+    accounts = await api.get('/api/xusers');
+  } catch {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+
+  const suchLink = (h) =>
+    `https://x.com/search?q=${encodeURIComponent(`from:${h} $${ticker}`)}&src=typed_query&f=live`;
+
+  const links = el('div', { class: 'x-links' },
+    accounts.map((h) =>
+      el('a', { class: 'btn ghost small x-link', href: suchLink(h), target: '_blank', rel: 'noopener', title: `X-Suche: from:${h} $${ticker}` },
+        el('b', {}, `@${h}`), el('span', { class: 'dim' }, ` · $${ticker}`))
+    )
+  );
+
+  // Verwaltung: Handle hinzufügen / entfernen
+  const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
+  const input = el('input', { type: 'text', placeholder: 'z. B. @Biotech2k1', autocomplete: 'off', style: 'flex:1;min-width:160px' });
+  const form = el('form', { class: 'inline-add', style: 'margin:0 0 10px' },
+    input,
+    el('button', { class: 'btn small', type: 'submit' }, 'Hinzufügen')
+  );
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!input.value.trim()) return;
+    try {
+      await api.post('/api/xusers', { handle: input.value });
+      renderX(a);
+    } catch (err) {
+      hinweis.hidden = false;
+      hinweis.textContent = `Fehler: ${err.message}`;
+    }
+  });
+  const verwalten = collapsible('Accounts verwalten',
+    el('div', { style: 'padding-top:10px' },
+      form,
+      hinweis,
+      accounts.map((h) =>
+        el('div', { class: 'x-row' },
+          el('span', {}, `@${h}`),
+          el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
+            await api.del(`/api/xusers/${encodeURIComponent(h)}`);
+            renderX(a);
+          } }, 'Entfernen')
+        )
+      )
+    )
+  );
+
+  setChildren(box,
+    el('h2', { class: 'panel-title' }, 'Meinungen auf X', el('span', { class: 'hint' }, ' · öffnet die X-Suche zum Ticker')),
+    accounts.length
+      ? links
+      : el('div', { class: 'empty' }, 'Noch keine X-Accounts hinterlegt — unten hinzufügen.'),
+    el('div', { class: 'sym', style: 'margin:10px 0 8px' },
+      'Zeigt Posts des Accounts zum Cashtag $' + ticker + ' auf x.com (dortige Anzeige erfordert ggf. X-Login).'),
+    verwalten
+  );
 }
 
 // Wichtigste Metriken horizontal unter dem Chart (Yahoo-Stil)

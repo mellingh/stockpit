@@ -28,6 +28,15 @@ async function pollStatus() {
 }
 pollStatus();
 
+// Kleine Zweitzeile unter dem Tages-%: vor-/nachbörslicher Kurs (US-Werte)
+function prepostMini(ab) {
+  if (ab?.pct == null) return null;
+  return el('span', {
+    class: `prepost-mini ${signClass(ab.pct)}`,
+    title: ab.phase === 'pre' ? 'Vorbörslicher Handel (Pre-Market)' : 'Nachbörslicher Handel (After-Hours)',
+  }, `${ab.phase === 'pre' ? 'Pre' : 'Post'} ${fmtPct(ab.pct)}`);
+}
+
 // ---------- Kennzahlen + Positionen ----------
 
 function set(id, content, cls) {
@@ -143,7 +152,7 @@ async function loadDashboard() {
           el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(p.symbol)}`) },
             el('td', { class: 'name-cell' }, p.name, el('span', { class: 'sym' }, `${p.symbol} · ${p.shares} Stk.`)),
             el('td', { class: 'num' }, fmtMoney(p.preis, p.waehrung)),
-            el('td', { class: `num ${signClass(p.tagesPct)}` }, fmtPct(p.tagesPct)),
+            el('td', { class: `num ${signClass(p.tagesPct)}` }, fmtPct(p.tagesPct), prepostMini(p.ausserboerslich)),
             el('td', {}, sparkline(p.sparkline)),
             el('td', { class: 'num' }, fmtEur(p.valueEur)),
             el('td', { class: `num ${signClass(p.gewinnEur)}` },
@@ -177,7 +186,7 @@ async function loadDashboard() {
             el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(w.symbol)}`) },
               el('td', { class: 'name-cell' }, w.name, el('span', { class: 'sym' }, w.symbol)),
               el('td', { class: 'num' }, fmtMoney(w.preis, w.waehrung)),
-              el('td', { class: `num ${signClass(w.tagesPct)}` }, fmtPct(w.tagesPct)),
+              el('td', { class: `num ${signClass(w.tagesPct)}` }, fmtPct(w.tagesPct), prepostMini(w.ausserboerslich)),
               el('td', {}, sparkline(w.sparkline))
             )
           )
