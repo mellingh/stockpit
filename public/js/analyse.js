@@ -23,6 +23,8 @@ let volumeSeries = null;
 let sma50Series = null;
 let sma200Series = null;
 let tooltip = null;
+let priceLines = []; // Vortag/Vorbörslich-Markierungen, pro Report neu gesetzt
+let priceZoom = 1; // Mausrad-Zoom der Preisachse (1 = Autoscale-Standard)
 
 // ---------- Suche ----------
 
@@ -116,6 +118,36 @@ function ensureChart() {
     }
     window.__setOhlc(bar, param.seriesData.get(volumeSeries)?.value);
   });
+
+  // Mausrad ÜBER der Preisachse skaliert die Preise (wie bei TradingView) —
+  // die Bibliothek kann das nicht von Haus aus, deshalb ein eigener
+  // Autoscale-Faktor, der die automatische Spanne um die Mitte streckt/staucht.
+  candleSeries.applyOptions({
+    autoscaleInfoProvider: (original) => {
+      const res = original();
+      if (!res?.priceRange || priceZoom === 1) return res;
+      const mitte = (res.priceRange.minValue + res.priceRange.maxValue) / 2;
+      const halb = ((res.priceRange.maxValue - res.priceRange.minValue) / 2) * priceZoom;
+      return { ...res, priceRange: { minValue: mitte - halb, maxValue: mitte + halb } };
+    },
+  });
+  const container = $('chart');
+  const ueberPreisachse = (e) => {
+    const x = e.clientX - container.getBoundingClientRect().left;
+    return x >= container.clientWidth - chart.priceScale('right').width();
+  };
+  container.addEventListener('wheel', (e) => {
+    if (!ueberPreisachse(e)) return; // links davon: normales Chart-Zoomen
+    e.preventDefault();
+    e.stopPropagation();
+    priceZoom = Math.min(Math.max(priceZoom * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 0.15), 15);
+    chart.priceScale('right').applyOptions({ autoScale: true });
+  }, { passive: false, capture: true });
+  container.addEventListener('dblclick', (e) => {
+    if (!ueberPreisachse(e)) return;
+    priceZoom = 1;
+    chart.priceScale('right').applyOptions({ autoScale: true });
+  }, true);
 }
 
 let lastBar = null;
@@ -144,6 +176,29 @@ function setChartData(chartData) {
   chart.timeScale().fitContent();
 }
 
+// Horizontale Markierungen im Chart (TradingView-Stil): Schlusskurs des
+// Vortags (grau gepunktet) und der vor-/nachbörsliche Kurs (orange
+// gestrichelt). Werden pro Report neu gesetzt.
+function setPriceLines(kurs) {
+  priceLines.forEach((l) => candleSeries.removePriceLine(l));
+  priceLines = [];
+  priceZoom = 1;
+  if (kurs.vortag != null) {
+    priceLines.push(candleSeries.createPriceLine({
+      price: kurs.vortag, color: '#7b8294', lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: 'Vortag',
+    }));
+  }
+  const ab = kurs.ausserboerslich;
+  if (ab?.preis != null) {
+    priceLines.push(candleSeries.createPriceLine({
+      price: ab.preis, color: '#e5a83b', lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true,
+      title: ab.phase === 'pre' ? 'Vorbörslich' : 'Nachbörslich',
+    }));
+  }
+}
+
 // Zeitraum-Wechsel lädt nur den Chart neu
 document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
   btn.addEventListener('click', async () => {
@@ -153,6 +208,7 @@ document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
     try {
       const data = await api.get(`/api/history/${encodeURIComponent(currentSymbol)}?range=${btn.dataset.range}`);
       applyChartData(data);
+      priceZoom = 1;
       chart.timeScale().fitContent();
     } catch {}
   });
@@ -232,6 +288,7 @@ async function loadReport(symbol) {
   // Chart
   document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.toggle('active', b.dataset.range === '1y'));
   setChartData(a.chart);
+  setPriceLines(a.kurs);
 
   currentCurrency = a.currency;
   renderQuoteStrip(a);
@@ -248,8 +305,9 @@ async function loadReport(symbol) {
 
 // "Meinungen auf X": ein Klick öffnet die X-Suche eines vertrauten Accounts,
 // bereits nach dem Ticker gefiltert (from:Account $TICKER) — spart das
-// manuelle Suchen. Die Account-Liste ist direkt in der Karte verwaltbar.
-async function renderX(a) {
+// manuelle Suchen. Die Account-Liste ist direkt in der Karte verwaltbar;
+// nach Hinzufügen/Entfernen bleibt das Verwalten-Akkordeon offen.
+async function renderX(a, verwaltenOffen = false) {
   const box = $('p-x');
   const ticker = a.symbol.split('.')[0].toUpperCase();
   let accounts = [];
@@ -283,7 +341,7 @@ async function renderX(a) {
     if (!input.value.trim()) return;
     try {
       await api.post('/api/xusers', { handle: input.value });
-      renderX(a);
+      renderX(a, true);
     } catch (err) {
       hinweis.hidden = false;
       hinweis.textContent = `Fehler: ${err.message}`;
@@ -298,11 +356,12 @@ async function renderX(a) {
           el('span', {}, `@${h}`),
           el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
             await api.del(`/api/xusers/${encodeURIComponent(h)}`);
-            renderX(a);
+            renderX(a, true);
           } }, 'Entfernen')
         )
       )
-    )
+    ),
+    verwaltenOffen
   );
 
   setChildren(box,

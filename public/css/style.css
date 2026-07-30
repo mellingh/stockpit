@@ -228,32 +228,20 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
 }
 .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
-/* +-Knopf im Panel-Titel (Inline-Hinzufügen) — blau wie "Hinzufügen",
-   direkt neben dem Titeltext statt am rechten Rand */
-.add-btn {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-}
-.add-btn:hover { filter: brightness(1.15); }
+/* "+ Position hinzufügen"-Knopf unter der Tabelle (Inline-Hinzufügen) */
+.add-row { margin-top: 14px; }
 
-/* Inline-Formular unter dem Panel-Titel */
+/* Inline-Formular zwischen Tabelle und Knopf — alles auf 42px-Höhe,
+   damit Felder und Button sauber auf einer Linie sitzen */
 .inline-add {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  margin-bottom: 14px;
+  margin: 14px 0 2px;
 }
+.inline-add input { height: 42px; }
+.inline-add .btn { height: 42px; padding: 0 18px; }
 .panel-title .hint { letter-spacing: 0; text-transform: none; font-weight: 400; color: var(--ink-3); }
 
 /* ---------- Hero (Dashboard) ---------- */
@@ -336,7 +324,9 @@ table.data tr:last-child td { border-bottom: none; }
 table.data tr.rowlink { cursor: pointer; transition: background 0.12s; }
 table.data tr.rowlink:hover { background: var(--panel-2); }
 table.data .num { font-family: var(--font-mono); font-size: 13px; text-align: right; white-space: nowrap; }
-table.data th.num { text-align: right; }
+/* th erbt die Kopfzeilen-Optik — .num darf sie nicht vergrößern (Mono/13px
+   gilt nur für Zahlen-Zellen, nicht für Überschriften wie "Kursziel") */
+table.data th.num { text-align: right; font-family: var(--font-body); font-size: 11px; }
 
 .sym {
   font-family: var(--font-mono);
@@ -793,6 +783,19 @@ button:disabled { opacity: 0.5; cursor: wait; }
 .chart-legend { margin-left: auto; display: flex; gap: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
 .chart-legend .swatch { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; }
 #chart { height: 380px; }
+
+/* Chart + Seitenspalte (Technik, Meinungen auf X) nebeneinander */
+.chart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 18px;
+  align-items: start;
+}
+.chart-aside { display: grid; gap: 18px; min-width: 0; }
+.chart-aside .panel { margin: 0; }
+@media (max-width: 1000px) {
+  .chart-row { grid-template-columns: 1fr; }
+}
 
 /* OHLCV-Tooltip im Chart */
 .chart-tooltip {

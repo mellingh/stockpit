@@ -1,7 +1,8 @@
 // News-Beschaffung: Ticker-News von Yahoo + Makro-News über öffentliche
 // RSS-Feeds (Fed/Zinsen, Wirtschaft, Welt). Alles kostenlos, kein Login.
+import { execFile } from 'node:child_process';
 import { XMLParser } from 'fast-xml-parser';
-import { cached, MINUTE } from './cache.js';
+import { cached, MINUTE, DAY } from './cache.js';
 import { getTickerNews } from './yahoo.js';
 
 const parser = new XMLParser({ ignoreAttributes: false });
@@ -84,6 +85,45 @@ function cleanSummary(raw) {
   if (text.length <= 280) return text;
   const cut = text.slice(0, 280);
   return `${cut.slice(0, cut.lastIndexOf(' '))} …`;
+}
+
+// "Worum es geht" für News ohne RSS-Description (v. a. Yahoo-Ticker-News):
+// die Artikelseite kurz anfetchen und die og:description aus dem <head>
+// ziehen — das ist der Teaser, den die Redaktion selbst geschrieben hat.
+// Über curl statt Node-fetch: finance.yahoo.com blockt Nodes TLS-Fingerprint
+// (wie investing.com beim Kalender). Pro URL einen Tag gecacht; Fehler
+// (Paywall, Bot-Schutz) → einfach null.
+export function getArticleSummary(url) {
+  if (!url || !/^https?:\/\//.test(url)) return Promise.resolve(null);
+  return cached(`artikel:${url}`, DAY, async () => {
+    const html = await new Promise((resolve, reject) => {
+      execFile(
+        'curl',
+        ['-s', '-L', '--max-time', '7', '--compressed',
+          '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+          url],
+        { maxBuffer: 4 * 1024 * 1024, windowsHide: true },
+        (err, stdout) => (err ? reject(err) : resolve(stdout))
+      );
+    });
+    const meta =
+      html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i) ??
+      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+    return meta ? cleanSummary(meta[1]) : null;
+  }).catch(() => null);
+}
+
+// Fehlende Teaser für eine News-Liste parallel nachladen (mutiert die Items)
+export async function fillSummaries(items) {
+  await Promise.all(
+    items
+      .filter((n) => !n.summary && n.link)
+      .map(async (n) => {
+        n.summary = await getArticleSummary(n.link);
+      })
+  );
 }
 
 // HTML-Entities in Schlagzeilen auflösen ("El Ni&#xf1;o" → "El Niño")

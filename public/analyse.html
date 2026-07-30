@@ -44,36 +44,39 @@
         </div>
       </div>
 
-      <section class="panel chart-panel">
-        <div class="chart-toolbar">
-          <button class="rng" data-range="1d">1T</button>
-          <button class="rng" data-range="1w">1W</button>
-          <button class="rng" data-range="1m">1M</button>
-          <button class="rng" data-range="6m">6M</button>
-          <button class="rng active" data-range="1y">1J</button>
-          <button class="rng" data-range="5y">5J</button>
-          <button class="rng" data-range="max">Max</button>
-          <div class="chart-legend">
-            <span><span class="swatch" style="background:#e5a83b"></span>SMA 50</span>
-            <span><span class="swatch" style="background:#9085e9"></span>SMA 200</span>
+      <!-- Chart links, daneben eine Seitenspalte (Yahoo-Stil): Technik-Ampel
+           und die X-Schnell-Links direkt im Blick statt weit unten -->
+      <div class="chart-row">
+        <section class="panel chart-panel">
+          <div class="chart-toolbar">
+            <button class="rng" data-range="1d">1T</button>
+            <button class="rng" data-range="1w">1W</button>
+            <button class="rng" data-range="1m">1M</button>
+            <button class="rng" data-range="6m">6M</button>
+            <button class="rng active" data-range="1y">1J</button>
+            <button class="rng" data-range="5y">5J</button>
+            <button class="rng" data-range="max">Max</button>
+            <div class="chart-legend">
+              <span><span class="swatch" style="background:#e5a83b"></span>SMA 50</span>
+              <span><span class="swatch" style="background:#9085e9"></span>SMA 200</span>
+            </div>
           </div>
-        </div>
-        <div id="chart"></div>
-      </section>
+          <div id="chart"></div>
+        </section>
+        <aside class="chart-aside">
+          <section class="panel" id="p-technik"></section>
+          <section class="panel" id="p-x" hidden></section>
+        </aside>
+      </div>
 
       <section class="panel" id="p-quotestrip" hidden style="margin-top:18px"></section>
       <section class="panel" id="p-uebersicht" hidden style="margin-top:18px"></section>
 
       <div class="panel-grid">
         <section class="panel" id="p-analysten"></section>
-        <section class="panel" id="p-x" hidden></section>
-        <section class="panel" id="p-ratings" hidden style="grid-column:span 2"></section>
-      </div>
-
-      <div class="panel-grid">
-        <section class="panel" id="p-technik"></section>
         <section class="panel" id="p-kennzahlen" hidden></section>
         <section class="panel" id="p-fundamental"></section>
+        <section class="panel" id="p-ratings" hidden style="grid-column:1/-1"></section>
       </div>
 
       <div class="panel-grid">

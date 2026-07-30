@@ -282,25 +282,37 @@ async function loadNews() {
   box.replaceChildren(...notices, ...filterInfo, ...nodes);
 }
 
-// ---------- Inline-Hinzufügen direkt im Dashboard (+-Knöpfe) ----------
+// ---------- Inline-Hinzufügen direkt im Dashboard ----------
+// Unter jeder Tabelle sitzt ein dezenter "+ …"-Knopf; Klick klappt das
+// Formular auf (Knopf wird zu "Schließen"), nach dem Anlegen klappt es zu.
 
 function bindAddForm(btnId, boxId, bauen) {
   const btn = document.getElementById(btnId);
   const box = document.getElementById(boxId);
   if (!btn || !box) return;
+  const label = btn.textContent;
   let gebaut = false;
+  const zuklappen = () => {
+    box.hidden = true;
+    btn.textContent = label;
+  };
   btn.addEventListener('click', () => {
     if (!gebaut) {
-      bauen(box);
+      bauen(box, zuklappen);
       gebaut = true;
     }
-    box.hidden = !box.hidden;
-    if (!box.hidden) box.querySelector('input')?.focus();
+    if (box.hidden) {
+      box.hidden = false;
+      btn.textContent = 'Schließen';
+      box.querySelector('input')?.focus();
+    } else {
+      zuklappen();
+    }
   });
 }
 
 // Position: Wert suchen, Stückzahl + Ø-Kaufkurs eingeben, fertig
-bindAddForm('add-pos-btn', 'add-pos-form', (box) => {
+bindAddForm('add-pos-btn', 'add-pos-form', (box, zuklappen) => {
   let gewaehlt = null;
   const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
   const suche = el('input', { type: 'text', placeholder: 'Name oder Ticker …', autocomplete: 'off' });
@@ -328,7 +340,7 @@ bindAddForm('add-pos-btn', 'add-pos-form', (box) => {
       await api.post('/api/positions', { symbol: gewaehlt.symbol, shares: form.shares.value, buyPrice: form.buyPrice.value || null });
       gewaehlt = null;
       form.reset();
-      box.hidden = true;
+      zuklappen();
       loadDashboard();
       loadNews();
     } catch (err) {
@@ -342,11 +354,11 @@ bindAddForm('add-pos-btn', 'add-pos-form', (box) => {
 });
 
 // Watchlist: Wert suchen → direkt beobachten
-bindAddForm('add-watch-btn', 'add-watch-form', (box) => {
+bindAddForm('add-watch-btn', 'add-watch-form', (box, zuklappen) => {
   const suche = el('input', { type: 'text', placeholder: 'Name oder Ticker suchen — Auswahl landet direkt auf der Watchlist', autocomplete: 'off' });
   attachSearch(suche, async (r) => {
     suche.value = '';
-    box.hidden = true;
+    zuklappen();
     await api.post('/api/watchlist', { symbol: r.symbol }).catch(() => {});
     loadDashboard();
     loadNews();

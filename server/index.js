@@ -9,7 +9,7 @@ import { cached, uncache, MINUTE, HOUR, DAY } from './cache.js';
 import * as yahoo from './yahoo.js';
 import { analyzeTechnicals } from './indicators.js';
 import * as store from './storage.js';
-import { getMacroNews, getNewsForSymbols, dedupeAndSort, toTime, MACRO_FEEDS } from './news.js';
+import { getMacroNews, getNewsForSymbols, dedupeAndSort, toTime, fillSummaries, MACRO_FEEDS } from './news.js';
 import { classify, sentimentStatus, preload } from './sentiment.js';
 import { categorize, mapAffected, priceReaction, explain, overallAssessment, isRelevant } from './analysis.js';
 import { getTrials } from './trials.js';
@@ -322,8 +322,10 @@ app.get(
       (n) => n.title && (n.title.toLowerCase().includes(nameToken) || baseTicker.test(n.title))
     );
     const newsSource = relevant.length >= 3 ? relevant : rawNews;
+    const auswahl = dedupeAndSort(newsSource).slice(0, 10);
+    await fillSummaries(auswahl); // "Worum es geht" von den Artikelseiten
     const news = [];
-    for (const item of dedupeAndSort(newsSource).slice(0, 10)) {
+    for (const item of auswahl) {
       const sentiment = await classifyCached(item.title, item.lang);
       const category = categorize(item.title);
       const reaction = priceReaction({ ...item }, history);
@@ -609,8 +611,10 @@ app.get(
       return toTime(b.pubDate) - toTime(a.pubDate);
     });
 
+    const auswahl = relevant.slice(0, 20);
+    await fillSummaries(auswahl); // fehlende "Worum es geht"-Teaser nachladen
     const out = [];
-    for (const enriched of relevant.slice(0, 20)) {
+    for (const enriched of auswahl) {
       enriched.sentiment = await classifyCached(enriched.title, enriched.lang);
 
       // Bei direkter Zuordnung: Kursreaktion + Erklärung
