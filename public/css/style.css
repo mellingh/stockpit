@@ -714,14 +714,29 @@ button:disabled { opacity: 0.5; cursor: wait; }
 
 /* ---------- Analyse-Seite ---------- */
 
+/* Report blendet gestaffelt ein (läuft bei jedem Symbolwechsel neu an,
+   weil hidden → display:none die Animation zurücksetzt) */
+#report > * { animation: reportIn 0.4s ease backwards; }
+#report > *:nth-child(2) { animation-delay: 0.05s; }
+#report > *:nth-child(3) { animation-delay: 0.1s; }
+#report > *:nth-child(4) { animation-delay: 0.15s; }
+#report > *:nth-child(5) { animation-delay: 0.2s; }
+#report > *:nth-child(6) { animation-delay: 0.25s; }
+@keyframes reportIn {
+  from { opacity: 0; transform: translateY(7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #report > * { animation: none; }
+}
+
 .report-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 20px;
+  align-items: stretch;
+  gap: 14px;
   margin: 24px 0 18px;
 }
-.report-head .title { flex: 1; min-width: 260px; }
+.report-head .title { flex: 1; min-width: 260px; align-self: flex-end; }
 .report-head h2 {
   font-family: var(--font-display);
   font-weight: 600;
@@ -738,18 +753,47 @@ button:disabled { opacity: 0.5; cursor: wait; }
   font-size: 12px;
   color: var(--ink-3);
 }
-.report-head .price {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+
+/* Kopf-Karten: Gesamteinschätzung und Kurs als klar getrennte Blöcke */
+.head-card {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 12px 18px 14px;
+  min-width: 185px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
-.report-head .price .now {
-  font-family: var(--font-display);
-  font-size: clamp(26px, 3vw, 36px);
+.hc-label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
   font-weight: 600;
+  margin-bottom: 4px;
 }
-.report-head .price .chg { font-family: var(--font-mono); font-size: 14px; }
-/* Vor-/nachbörslicher Kurs unter der Tagesveränderung */
-.report-head .price .prepost { font-family: var(--font-mono); font-size: 12.5px; margin-top: 3px; }
+
+.price-card { text-align: right; font-variant-numeric: tabular-nums; }
+.price-card .hc-label { text-align: left; }
+.price-card .now {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2.8vw, 32px);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.price-card .chg { font-family: var(--font-mono); font-size: 13px; margin-top: 2px; }
+/* Vor-/nachbörslicher Kurs: eigener, abgetrennter Bereich der Kurs-Karte */
+.price-card .prepost {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
 
 /* Mini-Zweitzeile "Pre/Post ±x %" in den Dashboard-Tabellen */
 .prepost-mini {
@@ -790,20 +834,43 @@ tr:hover .row-actions .icon-btn { opacity: 1; }
 }
 .x-row:last-child { border-bottom: none; }
 
+/* Gesamteinschätzung: Karte mit dezenter Verdict-Tönung (grün/gelb/rot) */
 .gesamt-card {
-  /* schlicht wie der Kursblock daneben — kein Karten-Rahmen */
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 4px 0;
-  text-align: right;
   cursor: pointer;
   user-select: none;
+  transition: border-color 0.15s;
 }
-.gesamt-card .dot { width: 14px; height: 14px; }
-.gesamt-card .glabel { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
-.gesamt-card .gscore { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; line-height: 1.15; }
-.gesamt-card:hover .gscore { text-decoration: underline; text-underline-offset: 4px; }
+.gesamt-card .glabel {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.gesamt-card .gscore {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.6vw, 28px);
+  font-weight: 700;
+  line-height: 1.15;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.gesamt-card .gscore .dot { width: 10px; height: 10px; flex: none; }
+.gesamt-card.g-pos {
+  border-color: rgba(34, 192, 126, 0.35);
+  background: linear-gradient(135deg, rgba(34, 192, 126, 0.09), rgba(34, 192, 126, 0) 65%), var(--panel);
+}
+.gesamt-card.g-neg {
+  border-color: rgba(240, 97, 109, 0.35);
+  background: linear-gradient(135deg, rgba(240, 97, 109, 0.09), rgba(240, 97, 109, 0) 65%), var(--panel);
+}
+.gesamt-card.g-neu {
+  border-color: rgba(229, 168, 59, 0.3);
+  background: linear-gradient(135deg, rgba(229, 168, 59, 0.07), rgba(229, 168, 59, 0) 65%), var(--panel);
+}
+.gesamt-card:hover { border-color: var(--ink-3); }
 .gesamt-card .gsub { font-size: 11px; color: var(--ink-3); }
 
 .chart-panel { padding: 14px 14px 8px; }
@@ -833,10 +900,10 @@ tr:hover .row-actions .icon-btn { opacity: 1; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
-.chart-aside { display: grid; gap: 18px; min-width: 0; }
-.chart-aside .panel { margin: 0; }
+.chart-aside { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.chart-aside .panel { margin: 0; flex: 1; }
 @media (max-width: 1000px) {
   .chart-row { grid-template-columns: 1fr; }
 }

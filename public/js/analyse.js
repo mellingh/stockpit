@@ -279,12 +279,15 @@ async function loadReport(symbol) {
   // (Stärken/Risiken + Snowflake in der Übersichtskarte)
   const g = a.gesamt;
   const gCard = $('r-gesamt');
+  gCard.classList.remove('g-pos', 'g-neg', 'g-neu');
   if (g) {
     const scoreCls = g.ampel === 'green' ? 'pos' : g.ampel === 'red' ? 'neg' : '';
+    gCard.classList.add(g.ampel === 'green' ? 'g-pos' : g.ampel === 'red' ? 'g-neg' : 'g-neu');
     gCard.replaceChildren(
-      el('div', {},
-        el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
-        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel])
+      el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
+      el('div', { class: `gscore ${scoreCls}` },
+        el('span', { class: `dot ${g.ampel}` }),
+        AMPEL_TEXT[g.ampel]
       )
     );
     gCard.title = 'Zur Einordnung springen (Stärken, Risiken, Snowflake)';
