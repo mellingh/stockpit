@@ -253,8 +253,10 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
   margin-bottom: 18px;
 }
 /* height:100% statt nur min-height: die drei Karten sind exakt gleich hoch,
-   auch wenn die erste (größere Zahl + FX-Zeile) mehr Inhalt hat */
-.hero .panel { display: flex; flex-direction: column; justify-content: space-between; min-height: 138px; height: 100%; }
+   auch wenn die erste (größere Zahl + FX-Zeile) mehr Inhalt hat.
+   margin:0 ist Pflicht: die globale ".panel + .panel"-Abstandsregel würde
+   Karte 2+3 sonst im Grid 18px nach unten schieben (sah schief aus). */
+.hero .panel { display: flex; flex-direction: column; justify-content: space-between; min-height: 138px; height: 100%; margin: 0; }
 .hero .panel:nth-child(2) { animation-delay: 0.06s; }
 .hero .panel:nth-child(3) { animation-delay: 0.12s; }
 
@@ -765,7 +767,9 @@ button:disabled { opacity: 0.5; cursor: wait; }
   min-width: 185px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* beide Karten beginnen OBEN — Labels und Hauptwerte liegen dadurch
+     auf exakt gleicher Höhe (zentriert sah es schief aus) */
+  justify-content: flex-start;
 }
 .hc-label {
   font-size: 10.5px;
@@ -785,11 +789,11 @@ button:disabled { opacity: 0.5; cursor: wait; }
   line-height: 1.1;
 }
 .price-card .chg { font-family: var(--font-mono); font-size: 13px; margin-top: 2px; }
-/* Vor-/nachbörslicher Kurs: eigener, abgetrennter Bereich der Kurs-Karte */
+/* Vor-/nachbörslicher Kurs: eigener, abgetrennter Bereich am Kartenboden */
 .price-card .prepost {
   font-family: var(--font-mono);
   font-size: 12px;
-  margin-top: 9px;
+  margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid var(--line);
   display: flex;
