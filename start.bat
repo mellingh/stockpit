@@ -25,6 +25,26 @@ if not exist node_modules (
   )
 )
 
+rem ---- Oberflaeche beim ersten Start bauen (einmalig) ----
+if not exist web\node_modules (
+  echo Oberflaeche wird vorbereitet ^(einmalig^)...
+  call npm install --prefix web --no-audit --no-fund
+  if errorlevel 1 (
+    echo Installation der Oberflaeche fehlgeschlagen. Bitte Internetverbindung pruefen.
+    pause
+    exit /b 1
+  )
+)
+if not exist web\dist (
+  echo Oberflaeche wird gebaut ^(einmalig, ca. 30 Sekunden^)...
+  call npm run build --prefix web
+  if errorlevel 1 (
+    echo Bau der Oberflaeche fehlgeschlagen.
+    pause
+    exit /b 1
+  )
+)
+
 rem ---- Server starten und Browser oeffnen ----
 echo Starte Stockpit...
 start "" http://localhost:3001

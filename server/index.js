@@ -23,8 +23,10 @@ const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(ROOT, 'public')));
-app.use('/vendor', express.static(path.join(ROOT, 'node_modules/lightweight-charts/dist')));
+// v2-Frontend: gebaute Vite-App (web/dist). Der SPA-Fallback steht ganz
+// unten NACH allen /api-Routen — API-Fehler liefern JSON, nie die App-Shell.
+const DIST = path.join(ROOT, 'web', 'dist');
+app.use(express.static(DIST));
 
 // Sentiment einer Schlagzeile — pro Titel einen Tag gecacht,
 // damit dieselbe News nicht mehrfach durch das Modell läuft.
@@ -904,6 +906,12 @@ app.delete('/api/weblinks', (req, res) => {
   const url = String(req.query.url || '');
   if (!url) return res.status(400).json({ error: 'url fehlt' });
   res.json(store.removeWebLink(url));
+});
+
+// ---------- SPA-Fallback (nach allen API-Routen) ----------
+
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  res.sendFile(path.join(DIST, 'index.html'));
 });
 
 // ---------- Start ----------

@@ -1,0 +1,144 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Stockpit v2 — „Terminal Luxe"
+   Tiefes, blaustichiges Schwarz; Panels als Glas-Schichten mit
+   Hairline-Border + Innen-Highlight; ein elektrisches Signalblau;
+   Grün/Rot ausschließlich für Markt-Semantik.
+   ============================================================ */
+
+/* ---------- Fonts (lokal gebundelt, Variable Fonts) ---------- */
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('./assets/fonts/bricolage-var.woff2') format('woff2');
+  font-weight: 300 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  src: url('./assets/fonts/schibsted-var.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Red Hat Mono';
+  src: url('./assets/fonts/redhatmono-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+/* ---------- Design-Tokens ---------- */
+
+@theme {
+  --color-bg: #07090e;
+  --color-panel: #0c0f16;
+  --color-panel2: #11151e;
+  --color-elevated: #161b26;
+  --color-line: #1a202e;
+  --color-line-strong: #252d3f;
+  --color-ink: #e9edf5;
+  --color-ink2: #98a2b6;
+  --color-ink3: #5f6a80;
+  --color-accent: #5e9eff;
+  --color-accent-soft: rgba(94, 158, 255, 0.12);
+  --color-up: #2fd18d;
+  --color-up-soft: rgba(47, 209, 141, 0.11);
+  --color-down: #ff5d6c;
+  --color-down-soft: rgba(255, 93, 108, 0.11);
+  --color-warn: #e8b04c;
+  --color-warn-soft: rgba(232, 176, 76, 0.1);
+
+  --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
+  --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
+  --font-mono: 'Red Hat Mono', ui-monospace, monospace;
+
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 64px rgba(0, 0, 0, 0.65);
+
+  --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pulse-sweep: pulse-sweep 6s linear infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pulse-sweep {
+  0% { background-position: -60% 0; }
+  100% { background-position: 160% 0; }
+}
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
+/* ---------- Basis ---------- */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1100px 500px at 18% -12%, rgba(94, 158, 255, 0.07), transparent 62%),
+    radial-gradient(900px 420px at 85% -18%, rgba(47, 209, 141, 0.035), transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0.004em;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(94, 158, 255, 0.28);
+}
+
+/* Feines Korn für Tiefe (2 % Opazität, data-URI, keine externe Ressource) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Scrollbars im Terminal-Stil */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* Zahlen immer tabellarisch */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
