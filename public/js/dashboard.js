@@ -2,8 +2,8 @@
 // Termin-Radar und der KI-bewertete News-Feed.
 import { api } from './api.js';
 import {
-  el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass, sentimentBadge, categoryBadge,
-  ampelDot, AMPEL_TEXT, sparkline, donut, CAT_COLORS, markActiveNav, explainableSentimentBadge, explainableCategoryBadge,
+  el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass,
+  sparkline, donut, CAT_COLORS, markActiveNav, newsSummaryLine, chevronIcon,
 } from './ui.js';
 
 markActiveNav();
@@ -75,21 +75,24 @@ async function loadDashboard() {
           el('span', { class: 'termin-typ' }, t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
           el('span', { class: 'termin-datum' }, ` · ${datum}`)
         ),
-        el('span', { class: 'days' }, wann)
+        el('span', { class: 'days' }, wann),
+        chevronIcon(16)
       );
       chip.addEventListener('click', () => {
+        document.querySelectorAll('.termin.open').forEach((c) => c.classList.remove('open'));
         if (offenesDetail === t) {
           detailBox.replaceChildren();
           offenesDetail = null;
           return;
         }
         offenesDetail = t;
+        chip.classList.add('open');
         const zeit = new Date(t.date).toLocaleString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
         const fakten = [
           ['Unternehmen', t.name],
           ['Ereignis', t.typ],
           ['Termin', `${zeit} Uhr`],
-          t.epsErwartet != null ? ['Erwartetes EPS', Number(t.epsErwartet).toFixed(2)] : null,
+          t.epsErwartet != null ? ['Erwartetes EPS', (t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')] : null,
           t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
         ].filter(Boolean);
         detailBox.replaceChildren(
@@ -138,7 +141,7 @@ async function loadDashboard() {
           el('th', {}, 'Wert'),
           el('th', { class: 'num' }, 'Kurs'),
           el('th', { class: 'num' }, 'Heute'),
-          el('th', {}, '30 Tage'),
+          el('th', {}, 'Trend', el('span', {class:'th-sub'}, ' 30 T.')),
           el('th', { class: 'num' }, 'Wert (EUR)'),
           el('th', { class: 'num' }, 'G/V')
         )
@@ -174,7 +177,7 @@ async function loadDashboard() {
             el('th', {}, 'Wert'),
             el('th', { class: 'num' }, 'Kurs'),
             el('th', { class: 'num' }, 'Heute'),
-            el('th', {}, '30 Tage')
+            el('th', {}, 'Trend', el('span', {class:'th-sub'}, ' 30 T.'))
           )
         ),
         el('tbody', {},
@@ -261,14 +264,15 @@ async function loadNews() {
         el('span', {}, fmtAgo(n.pubDate))
       ),
       el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-      el('div', { class: 'news-badges' },
-        explainableSentimentBadge(n.sentiment),
-        explainableCategoryBadge(n.category),
-        (n.betroffen || []).slice(0, 4).map((b) =>
-          el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
-            b.symbol, b.why === 'direkt' ? '' : ' ~')
-        )
-      ),
+      newsSummaryLine(n),
+      (n.betroffen || []).length
+        ? el('div', { class: 'news-badges' },
+            (n.betroffen || []).slice(0, 4).map((b) =>
+              el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
+                b.symbol, b.why === 'direkt' ? '' : ' ~')
+            )
+          )
+        : null,
       n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
     )
   );

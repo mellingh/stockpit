@@ -1,4 +1,4 @@
-# Aktien-Cockpit 📈
+# Stockpit 📈
 
 Dein zentrales Dashboard für Aktien und ETFs — läuft **komplett lokal auf deinem Rechner**,
 ohne Abos, ohne API-Keys, ohne Login, ohne Kosten.

@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Aktien-Cockpit — Wirtschaftskalender</title>
+  <title>Stockpit — Wirtschaftskalender</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./index.html">Aktien<span class="tick">·</span>Cockpit</a>
+    <a class="brand" href="./index.html" title="Zum Dashboard">Stock<span class="tick">pit</span></a>
     <nav class="topnav">
       <a href="./index.html">Dashboard</a>
       <a href="./analyse.html">Analyse</a>
@@ -32,7 +32,7 @@
         <button class="rng" data-day="morgen">Morgen</button>
         <button class="rng" data-day="woche">Diese Woche</button>
         <div class="chart-legend" style="gap:6px;align-items:center">
-          <span style="color:var(--ink-3);margin-right:4px">Wichtigkeit:</span>
+          <span class="filter-label" style="margin-right:4px">Wichtigkeit</span>
           <button class="rng" data-imp="high" title="Nur hohe Marktwirkung"><span class="stars s3">★★★</span></button>
           <button class="rng active" data-imp="all" title="Alle Termine">Alle</button>
         </div>

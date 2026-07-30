@@ -6,10 +6,33 @@ import { cached, MINUTE, HOUR, DAY } from './cache.js';
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
 
 const RANGES = {
+  '1m': 60,
   '6m': 190,
   '1y': 380,
   '5y': 5 * 365 + 10,
+  max: 40 * 365,
 };
+
+// Intraday-Kerzen für kurze Zeiträume (TradingView-Gefühl)
+const INTRADAY = {
+  '1d': { days: 4, interval: '15m' },
+  '1w': { days: 8, interval: '30m' },
+};
+
+export function getIntraday(symbol, range) {
+  const cfg = INTRADAY[range];
+  return cached(`intraday:${symbol}:${range}`, 5 * MINUTE, async () => {
+    const period1 = new Date(Date.now() - cfg.days * DAY);
+    const result = await yahooFinance.chart(symbol, { period1, interval: cfg.interval });
+    let quotes = (result.quotes || []).filter((q) => q.close != null);
+    if (range === '1d' && quotes.length) {
+      // nur der letzte Handelstag
+      const lastDay = new Date(quotes[quotes.length - 1].date).toDateString();
+      quotes = quotes.filter((q) => new Date(q.date).toDateString() === lastDay);
+    }
+    return quotes;
+  });
+}
 
 export function getQuote(symbol) {
   return cached(`quote:${symbol}`, MINUTE, () => yahooFinance.quote(symbol));

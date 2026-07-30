@@ -1,6 +1,8 @@
-# CLAUDE.md — Projektkontext Aktien-Cockpit
+# CLAUDE.md — Projektkontext Stockpit
 
 Lokales Aktien-Portfolio-Dashboard für Micha (GitHub: mellingh). Deutsch als UI- und Doku-Sprache.
+App-Name: **Stockpit** (Stock + Cockpit; die früheren Namen "Aktien-Cockpit" und "Kurswerk"
+hat Micha verworfen — der Repo-Name bleibt aktien-dashboard).
 
 ## Harte Anforderungen (nicht verhandelbar)
 
@@ -34,7 +36,11 @@ Lokales Aktien-Portfolio-Dashboard für Micha (GitHub: mellingh). Deutsch als UI
 - Gesamteinschätzung = Technik + Analysten + News-Sentiment, jede Komponente offen begründet (keine Blackbox).
 - **Snowflake-Analyse** (`server/snowflake.js`, SWS-Stil): 5 Dimensionen (Wert/Zukunft/Vergangenheit/Bilanz/Dividende) je 0–5, regelbasiert, plus Stärken/Risiken in Klartext — in der Übersichts-Querkarte der Analyse-Seite mit SVG-Radar (`radarChart` in ui.js).
 - Dashboard-Allokation gruppiert nach **Sektor** (ETFs eigener Topf), nicht nach Einzelwerten; Klumpenrisiko-Warnung bei >50 % in einer Position.
-- Platzsparen mit `<details>`-Akkordeons (`collapsible()` in ui.js) — Micha mag aufklappbare Elemente; nichts darf horizontal scrollen (Seite max 1440px, 3-spaltiges Grid).
+- Platzsparen mit `<details>`-Akkordeons (`collapsible()` in ui.js) — Micha mag aufklappbare Elemente; nichts darf horizontal scrollen (Seite max 1440px, 3-spaltiges Grid). Aufklapp-Indikator: klassisches SVG-Chevron (`chevronIcon()` in ui.js), gut sichtbar.
+- **Keine nackten Score-Zahlen im UI** (Micha-Feedback): Gesamteinschätzung und Technik zeigen nur das farbige Urteil (Bullisch/Neutral/Bärisch) — keine Skalen, keine "+28"-Werte, keine Begründungs-Panels.
+- News-Darstellung: großer Titel + eine Zusammenfassungszeile (`newsSummaryLine()` in ui.js): Sentiment farbig mit KI-%-Sicherheit, Kategorie blau, "Kurs am Tag ±x %" rot/grün — nichts Klickbares außer Ticker-Chips.
+- Chart im TradingView-Stil: Zeiträume 1T/1W (Intraday via `getIntraday`) + 1M/6M/1J/5J/Max, OHLC-Zeile oben links folgt dem Fadenkreuz, News-Marker sind dezente Farb-Punkte unter den Kerzen (kein Text).
+- Fundamentaldaten haben kein eigenes Panel: Kernwerte im Kennzahlen-Strip unterm Chart, Rest im Kennzahlen-Akkordeon (ETF-Profil bleibt eigenes Panel).
 - Seeking Alpha, nasdaq.com, nyse.com, justETF: geprüft und verworfen (Paywall/redundant).
 
 ## Konventionen

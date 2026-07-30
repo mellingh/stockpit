@@ -84,11 +84,13 @@ app.get(
 
 // ---------- Kurshistorie (für Chart-Zeitraum-Wechsel) ----------
 
-const RANGE_DAYS = { '6m': 128, '1y': 255, '5y': 1275 };
+const RANGE_DAYS = { '1m': 23, '6m': 128, '1y': 255, '5y': 1275, max: Infinity };
+const INTRADAY_RANGES = new Set(['1d', '1w']);
 
 function chartPayload(history, technik, range) {
   const n = RANGE_DAYS[range] ?? RANGE_DAYS['1y'];
-  const candles = history.slice(-n).map((q) => ({
+  const slice = n === Infinity ? history : history.slice(-n);
+  const candles = slice.map((q) => ({
     time: new Date(q.date).toISOString().slice(0, 10),
     open: q.open,
     high: q.high,
@@ -102,9 +104,27 @@ function chartPayload(history, technik, range) {
       .map((p) => ({ time: new Date(p.date).toISOString().slice(0, 10), value: Math.round(p.value * 100) / 100 }))
       .filter((p) => p.time >= from);
   return {
+    intraday: false,
     candles,
     sma50: technik ? smaSlice(technik.series.sma50) : [],
     sma200: technik ? smaSlice(technik.series.sma200) : [],
+  };
+}
+
+// Intraday: Zeit als Unix-Sekunden, keine SMA-Overlays
+function intradayPayload(history) {
+  return {
+    intraday: true,
+    candles: history.map((q) => ({
+      time: Math.floor(new Date(q.date).getTime() / 1000),
+      open: q.open,
+      high: q.high,
+      low: q.low,
+      close: q.close,
+      volume: q.volume ?? null,
+    })),
+    sma50: [],
+    sma200: [],
   };
 }
 
@@ -113,6 +133,9 @@ app.get(
   wrap(async (req, res) => {
     const { symbol } = req.params;
     const range = String(req.query.range || '1y');
+    if (INTRADAY_RANGES.has(range)) {
+      return res.json(intradayPayload(await yahoo.getIntraday(symbol, range)));
+    }
     const history = await yahoo.getHistory(symbol, range);
     const technik = analyzeTechnicals(history);
     res.json(chartPayload(history, technik, range));

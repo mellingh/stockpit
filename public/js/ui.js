@@ -153,6 +153,32 @@ function attachBadgeExplain(badge, buildText) {
   return badge;
 }
 
+// Zusammenfassungszeile für News: Einstufung (farbig) · Kategorie · Kursbewegung (farbig).
+// Klipp und klar, ohne Klicken.
+const SENTIMENT_WORD = { positive: 'Positiv', negative: 'Negativ', neutral: 'Neutral' };
+
+export function newsSummaryLine(n) {
+  const s = n.sentiment;
+  const kids = [];
+  if (s?.label) {
+    const cls = s.label === 'positive' ? 'pos' : s.label === 'negative' ? 'neg' : 'neu';
+    kids.push(
+      el('span', { class: `sum-tag ${cls}`, title: s.unavailable ? 'KI-Modell lädt noch' : `Einstufung der lokalen Finanz-KI (Sicherheit ${Math.round((s.score || 0) * 100)} %)` },
+        SENTIMENT_WORD[s.label] ?? s.label,
+        s.score && !s.unavailable ? el('span', { class: 'sum-conf' }, ` ${Math.round(s.score * 100)} %`) : null
+      )
+    );
+  }
+  if (n.category && n.category.id !== 'other') {
+    kids.push(el('span', { class: 'sum-cat', title: CATEGORY_EXPLAIN[n.category.id] || '' }, n.category.label));
+  }
+  if (n.reaction?.dayChangePct != null) {
+    const cls = n.reaction.dayChangePct > 0 ? 'pos' : n.reaction.dayChangePct < 0 ? 'neg' : 'neu';
+    kids.push(el('span', { class: `sum-kurs ${cls}` }, `Kurs am Tag ${fmtPct(n.reaction.dayChangePct)}`));
+  }
+  return el('div', { class: 'news-sum' }, kids);
+}
+
 export function explainableSentimentBadge(sentiment) {
   const badge = sentimentBadge(sentiment);
   return attachBadgeExplain(badge, () => {
@@ -280,6 +306,25 @@ export function radarChart(scores, size = 210) {
     text.append(title);
     svg.append(text);
   });
+  return svg;
+}
+
+// Klassisches Chevron-Icon (Lucide-Stil) für Aufklapp-Elemente
+export function chevronIcon(size = 16) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('class', 'chev');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2.5');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const path = document.createElementNS(svgNS, 'path');
+  path.setAttribute('d', 'M6 9l6 6 6-6');
+  svg.append(path);
   return svg;
 }
 

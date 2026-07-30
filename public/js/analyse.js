@@ -4,7 +4,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
-  signClass, sentimentBadge, categoryBadge, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, explainableSentimentBadge, explainableCategoryBadge,
+  signClass, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, newsSummaryLine,
   radarChart, collapsible,
 } from './ui.js';
 
@@ -74,37 +74,42 @@ function ensureChart() {
   sma50Series = chart.addLineSeries({ color: '#e5a83b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
   sma200Series = chart.addLineSeries({ color: '#9085e9', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 
-  // OHLCV-Tooltip beim Überfahren (wie bei Trade Republic)
-  tooltip = el('div', { class: 'chart-tooltip' });
+  // OHLC-Zeile oben links im Chart (TradingView-Stil), folgt dem Fadenkreuz
+  tooltip = el('div', { class: 'chart-ohlc' });
   $('chart').style.position = 'relative';
   $('chart').append(tooltip);
   const volFmt = (v) =>
     v == null ? '–' : v >= 1e9 ? `${(v / 1e9).toFixed(2).replace('.', ',')} Mrd.` : v >= 1e6 ? `${(v / 1e6).toFixed(2).replace('.', ',')} Mio.` : new Intl.NumberFormat('de-DE').format(v);
-  chart.subscribeCrosshairMove((param) => {
-    const bar = param?.seriesData?.get(candleSeries);
-    if (!param?.time || !bar || param.point == null) {
-      tooltip.style.display = 'none';
+
+  window.__setOhlc = (bar, vol) => {
+    if (!bar) {
+      tooltip.replaceChildren();
       return;
     }
-    const vol = param.seriesData.get(volumeSeries)?.value;
     const up = bar.close >= bar.open;
-    const date = new Date(param.time).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    tooltip.innerHTML = `
-      <div class="tt-date">${date}</div>
-      <div class="tt-grid">
-        <span>Eröffnung</span><b>${fmtNum(bar.open)}</b>
-        <span>Hoch</span><b>${fmtNum(bar.high)}</b>
-        <span>Tief</span><b>${fmtNum(bar.low)}</b>
-        <span>Schluss</span><b class="${up ? 'pos' : 'neg'}">${fmtNum(bar.close)}</b>
-        <span>Volumen</span><b>${volFmt(vol)}</b>
-      </div>`;
-    tooltip.style.display = 'block';
-    const box = $('chart').getBoundingClientRect();
-    const x = Math.min(param.point.x + 16, box.width - tooltip.offsetWidth - 8);
-    const y = Math.min(param.point.y + 16, box.height - tooltip.offsetHeight - 8);
-    tooltip.style.transform = `translate(${Math.max(x, 4)}px, ${Math.max(y, 4)}px)`;
+    const chg = bar.open ? ((bar.close - bar.open) / bar.open) * 100 : null;
+    const cls = up ? 'pos' : 'neg';
+    tooltip.replaceChildren(
+      el('span', {}, 'O ', el('b', { class: cls }, fmtNum(bar.open))),
+      el('span', {}, 'H ', el('b', { class: cls }, fmtNum(bar.high))),
+      el('span', {}, 'T ', el('b', { class: cls }, fmtNum(bar.low))),
+      el('span', {}, 'S ', el('b', { class: cls }, fmtNum(bar.close))),
+      chg != null ? el('b', { class: cls }, ` ${fmtPct(chg)}`) : null,
+      el('span', { class: 'ohlc-vol' }, ' Vol ', el('b', {}, volFmt(vol)))
+    );
+  };
+
+  chart.subscribeCrosshairMove((param) => {
+    const bar = param?.seriesData?.get(candleSeries);
+    if (!param?.time || !bar) {
+      window.__setOhlc(lastBar, lastBar?.volume);
+      return;
+    }
+    window.__setOhlc(bar, param.seriesData.get(volumeSeries)?.value);
   });
 }
+
+let lastBar = null;
 
 function applyChartData(chartData) {
   candleSeries.setData(chartData.candles);
@@ -117,6 +122,11 @@ function applyChartData(chartData) {
   );
   sma50Series.setData(chartData.sma50);
   sma200Series.setData(chartData.sma200);
+  // Intraday: Uhrzeiten auf der Zeitachse zeigen
+  chart.timeScale().applyOptions({ timeVisible: !!chartData.intraday, secondsVisible: false });
+  // OHLC-Zeile mit der letzten Kerze vorbelegen
+  lastBar = chartData.candles[chartData.candles.length - 1] ?? null;
+  window.__setOhlc?.(lastBar, lastBar?.volume);
 }
 
 function setChartData(chartData, news) {
@@ -135,21 +145,25 @@ function setChartData(chartData, news) {
     if (n.sentiment?.label === 'negative') day.neg++;
     byDay.set(n.reaction.date, day);
   }
+  // Dezente Punkte unter den Kerzen (TradingView-Stil) statt Text-Marker
   const markers = [...byDay.entries()]
     .map(([time, d]) => {
       const dominant = d.pos > d.neg ? 'positive' : d.neg > d.pos ? 'negative' : 'neutral';
       return {
         time,
-        position: 'aboveBar',
-        shape: dominant === 'negative' ? 'arrowDown' : dominant === 'positive' ? 'arrowUp' : 'circle',
+        position: 'belowBar',
+        shape: 'circle',
+        size: 0.6,
         color: dominant === 'negative' ? '#f0616d' : dominant === 'positive' ? '#22c07e' : '#7b8294',
-        text: d.count > 1 ? `${d.count} News` : 'News',
       };
     })
     .sort((a, b) => (a.time < b.time ? -1 : 1));
+  lastMarkers = markers;
   candleSeries.setMarkers(markers);
   chart.timeScale().fitContent();
 }
+
+let lastMarkers = [];
 
 // Zeitraum-Wechsel lädt nur den Chart neu
 document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
@@ -160,6 +174,8 @@ document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
     try {
       const data = await api.get(`/api/history/${encodeURIComponent(currentSymbol)}?range=${btn.dataset.range}`);
       applyChartData(data);
+      // News-Punkte nur auf Tages-Charts (Intraday hat andere Zeitachsen)
+      candleSeries.setMarkers(data.intraday ? [] : lastMarkers);
       chart.timeScale().fitContent();
     } catch {}
   });
@@ -185,7 +201,7 @@ async function loadReport(symbol) {
 
   $('report-loading').hidden = true;
   $('report').hidden = false;
-  document.title = `Aktien-Cockpit — ${a.name}`;
+  document.title = `Stockpit — ${a.name}`;
 
   // Kopf
   $('r-name').textContent = a.name;
@@ -200,40 +216,20 @@ async function loadReport(symbol) {
   $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
   $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
 
-  // Gesamteinschätzung
+  // Gesamteinschätzung: nur das Urteil, schlicht und farbig
   const g = a.gesamt;
   const gCard = $('r-gesamt');
-  const gDetail = $('r-gesamt-detail');
   if (g) {
-    // Urteil + Skala von Bärisch bis Bullisch (statt kryptischer Zahl)
     const scoreCls = g.ampel === 'green' ? 'pos' : g.ampel === 'red' ? 'neg' : '';
-    const meterPos = Math.max(2, Math.min(98, (g.score + 100) / 2)); // -100..100 → 0..100 %
     gCard.replaceChildren(
-      el('div', { style: 'width:100%' },
+      el('div', {},
         el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
-        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel]),
-        el('div', { class: 'gmeter', title: `Position auf der Skala von klar bärisch bis klar bullisch` },
-          el('span', { class: 'gmeter-tick', style: `left:${meterPos}%` })
-        ),
-        el('div', { class: 'gmeter-labels' }, el('span', {}, 'bärisch'), el('span', {}, 'neutral'), el('span', {}, 'bullisch')),
-        el('div', { class: 'gsub' }, 'Klick für Begründung')
+        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel])
       )
     );
-    gDetail.replaceChildren(
-      el('h2', { class: 'panel-title' }, 'Wie die Einschätzung zustande kommt'),
-      ...g.components.map((c) =>
-        el('div', { class: 'sig-row' },
-          ampelDot(c.verdict === 'pos' ? 'green' : c.verdict === 'neg' ? 'red' : 'yellow'),
-          el('div', {}, el('b', {}, `${c.label} (Gewicht ${c.weight}): `), el('span', { class: 'txt' }, c.text))
-        )
-      ),
-      el('div', { class: 'notice' }, 'Keine Blackbox: Jede Komponente ist einzeln in den Panels darunter nachvollziehbar. Keine Anlageberatung.')
-    );
-    gCard.onclick = () => (gDetail.hidden = !gDetail.hidden);
   } else {
     gCard.replaceChildren(el('span', { class: 'dim' }, 'Zu wenig Daten für eine Einschätzung'));
   }
-  gDetail.hidden = true;
 
   // Chart
   document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.toggle('active', b.dataset.range === '1y'));
@@ -266,7 +262,10 @@ function renderQuoteStrip(a) {
     ['Marktkap.', k.marktkap != null ? `${fmtCompact(k.marktkap)} ${a.currency}` : '–'],
     ['Beta', fmtNum(a.kennzahlen?.beta)],
     ['KGV (12 Mon.)', fmtNum(a.fundamental?.kgv)],
+    ['KGV (erwartet)', fmtNum(a.fundamental?.kgvForward)],
     ['EPS (12 Mon.)', fmtNum(a.kennzahlen?.epsTtm)],
+    ['Umsatzwachstum', a.fundamental?.umsatzwachstum != null ? fmtPctFrac(a.fundamental.umsatzwachstum) : '–'],
+    ['Nettomarge', a.fundamental?.nettomarge != null ? fmtPctFrac(a.fundamental.nettomarge) : '–'],
     ['Nächste Zahlen', fmtDate(a.termine?.earnings)],
     ['Dividendenrendite', a.fundamental?.dividendenrendite != null ? fmtPct(a.fundamental.dividendenrendite, false) : '–'],
     ['Ex-Dividende', fmtDate(a.termine?.exDividende)],
@@ -438,6 +437,24 @@ function renderKennzahlen(a) {
     ['Abstand SMA20', smaAb.sma20], ['Abstand SMA50', smaAb.sma50], ['Abstand SMA200', smaAb.sma200],
   ];
 
+  // Fundamentaldaten (ehem. eigenes Panel) — vollständig im Akkordeon
+  const f = a.fundamental;
+  const fundamentalRows = f
+    ? [
+        ['Kurs/Umsatz', fmtNum(f.kuv)],
+        ['Gewinnwachstum', fmtPctFrac(f.gewinnwachstum)],
+        ['Bruttomarge', fmtPctFrac(f.bruttomarge)],
+        ['Nettomarge', fmtPctFrac(f.nettomarge)],
+        ['Verschuldung (Debt/Equity)', f.verschuldung != null ? fmtNum(f.verschuldung, 0) + ' %' : '–'],
+        ['Free Cashflow', f.freeCashflow != null ? `${fmtCompact(f.freeCashflow)} ${a.currency}` : '–'],
+        ['Umsatzwachstum', fmtPctFrac(f.umsatzwachstum)],
+        ['KGV (aktuell)', fmtNum(f.kgv)],
+        ['KGV (erwartet)', fmtNum(f.kgvForward)],
+        ['Dividendenrendite', f.dividendenrendite != null ? fmtPct(f.dividendenrendite, false) : '–'],
+        ['Ausschüttungsquote', fmtPctFrac(f.ausschuettungsquote)],
+      ]
+    : [];
+
   setChildren(box,
     el('h2', { class: 'panel-title' }, 'Kennzahlen', el('span', { class: 'hint' }, ' · Finviz-Stil')),
     el('div', { class: 'kpi-label', style: 'margin:0 0 6px' }, 'Performance & Trend-Abstand'),
@@ -445,10 +462,21 @@ function renderKennzahlen(a) {
       el('dl', { class: 'facts' }, perfRows.slice(0, 5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)])),
       el('dl', { class: 'facts' }, perfRows.slice(5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)]))
     ),
-    collapsible('Alle Kennzahlen anzeigen',
-      el('div', { class: 'facts-2col', style: 'padding-top:10px' },
-        el('dl', { class: 'facts' }, facts1.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
-        el('dl', { class: 'facts' }, facts2.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
+    collapsible('Alle Kennzahlen & Fundamentaldaten anzeigen',
+      el('div', { style: 'padding-top:10px' },
+        el('div', { class: 'facts-2col' },
+          el('dl', { class: 'facts' }, facts1.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
+          el('dl', { class: 'facts' }, facts2.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
+        ),
+        fundamentalRows.length
+          ? el('div', {},
+              el('div', { class: 'kpi-label', style: 'margin:14px 0 6px' }, 'Fundamentaldaten'),
+              el('div', { class: 'facts-2col' },
+                el('dl', { class: 'facts' }, fundamentalRows.slice(0, 6).flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
+                el('dl', { class: 'facts' }, fundamentalRows.slice(6).flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
+              )
+            )
+          : null
       )
     )
   );
@@ -461,8 +489,9 @@ function renderTechnik(a) {
     return;
   }
   const t = a.technik;
+  const verdictCls = t.ampel === 'green' ? 's-pos' : t.ampel === 'red' ? 's-neg' : 's-neu';
   box.replaceChildren(
-    el('h2', { class: 'panel-title' }, 'Technik ', el('span', { class: 'badge' }, ampelDot(t.ampel), `Score ${t.score > 0 ? '+' : ''}${t.score}`)),
+    el('h2', { class: 'panel-title' }, 'Technisches Bild ', el('span', { class: `badge ${verdictCls}` }, ampelDot(t.ampel), AMPEL_TEXT[t.ampel])),
     ...t.signals.map((s) =>
       el('div', { class: 'sig-row' },
         ampelDot(s.verdict === 'pos' ? 'green' : s.verdict === 'neg' ? 'red' : 'yellow'),
@@ -569,29 +598,9 @@ function renderFundamental(a) {
     );
     return;
   }
-  if (!a.fundamental) {
-    box.replaceChildren(el('h2', { class: 'panel-title' }, 'Fundamental'), el('div', { class: 'empty' }, 'Keine Fundamentaldaten.'));
-    return;
-  }
-  const f = a.fundamental;
-  const rows = [
-    ['Marktkapitalisierung', f.marktkapitalisierung != null ? `${fmtCompact(f.marktkapitalisierung)} ${a.currency}` : '–'],
-    ['KGV (aktuell)', fmtNum(f.kgv)],
-    ['KGV (erwartet)', fmtNum(f.kgvForward)],
-    ['Kurs/Umsatz', fmtNum(f.kuv)],
-    ['Umsatzwachstum', fmtPctFrac(f.umsatzwachstum)],
-    ['Gewinnwachstum', fmtPctFrac(f.gewinnwachstum)],
-    ['Bruttomarge', fmtPctFrac(f.bruttomarge)],
-    ['Nettomarge', fmtPctFrac(f.nettomarge)],
-    ['Verschuldung (Debt/Equity)', f.verschuldung != null ? fmtNum(f.verschuldung, 0) + ' %' : '–'],
-    ['Free Cashflow', f.freeCashflow != null ? `${fmtCompact(f.freeCashflow)} ${a.currency}` : '–'],
-    ['Dividendenrendite', f.dividendenrendite != null ? fmtPct(f.dividendenrendite, false) : '–'],
-    ['Ausschüttungsquote', fmtPctFrac(f.ausschuettungsquote)],
-  ];
-  box.replaceChildren(
-    el('h2', { class: 'panel-title' }, 'Fundamental'),
-    el('dl', { class: 'facts' }, rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))]))
-  );
+  // Aktien: Fundamentaldaten stecken jetzt kompakt im Kennzahlen-Strip
+  // und vollständig im Kennzahlen-Akkordeon — eigenes Panel entfällt.
+  box.hidden = true;
 }
 
 function renderNews(a) {
@@ -604,13 +613,7 @@ function renderNews(a) {
         el('article', { class: 'news-item' },
           el('div', { class: 'news-meta' }, el('span', {}, n.source || '—'), el('span', {}, fmtAgo(n.pubDate))),
           el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-          el('div', { class: 'news-badges' },
-            explainableSentimentBadge(n.sentiment),
-            explainableCategoryBadge(n.category),
-            n.reaction?.dayChangePct != null
-              ? el('span', { class: `badge ${signClass(n.reaction.dayChangePct)}` }, `Kurs am Tag: ${fmtPct(n.reaction.dayChangePct)}`)
-              : null
-          ),
+          newsSummaryLine(n),
           n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
         );
 

@@ -1,5 +1,5 @@
 /* ============================================================
-   AKTIEN-COCKPIT — Design-System
+   STOCKPIT — Design-System
    Richtung: TradingView/Finviz Dark Mode — neutrales Schwarz/Grau,
    Weiß für Text, Grün/Rot für den Markt, Blau als Akzent.
    Klare Sans (Instrument Sans) + Mono für Kursdaten.
@@ -131,7 +131,7 @@ a:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 .brand:hover { text-decoration: none; }
-.brand .tick { color: var(--accent); font-style: italic; }
+.brand .tick { color: var(--accent); }
 
 .topnav { display: flex; gap: 4px; margin-left: 6px; }
 .topnav a {
@@ -219,11 +219,11 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
 .panel + .panel { margin-top: 18px; }
 
 .panel-title {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
   margin: 0 0 14px;
   display: flex;
   align-items: center;
@@ -369,7 +369,7 @@ table.data th.num { text-align: right; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.news-title { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.news-title { font-size: 15px; font-weight: 600; line-height: 1.35; }
 .news-title a { color: var(--ink); }
 .news-title a:hover { color: var(--accent); text-decoration: none; }
 .news-badges { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -381,9 +381,58 @@ table.data th.num { text-align: right; }
   margin-top: 2px;
 }
 
-/* Einzelne Badges klickbar → Einordnung (kein Gruppen-Hover) */
-.badge.explain { cursor: pointer; }
-.badge.explain:hover { border-color: var(--accent); background: var(--accent-soft); }
+/* News-Zusammenfassung: Einstufung · Kategorie · Kursbewegung, farbig, ohne Klick */
+.news-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  font-size: 12.5px;
+}
+.news-sum .sum-tag { font-weight: 700; letter-spacing: 0.02em; }
+.news-sum .sum-tag.pos { color: var(--up); }
+.news-sum .sum-tag.neg { color: var(--down); }
+.news-sum .sum-tag.neu { color: var(--ink-3); }
+.news-sum .sum-conf { font-weight: 400; color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; }
+.news-sum .sum-cat { color: var(--accent); }
+.news-sum .sum-kurs { font-family: var(--font-mono); font-size: 12px; }
+.news-sum .sum-kurs.pos { color: var(--up); }
+.news-sum .sum-kurs.neg { color: var(--down); }
+.news-sum .sum-kurs.neu { color: var(--ink-3); }
+
+/* OHLC-Zeile oben links im Chart (TradingView-Stil) */
+.chart-ohlc {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 5;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  pointer-events: none;
+  background: rgba(20, 24, 33, 0.7);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.chart-ohlc b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.chart-ohlc .ohlc-vol b { color: var(--ink-2); }
+
+/* Aufklapp-Pfeil (Termin-Radar u. Ä.) — klassisches Chevron, gut sichtbar */
+.chev {
+  display: inline-block;
+  flex: none;
+  transition: transform 0.18s ease;
+  color: var(--ink-2);
+  vertical-align: middle;
+}
+.termin:hover .chev { color: var(--ink); }
+.termin.open .chev { transform: rotate(180deg); }
+
+/* Kopfzeilen-Zusatz in Tabellen ("Trend · 30 T.") */
+.th-sub { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink-3); font-size: 10px; }
 .news-explain-detail {
   display: grid;
   gap: 6px;
@@ -395,6 +444,14 @@ table.data th.num { text-align: right; }
   padding: 10px 12px;
   margin-top: 6px;
   animation: rise 0.25s ease both;
+}
+
+.filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 /* Wichtigkeits-Sterne (Wirtschaftskalender) */
@@ -674,9 +731,11 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
 /* Kennzahlen-Zeile unter dem Chart (Yahoo-Stil) */
 .quote-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0 26px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0 28px;
 }
+@media (max-width: 1100px) { .quote-strip { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .quote-strip { grid-template-columns: 1fr; } }
 .qs-cell {
   display: flex;
   justify-content: space-between;
@@ -686,13 +745,13 @@ dl.facts dt:last-of-type, dl.facts dd:last-of-type { border-bottom: none; }
   border-bottom: 1px dashed var(--line);
   font-size: 13px;
 }
-.qs-label { color: var(--ink-3); }
+.qs-label { color: var(--ink-3); white-space: nowrap; }
 .qs-value {
   font-family: var(--font-mono);
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  min-width: 0;
+  white-space: nowrap;
 }
 
 /* Firmen-Übersicht + Snowflake (SWS-Stil, Querkarte) */
