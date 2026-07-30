@@ -49,7 +49,7 @@ hat Micha verworfen — Repo und Ordner heißen ebenfalls stockpit).
 - Design (Michas Wunsch, Feedback-Runde 3): **TradingView/Finviz Dark Mode** — neutrales Schwarz/Grau (#0b0e13), Blau als Akzent (#4c8dff), Grün/Rot nur für Markt, Gelb (--warn) nur für Ampel/Sterne. Sans (Instrument Sans) für alles inkl. großer Zahlen, Mono für Kursdaten — keine Serifen mehr. Fonts lokal in `public/fonts/`. Chart-Kategorienfarben sind eine validierte Palette — nicht frei ändern.
 - Portfolio: **kein Kaufdatum** (bewusst entfernt — Micha kauft in Tranchen, es zählt nur Stückzahl + Ø-Kaufkurs).
 - `replaceChildren()` nie mit möglichen `null`-Kindern aufrufen (rendert als Text "null") — `setChildren()`-Helfer in `analyse.js` nutzen.
-- Nie Browser-confirm()/alert() — `confirmDialog()` aus ui.js nutzen. Eingabefelder: einheitlich 42px hoch, überall Placeholder.
+- Nie Browser-confirm()/alert(). Löschen/Entfernen passiert OHNE Rückfrage (Micha-Wunsch, Runde 9) — `confirmDialog()` in ui.js existiert für Fälle, wo eine Bestätigung wirklich nötig wäre. Eingabefelder: einheitlich 42px hoch, überall Placeholder.
 - Analysten-Monatssäulen: Strong Buy OBEN (wie Yahoo); Technik-Signale sortiert grün → gelb → rot.
 - Fehler-Zustände immer benutzerfreundlich abfangen (Feed down, Ticker unbekannt, offline) — App darf nie leer/kaputt aussehen.
 - Ehrliche Grenzen im UI/README benennen statt Features vorzutäuschen. Überall gilt: keine Anlageberatung.

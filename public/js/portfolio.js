@@ -1,6 +1,6 @@
 // Verwaltung: Positionen und Watchlist.
 import { api } from './api.js';
-import { el, fmtMoney, attachSearch, markActiveNav, confirmDialog } from './ui.js';
+import { el, fmtMoney, attachSearch, markActiveNav } from './ui.js';
 
 markActiveNav();
 
@@ -79,7 +79,7 @@ async function renderPositions() {
               el('button', { class: 'btn ghost small', type: 'button', onclick: () => editPosition(p, row) }, 'Ändern'),
               ' ',
               el('button', { class: 'btn danger small', type: 'button', onclick: async () => {
-                if (!(await confirmDialog(`Position ${p.symbol} (${p.name}) wirklich löschen?`))) return;
+                // Direkt löschen, ohne Rückfrage — wie "Entfernen" bei der Watchlist
                 await api.del(`/api/positions/${p.id}`);
                 renderPositions();
               } }, 'Löschen')
