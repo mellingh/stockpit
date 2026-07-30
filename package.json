@@ -1,5 +1,5 @@
 {
-  "name": "aktien-dashboard",
+  "name": "stockpit",
   "version": "0.1.0",
   "description": "Zentrales Dashboard für dein Aktienportfolio — Kurse, Kennzahlen, Analysten, News mit lokaler KI-Bewertung. Ohne Abos, ohne API-Keys.",
   "type": "module",

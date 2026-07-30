@@ -1,4 +1,4 @@
-// Aktien-Dashboard — lokaler Server.
+// Stockpit — lokaler Server.
 // Läuft nur auf deinem Rechner (http://localhost:3001), holt kostenlose
 // Daten von Yahoo Finance / RSS / clinicaltrials.gov und bewertet News
 // mit einer lokalen KI. Kein Login, keine API-Keys, keine Kosten.
@@ -622,6 +622,6 @@ app.delete('/api/watchlist/:symbol', (req, res) => {
 // ---------- Start ----------
 
 app.listen(PORT, () => {
-  console.log(`\n  Aktien-Dashboard läuft: http://localhost:${PORT}\n`);
+  console.log(`\n  Stockpit läuft: http://localhost:${PORT}\n`);
   preload(); // Sentiment-Modell im Hintergrund laden
 });

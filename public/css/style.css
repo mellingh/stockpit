@@ -254,12 +254,12 @@ h1.pagetitle em { color: var(--accent); font-style: italic; }
 .kpi-value {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: clamp(34px, 4.5vw, 52px);
+  font-size: clamp(26px, 3vw, 36px);
   line-height: 1.05;
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
-.kpi-value.small { font-size: clamp(24px, 3vw, 34px); }
+.kpi-value.small { font-size: clamp(21px, 2.4vw, 28px); }
 .kpi-sub {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -298,12 +298,12 @@ table.data th {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-3);
-  padding: 6px 10px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--line-strong);
   white-space: nowrap;
 }
 table.data td {
-  padding: 12px 10px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
@@ -601,19 +601,20 @@ button:disabled { opacity: 0.5; cursor: wait; }
 .report-head .price .chg { font-family: var(--font-mono); font-size: 14px; }
 
 .gesamt-card {
+  /* schlicht wie der Kursblock daneben — kein Karten-Rahmen */
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 18px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line-strong);
-  background: var(--panel);
+  padding: 4px 0;
+  text-align: right;
   cursor: pointer;
   user-select: none;
 }
 .gesamt-card .dot { width: 14px; height: 14px; }
 .gesamt-card .glabel { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
-.gesamt-card .gscore { font-family: var(--font-display); font-size: 24px; font-weight: 600; }
+.gesamt-card .gscore { font-family: var(--font-display); font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; line-height: 1.15; }
+.gesamt-card:hover .gscore { text-decoration: underline; text-underline-offset: 4px; }
+.gesamt-card .gsub { font-size: 11px; color: var(--ink-3); }
 
 .chart-panel { padding: 14px 14px 8px; }
 .chart-toolbar {
@@ -863,7 +864,7 @@ details.clap > summary:hover { text-decoration: underline; }
 .alloc-main { flex: 1; min-width: 0; }
 .alloc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .alloc-top .lname { font-weight: 600; font-size: 14px; }
-.alloc-pct { font-family: var(--font-mono); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.alloc-pct { font-family: var(--font-mono); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .alloc-sub {
   display: flex; justify-content: space-between; gap: 12px;
   font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); margin-top: 1px;

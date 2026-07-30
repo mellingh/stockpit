@@ -1,5 +1,5 @@
 @echo off
-title Aktien-Dashboard
+title Stockpit
 cd /d "%~dp0"
 
 rem ---- Voraussetzung pruefen: Node.js ----
@@ -26,7 +26,7 @@ if not exist node_modules (
 )
 
 rem ---- Server starten und Browser oeffnen ----
-echo Starte Aktien-Dashboard...
+echo Starte Stockpit...
 start "" http://localhost:3001
 node server/index.js
 pause

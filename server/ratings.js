@@ -46,6 +46,8 @@ export function getRatingsWithTargets(symbol) {
       const [rating, action, target, , dateStr] = tds.slice(-5);
       const datum = new Date(dateStr);
       if (Number.isNaN(datum.getTime())) continue;
+      // Link zur Analysten-Seite (dort ist die einzelne Einschätzung nachlesbar)
+      const analystPfad = row.match(/href="(\/analysts\/[^"]+)"/)?.[1] ?? null;
       out.push({
         datum: datum.toISOString(),
         firma: tds[1] || null,
@@ -53,6 +55,7 @@ export function getRatingsWithTargets(symbol) {
         zu: rating || null,
         von: null,
         kursziel: /^\$[\d.,]+$/.test(target) ? Number(target.replace(/[$,]/g, '')) : null,
+        link: analystPfad ? `https://stockanalysis.com${analystPfad}` : null,
       });
     }
     return out.length ? out.slice(0, 15) : null;

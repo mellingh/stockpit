@@ -37,7 +37,7 @@ export const MACRO_FEEDS = [
 async function fetchFeed(feed) {
   return cached(`rss:${feed.id}`, 15 * MINUTE, async () => {
     const res = await fetch(feed.url, {
-      headers: { 'user-agent': 'Mozilla/5.0 (aktien-dashboard, lokal)' },
+      headers: { 'user-agent': 'Mozilla/5.0 (stockpit, lokal)' },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`${feed.name}: HTTP ${res.status}`);

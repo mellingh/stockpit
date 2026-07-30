@@ -52,6 +52,15 @@ function ensureChart() {
     crosshair: { mode: 0 },
     rightPriceScale: { borderColor: '#262c3a' },
     timeScale: { borderColor: '#262c3a' },
+    // Verhalten wie TradingView: Rad zoomt, Ziehen scrollt,
+    // Ziehen auf den Achsen skaliert Preis-/Zeitachse
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+    handleScale: {
+      mouseWheel: true,
+      pinch: true,
+      axisPressedMouseMove: { time: true, price: true },
+      axisDoubleClickReset: true,
+    },
     autoSize: true,
     localization: { locale: 'de-DE' },
   };
@@ -129,41 +138,11 @@ function applyChartData(chartData) {
   window.__setOhlc?.(lastBar, lastBar?.volume);
 }
 
-function setChartData(chartData, news) {
+function setChartData(chartData) {
   ensureChart();
   applyChartData(chartData);
-
-  // News-Marker: pro Handelstag gebündelt (sonst stapeln sie sich),
-  // gefärbt nach dominierendem Sentiment
-  const firstTime = chartData.candles[0]?.time ?? '';
-  const byDay = new Map();
-  for (const n of news || []) {
-    if (!n.reaction?.date || n.reaction.date < firstTime) continue;
-    const day = byDay.get(n.reaction.date) ?? { pos: 0, neg: 0, count: 0 };
-    day.count++;
-    if (n.sentiment?.label === 'positive') day.pos++;
-    if (n.sentiment?.label === 'negative') day.neg++;
-    byDay.set(n.reaction.date, day);
-  }
-  // Dezente Punkte unter den Kerzen (TradingView-Stil) statt Text-Marker
-  const markers = [...byDay.entries()]
-    .map(([time, d]) => {
-      const dominant = d.pos > d.neg ? 'positive' : d.neg > d.pos ? 'negative' : 'neutral';
-      return {
-        time,
-        position: 'belowBar',
-        shape: 'circle',
-        size: 0.6,
-        color: dominant === 'negative' ? '#f0616d' : dominant === 'positive' ? '#22c07e' : '#7b8294',
-      };
-    })
-    .sort((a, b) => (a.time < b.time ? -1 : 1));
-  lastMarkers = markers;
-  candleSeries.setMarkers(markers);
   chart.timeScale().fitContent();
 }
-
-let lastMarkers = [];
 
 // Zeitraum-Wechsel lädt nur den Chart neu
 document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
@@ -174,8 +153,6 @@ document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
     try {
       const data = await api.get(`/api/history/${encodeURIComponent(currentSymbol)}?range=${btn.dataset.range}`);
       applyChartData(data);
-      // News-Punkte nur auf Tages-Charts (Intraday hat andere Zeitachsen)
-      candleSeries.setMarkers(data.intraday ? [] : lastMarkers);
       chart.timeScale().fitContent();
     } catch {}
   });
@@ -216,7 +193,8 @@ async function loadReport(symbol) {
   $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
   $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
 
-  // Gesamteinschätzung: nur das Urteil, schlicht und farbig
+  // Gesamteinschätzung: nur das Urteil — Klick springt zur Einordnung
+  // (Stärken/Risiken + Snowflake in der Übersichtskarte)
   const g = a.gesamt;
   const gCard = $('r-gesamt');
   if (g) {
@@ -224,16 +202,22 @@ async function loadReport(symbol) {
     gCard.replaceChildren(
       el('div', {},
         el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
-        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel])
+        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel]),
+        el('div', { class: 'gsub' }, 'zur Einordnung ↓')
       )
     );
+    gCard.title = 'Zur Einordnung springen (Stärken, Risiken, Snowflake)';
+    gCard.onclick = () => {
+      const ziel = document.getElementById('p-uebersicht');
+      if (ziel && !ziel.hidden) ziel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
   } else {
     gCard.replaceChildren(el('span', { class: 'dim' }, 'Zu wenig Daten für eine Einschätzung'));
   }
 
   // Chart
   document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.toggle('active', b.dataset.range === '1y'));
-  setChartData(a.chart, a.news);
+  setChartData(a.chart);
 
   currentCurrency = a.currency;
   renderQuoteStrip(a);
@@ -366,7 +350,11 @@ function renderRatings(a) {
   const zeile = (r) =>
     el('tr', {},
       el('td', { class: 'num', style: 'text-align:left' }, fmtDate(r.datum)),
-      el('td', {}, r.firma || '–'),
+      el('td', {},
+        r.link
+          ? el('a', { href: r.link, target: '_blank', rel: 'noopener', title: 'Einschätzung beim Analysten nachlesen' }, r.firma || '–')
+          : r.firma || '–'
+      ),
       el('td', { class: aktionClass(r) }, r.aktion),
       el('td', {}, r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–'),
       hatKursziele ? el('td', { class: 'num' }, r.kursziel != null ? fmtMoney(r.kursziel, a.currency) : '–') : null
@@ -575,7 +563,8 @@ function renderAnalysten(a) {
     el('div', { style: 'display:flex;align-items:baseline;gap:12px' },
       el('span', { class: 'kpi-value small', style: 'font-size:30px' }, an.mean?.toFixed(1)),
       el('span', { class: 'dim' }, '/ 5 · Konsens (1 = Strong Buy)'),
-      el('span', { class: `badge ${an.mean <= 2 ? 's-pos' : an.mean >= 3.5 ? 's-neg' : 's-neu'}` }, (an.key || '').replace('_', ' '))
+      el('span', { class: `badge ${an.mean <= 2 ? 's-pos' : an.mean >= 3.5 ? 's-neg' : 's-neu'}` },
+        (an.key || '').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
     ),
     bar,
     legend,
