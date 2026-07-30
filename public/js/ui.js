@@ -300,7 +300,9 @@ export function donut(slices, size = 168, stroke = 26) {
 // ---------- Snowflake-Radar (SVG-Pentagon, SWS-Stil) ----------
 
 export function radarChart(scores, size = 210) {
-  // scores: [{label, value 0..5}], 5 Achsen
+  // scores: [{label, value 0..5}], 5 Achsen.
+  // viewBox seitlich aufgeweitet, damit lange Labels (ZUKUNFT, DIVIDENDE)
+  // nicht abgeschnitten werden — plus winkelabhängige Text-Anker unten.
   const c = size / 2;
   const rMax = size / 2 - 34;
   const n = scores.length;
@@ -308,9 +310,10 @@ export function radarChart(scores, size = 210) {
   const pt = (i, r) => [c + r * Math.cos(angle(i)), c + r * Math.sin(angle(i))];
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  const rand = 36;
+  svg.setAttribute('viewBox', `${-rand} 0 ${size + 2 * rand} ${size}`);
   svg.setAttribute('class', 'radar');
-  svg.setAttribute('width', size);
+  svg.setAttribute('width', size + 2 * rand);
   svg.setAttribute('height', size);
 
   // Ringe (1–5)
@@ -334,13 +337,14 @@ export function radarChart(scores, size = 210) {
   shape.setAttribute('points', scores.map((s, i) => pt(i, (rMax * Math.max(s.value, 0.15)) / 5).join(',')).join(' '));
   shape.setAttribute('class', 'radar-shape');
   svg.append(shape);
-  // Beschriftung
+  // Beschriftung — seitliche Labels nach außen ankern, damit nichts abschneidet
   scores.forEach((s, i) => {
-    const [x, y] = pt(i, rMax + 18);
+    const [x, y] = pt(i, rMax + 14);
+    const cos = Math.cos(angle(i));
     const text = document.createElementNS(svgNS, 'text');
     text.setAttribute('x', x); text.setAttribute('y', y);
     text.setAttribute('class', 'radar-label');
-    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('text-anchor', cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle');
     text.setAttribute('dominant-baseline', 'middle');
     text.textContent = s.label;
     const title = document.createElementNS(svgNS, 'title');

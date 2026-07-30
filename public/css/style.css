@@ -451,17 +451,10 @@ table.data th.num { text-align: right; font-family: var(--font-body); font-size:
 /* Währungs-Textchip (USD/EUR) in den Markt-Event-Zeilen */
 .badge.chip-sm.cur { color: var(--ink-2); border-color: var(--line-strong); letter-spacing: 0.06em; }
 
-/* Aufklappbare Termin-Erklärung im Wirtschaftskalender */
-.cal-detail td {
-  background: var(--panel-2);
-  padding: 12px 16px 14px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  line-height: 1.5;
-}
-.cal-erk { display: grid; gap: 6px; max-width: 980px; }
-.cal-erk b { color: var(--ink); font-weight: 600; }
-.cal-deutung { color: var(--ink-3); }
+/* Aufklappbare Termin-Erklärung im Wirtschaftskalender —
+   nutzt die Stichpunkt-Optik der News-Einordnung */
+.cal-detail td { background: transparent; padding: 2px 10px 12px; }
+.cal-detail .einordnung-liste b { color: var(--ink); font-weight: 600; }
 
 .trow {
   display: flex;
@@ -758,14 +751,16 @@ button:disabled { opacity: 0.5; cursor: wait; }
   #report > * { animation: none; }
 }
 
-.report-head {
+/* Kopf seit Runde 22 ohne schwebende Karten: Titel + Zahlen-Chip in einer
+   Zeile, Badges darunter, Gesamteinschätzung als getönter Chip — der Kurs
+   wohnt oben in der Chart-Karte. */
+.report-head { margin: 24px 0 18px; }
+.report-head .title-line {
   display: flex;
+  align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
-  align-items: stretch;
-  gap: 14px;
-  margin: 24px 0 18px;
 }
-.report-head .title { flex: 1; min-width: 260px; align-self: flex-end; }
 .report-head h2 {
   font-family: var(--font-display);
   font-weight: 600;
@@ -783,58 +778,54 @@ button:disabled { opacity: 0.5; cursor: wait; }
   color: var(--ink-3);
 }
 
-/* Kopf-Karten: Gesamteinschätzung und Kurs als klar getrennte Blöcke */
-.head-card {
-  background: var(--panel);
+/* Gesamteinschätzung als Chip: Ampel-Punkt + Urteil, Rand nach Verdict getönt */
+.gesamt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 7px 16px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  padding: 12px 18px 14px;
-  min-width: 185px;
-  display: flex;
-  flex-direction: column;
-  /* beide Karten beginnen OBEN — Labels und Hauptwerte liegen dadurch
-     auf exakt gleicher Höhe (zentriert sah es schief aus) */
-  justify-content: flex-start;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.15s;
 }
-.hc-label {
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
+.gesamt-chip:hover { filter: brightness(1.2); }
+.gesamt-chip .dot { width: 9px; height: 9px; flex: none; }
+.gesamt-chip.g-pos { border-color: rgba(34, 192, 126, 0.45); background: rgba(34, 192, 126, 0.08); color: var(--up); }
+.gesamt-chip.g-neg { border-color: rgba(240, 97, 109, 0.45); background: rgba(240, 97, 109, 0.08); color: var(--down); }
+.gesamt-chip.g-neu { border-color: rgba(229, 168, 59, 0.4); background: rgba(229, 168, 59, 0.07); color: var(--warn); }
 
-/* Kurs-Karte: linksbündig wie der Rest der Seite; Pre-Market/Nachbörslich
-   als eigene Spalte rechts daneben (abgetrennt per Linie) */
-.price-card {
-  flex-direction: row;
-  align-items: stretch;
-  gap: 16px;
-  text-align: left;
+/* Kurszeile oben in der Chart-Karte (Chart rückt dafür etwas runter) */
+.chart-kurs {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px 6px 10px;
   font-variant-numeric: tabular-nums;
 }
-.price-card .pc-main { display: flex; flex-direction: column; }
-.price-card .now {
+.chart-kurs .ck-preis {
   font-family: var(--font-display);
-  font-size: clamp(24px, 2.8vw, 32px);
+  font-size: 26px;
   font-weight: 600;
   line-height: 1.1;
 }
-.price-card .chg { font-family: var(--font-mono); font-size: 13px; margin-top: 2px; }
-/* Wichtig: [hidden] muss das display:flex schlagen — sonst bleibt während
-   der regulären Handelszeit eine leere Spalte mit Trennlinie stehen. */
-.price-card .prepost {
+.chart-kurs .chg { font-family: var(--font-mono); font-size: 13.5px; }
+.chart-kurs .prepost {
   font-family: var(--font-mono);
   font-size: 12.5px;
+  display: inline-flex;
+  gap: 7px;
+  margin-left: 6px;
+  padding-left: 14px;
   border-left: 1px solid var(--line);
-  padding-left: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
 }
-.price-card .prepost[hidden] { display: none; }
+.chart-kurs .prepost[hidden] { display: none; }
 
 /* Mini-Zweitzeile "Pre/Post ±x %" in den Dashboard-Tabellen */
 .prepost-mini {
@@ -870,20 +861,21 @@ a.x-link:hover { border-color: var(--accent); background: var(--accent-soft); tr
 .x-link b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .x-link .x-cash { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
 
-/* Frische Quartalszahlen: Chip unterm Aktientitel (Ist vs. erwartet) */
+/* Frische Quartalszahlen: Chip NEBEN dem Aktientitel (erw. → Ist) */
 .zahlen-chip {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
-  margin-top: 10px;
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   font-family: var(--font-mono);
   font-size: 12.5px;
+  white-space: nowrap;
 }
 .zahlen-chip .zk-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.zahlen-chip .zk-ist { border-left: 1px solid var(--line-strong); padding-left: 10px; }
 .zahlen-chip.pos { border-color: rgba(34, 192, 126, 0.35); }
 .zahlen-chip.neg { border-color: rgba(240, 97, 109, 0.35); }
 
@@ -913,44 +905,8 @@ tr:hover .row-actions .icon-btn { opacity: 1; }
 }
 .x-row:last-child { border-bottom: none; }
 
-/* Gesamteinschätzung: Karte mit dezenter Verdict-Tönung (grün/gelb/rot) */
-.gesamt-card {
-  cursor: pointer;
-  user-select: none;
-  transition: border-color 0.15s;
-}
-.gesamt-card .glabel {
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.gesamt-card .gscore {
-  font-family: var(--font-display);
-  font-size: clamp(22px, 2.6vw, 28px);
-  font-weight: 700;
-  line-height: 1.15;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.gesamt-card .gscore .dot { width: 10px; height: 10px; flex: none; }
-.gesamt-card.g-pos {
-  border-color: rgba(34, 192, 126, 0.35);
-  background: linear-gradient(135deg, rgba(34, 192, 126, 0.09), rgba(34, 192, 126, 0) 65%), var(--panel);
-}
-.gesamt-card.g-neg {
-  border-color: rgba(240, 97, 109, 0.35);
-  background: linear-gradient(135deg, rgba(240, 97, 109, 0.09), rgba(240, 97, 109, 0) 65%), var(--panel);
-}
-.gesamt-card.g-neu {
-  border-color: rgba(229, 168, 59, 0.3);
-  background: linear-gradient(135deg, rgba(229, 168, 59, 0.07), rgba(229, 168, 59, 0) 65%), var(--panel);
-}
-.gesamt-card:hover { border-color: var(--ink-3); }
-.gesamt-card .gsub { font-size: 11px; color: var(--ink-3); }
+/* (Die großen Kopf-Karten aus Runde 15 sind seit Runde 22 durch den
+   .gesamt-chip und die .chart-kurs-Zeile ersetzt.) */
 
 .chart-panel { padding: 14px 14px 8px; }
 .chart-toolbar {

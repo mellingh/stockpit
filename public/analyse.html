@@ -33,18 +33,12 @@
     <div id="report" hidden>
       <div class="report-head">
         <div class="title">
-          <h2 id="r-name"></h2>
-          <div class="meta" id="r-meta"></div>
-          <div id="r-zahlen" hidden></div>
-        </div>
-        <div class="head-card gesamt-card" id="r-gesamt"></div>
-        <div class="head-card price-card">
-          <div class="pc-main">
-            <div class="hc-label">Kurs</div>
-            <div class="now" id="r-price"></div>
-            <div class="chg" id="r-chg"></div>
+          <div class="title-line">
+            <h2 id="r-name"></h2>
+            <div id="r-zahlen" hidden></div>
           </div>
-          <div class="prepost" id="r-prepost" hidden></div>
+          <div class="meta" id="r-meta"></div>
+          <div class="gesamt-chip" id="r-gesamt" hidden></div>
         </div>
       </div>
 
@@ -52,6 +46,11 @@
            und die X-Schnell-Links direkt im Blick statt weit unten -->
       <div class="chart-row">
         <section class="panel chart-panel">
+          <div class="chart-kurs">
+            <span class="ck-preis" id="r-price"></span>
+            <span class="chg" id="r-chg"></span>
+            <span class="prepost" id="r-prepost" hidden></span>
+          </div>
           <div class="chart-toolbar">
             <button class="rng" data-range="1d">1T</button>
             <button class="rng" data-range="1w">1W</button>

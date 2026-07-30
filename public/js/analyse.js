@@ -261,7 +261,8 @@ async function loadReport(symbol) {
   $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
   $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
 
-  // Frische Quartalszahlen prominent unterm Titel: Ist vs. erwartet
+  // Frische Quartalszahlen: kompakter Chip NEBEN der Überschrift,
+  // Reihenfolge wie im Dashboard — erst erwartet, dann Ist
   const z = a.zahlen;
   const zBox = $('r-zahlen');
   if (z?.gemeldet) {
@@ -273,16 +274,13 @@ async function loadReport(symbol) {
     zBox.className = `zahlen-chip ${cls}`;
     setChildren(zBox,
       el('span', { class: 'zk-label' }, `Quartalszahlen ${wann}`),
+      z.epsErwartet != null ? el('span', {}, `EPS erw. ${fmtEps(z.epsErwartet)}`) : null,
       z.epsTatsaechlich != null
-        ? el('span', { class: cls },
-            `EPS Ist ${fmtEps(z.epsTatsaechlich)}`,
-            z.epsErwartet != null ? ` vs. erw. ${fmtEps(z.epsErwartet)}` : '',
+        ? el('span', { class: `zk-ist ${cls}` },
+            `Ist ${fmtEps(z.epsTatsaechlich)}`,
             z.ueberraschungPct != null ? ` (${z.ueberraschungPct > 0 ? '+' : ''}${String(z.ueberraschungPct).replace('.', ',')} %)` : ''
           )
-        : el('span', {},
-            z.epsErwartet != null ? `EPS erw. ${fmtEps(z.epsErwartet)} — ` : '',
-            el('span', { class: 'dim' }, 'Ergebnis folgt')
-          )
+        : el('span', { class: 'zk-ist dim' }, 'Ergebnis folgt')
     );
   } else {
     zBox.hidden = true;
@@ -295,8 +293,8 @@ async function loadReport(symbol) {
   if (ab?.preis != null) {
     pp.hidden = false;
     setChildren(pp,
-      el('div', { class: 'hc-label', style: 'margin:0' }, ab.phase === 'pre' ? 'Pre-Market' : 'Nachbörslich'),
-      el('div', { class: signClass(ab.pct) }, `${fmtMoney(ab.preis, a.currency)} (${fmtPct(ab.pct)})`)
+      el('span', { class: 'dim' }, ab.phase === 'pre' ? 'Pre-Market' : 'Nachbörslich'),
+      el('span', { class: signClass(ab.pct) }, `${fmtMoney(ab.preis, a.currency)} (${fmtPct(ab.pct)})`)
     );
   } else {
     pp.hidden = true;
@@ -305,26 +303,25 @@ async function loadReport(symbol) {
 
   // Gesamteinschätzung: nur das Urteil — Klick springt zur Einordnung
   // (Stärken/Risiken + Snowflake in der Übersichtskarte)
+  // Gesamteinschätzung: kompakter Chip mit Ampel-Punkt und getöntem Rand
+  // unter den Badges (die großen Kopf-Karten sind seit Runde 22 weg)
   const g = a.gesamt;
   const gCard = $('r-gesamt');
-  gCard.classList.remove('g-pos', 'g-neg', 'g-neu');
   if (g) {
-    const scoreCls = g.ampel === 'green' ? 'pos' : g.ampel === 'red' ? 'neg' : '';
-    gCard.classList.add(g.ampel === 'green' ? 'g-pos' : g.ampel === 'red' ? 'g-neg' : 'g-neu');
+    gCard.hidden = false;
+    gCard.className = `gesamt-chip ${g.ampel === 'green' ? 'g-pos' : g.ampel === 'red' ? 'g-neg' : 'g-neu'}`;
     gCard.replaceChildren(
-      el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
-      el('div', { class: `gscore ${scoreCls}` },
-        el('span', { class: `dot ${g.ampel}` }),
-        AMPEL_TEXT[g.ampel]
-      )
+      el('span', { class: `dot ${g.ampel}` }),
+      AMPEL_TEXT[g.ampel]
     );
-    gCard.title = 'Zur Einordnung springen (Stärken, Risiken, Snowflake)';
+    gCard.title = 'Gesamteinschätzung (Technik + Analysten + News) — Klick springt zur Einordnung';
     gCard.onclick = () => {
       const ziel = document.getElementById('p-uebersicht');
       if (ziel && !ziel.hidden) ziel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
   } else {
-    gCard.replaceChildren(el('span', { class: 'dim' }, 'Zu wenig Daten für eine Einschätzung'));
+    gCard.hidden = true;
+    gCard.replaceChildren();
   }
 
   // Chart
@@ -566,7 +563,7 @@ function renderUebersicht(a) {
       : null
   );
 
-  // Rechte Seite: Snowflake-Radar + Fazit
+  // Rechte Seite: Snowflake-Radar (Fazit-Satz auf Michas Wunsch entfernt, Runde 22)
   const rechts = sf
     ? el('div', { class: 'ov-rechts' },
         radarChart([
@@ -575,8 +572,7 @@ function renderUebersicht(a) {
           { label: 'VERGANGENH.', value: sf.scores.vergangenheit },
           { label: 'BILANZ', value: sf.scores.bilanz },
           { label: 'DIVIDENDE', value: sf.scores.dividende },
-        ]),
-        el('div', { class: 'ov-fazit' }, sf.fazit)
+        ])
       )
     : null;
 

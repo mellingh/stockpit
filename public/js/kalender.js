@@ -97,8 +97,8 @@ function erklaerungFuer(e) {
   const treffer = EVENT_LEXIKON.find((l) => l.re.test(e.titel));
   if (treffer) return treffer;
   return {
-    was: 'Wirtschaftsindikator. Die Sterne zeigen die erwartete Marktwirkung, die Prognose den Analystenkonsens vor der Veröffentlichung.',
-    deutung: 'Als Faustregel gilt: Deutliche Abweichung von der Prognose bewegt die Märkte — die Richtung hängt davon ab, ob die Zahl Konjunkturstärke oder Zinshoffnung signalisiert. Grün/Rot beim Aktuell-Wert zeigt besser/schlechter als erwartet.',
+    was: 'Wirtschaftsindikator für die jeweilige Region — die Prognose ist der Analystenkonsens vor der Veröffentlichung.',
+    deutung: 'Es zählt die Abweichung von der Prognose: Deutlich daneben bewegt die Märkte. Grün/Rot beim Aktuell-Wert = besser/schlechter als erwartet.',
   };
 }
 
@@ -137,20 +137,23 @@ function eventRow(e) {
       next.remove();
       return;
     }
+    // Knappe Stichpunkte statt Fließtext: Was ist das / Lesart / Ergebnis
     const erk = erklaerungFuer(e);
-    const ergebnis = e.aktuell
-      ? el('div', { class: aktuellCls || 'dim' },
+    const punkte = [
+      erk.was,
+      ...erk.deutung.split(/(?<=\.)\s+(?=[A-ZÄÖÜ„"])/).filter(Boolean),
+    ].map((p) => el('li', {}, p));
+    if (e.aktuell) {
+      punkte.push(
+        el('li', { class: aktuellCls || 'dim' },
           el('b', {}, 'Ergebnis: '),
           `${e.aktuell} vs. Prognose ${e.prognose ?? '–'}${e.aktuellTrend ? ` — ${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als erwartet` : ''}.`)
-      : null;
+      );
+    }
     row.after(
       el('tr', { class: 'cal-detail' },
         el('td', { colspan: '7' },
-          el('div', { class: 'cal-erk' },
-            el('div', {}, erk.was),
-            el('div', { class: 'cal-deutung' }, el('b', {}, 'Lesart: '), erk.deutung),
-            ergebnis
-          )
+          el('ul', { class: 'einordnung-liste', style: 'margin:0' }, punkte)
         )
       )
     );

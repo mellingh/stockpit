@@ -15,7 +15,8 @@ const DEFAULT_DATA = {
   // Quick-Links auf externe Seiten; {TICKER} wird durch das Symbol ersetzt
   webLinks: [
     { name: 'Yahoo Finance', url: 'https://de.finance.yahoo.com/quote/{TICKER}/' },
-    { name: 'Simply Wall St', url: 'https://simplywall.st/stocks?search={TICKER}' },
+    // SWS hat keine verlinkbare Ticker-Suche — Google-Site-Suche, Treffer 1 = Firmenseite
+    { name: 'Simply Wall St', url: 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}' },
     { name: 'TradingView', url: 'https://de.tradingview.com/chart/?symbol={TICKER}' },
     { name: 'Finviz', url: 'https://finviz.com/quote.ashx?t={TICKER}' },
   ],
@@ -29,6 +30,12 @@ function load() {
     data = { ...DEFAULT_DATA, ...JSON.parse(fs.readFileSync(FILE, 'utf8')) };
   } catch {
     data = structuredClone(DEFAULT_DATA);
+  }
+  // Migration (Runde 22): die alte SWS-Such-URL lief ins Leere
+  for (const l of data.webLinks ?? []) {
+    if (l.url === 'https://simplywall.st/stocks?search={TICKER}') {
+      l.url = 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}';
+    }
   }
   return data;
 }
