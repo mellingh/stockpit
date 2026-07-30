@@ -800,29 +800,29 @@ button:disabled { opacity: 0.5; cursor: wait; }
   color: var(--ink-3);
 }
 
-/* Gesamteinschätzung: schlicht neben dem Namen — Punkt + Urteil, kein Rahmen */
-.gesamt-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  cursor: pointer;
-  user-select: none;
-  transform: translateY(3px); /* optisch auf die Grundlinie des Namens */
+/* Frische Quartalszahlen: schmaler Banner über dem Chart (Yahoo-Stil),
+   nur am Meldetag sichtbar */
+.zahlen-banner {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 11px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 13px;
 }
-.gesamt-inline:hover { filter: brightness(1.25); }
-.gesamt-inline .dot { width: 9px; height: 9px; flex: none; }
-.gesamt-inline.g-pos { color: var(--up); }
-.gesamt-inline.g-neg { color: var(--down); }
-.gesamt-inline.g-neu { color: var(--warn); }
+.zahlen-banner.pos { border-color: rgba(34, 192, 126, 0.4); background: linear-gradient(90deg, rgba(34, 192, 126, 0.08), rgba(34, 192, 126, 0) 55%), var(--panel); }
+.zahlen-banner.neg { border-color: rgba(240, 97, 109, 0.4); background: linear-gradient(90deg, rgba(240, 97, 109, 0.08), rgba(240, 97, 109, 0) 55%), var(--panel); }
+.zahlen-banner .zb-label { font-weight: 600; }
+.zahlen-banner .zb-wert { font-family: var(--font-mono); font-size: 12.5px; }
 
-/* Kurszeile oben RECHTS in der Chart-Karte (Chart rückt dafür etwas runter) */
+/* Kurszeile oben links in der Chart-Karte (Chart rückt dafür etwas runter) */
 .chart-kurs {
   display: flex;
   align-items: baseline;
-  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
   padding: 4px 6px 10px;
@@ -854,24 +854,29 @@ button:disabled { opacity: 0.5; cursor: wait; }
   opacity: 0.85;
 }
 
-/* "Meinungen & Links": eine Liste aus X-Accounts (X-Logo) und Seiten
-   (Globus); Verwaltung über den +-Knopf im Titel → Overlay über der Karte */
+/* "Meinungen & Links": kompakte Pills (Icon + Name), die umbrechen;
+   die gestrichelte +-Pille am Ende öffnet das Verwalten-Overlay */
 #p-x { position: relative; }
 #p-x .panel-title { white-space: nowrap; }
-.plus-btn {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.x-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.x-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: var(--panel-2);
   border: 1px solid var(--line-strong);
-  background: transparent;
+  border-radius: 999px;
   color: var(--ink-2);
-  font-size: 14px;
-  line-height: 1;
+  font-size: 12.5px;
+  text-decoration: none;
   cursor: pointer;
-  padding: 0;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
-.plus-btn:hover { border-color: var(--accent); color: var(--accent); }
+.x-pill:hover { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); text-decoration: none; }
+.x-pill .x-logo { color: var(--ink-3); flex: none; }
+.x-pill-plus { border-style: dashed; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 4px 12px; }
+.x-pill-plus:hover { color: var(--accent); }
 .karten-overlay {
   position: absolute;
   inset: 6px 6px auto 6px; /* Höhe wächst mit dem Inhalt, darf unten überhängen */
@@ -900,43 +905,8 @@ button:disabled { opacity: 0.5; cursor: wait; }
 }
 .ko-liste { margin-top: 4px; }
 .x-links { display: grid; gap: 8px; }
-a.x-link {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  background: var(--panel-2);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  color: var(--ink);
-  font-size: 13.5px;
-  text-decoration: none;
-  white-space: nowrap;
-  overflow: hidden;
-  transition: border-color 0.12s, background 0.12s, transform 0.12s;
-}
-a.x-link:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateX(2px); }
-.x-link .x-logo { color: var(--ink-2); flex: none; }
-.x-link b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
-.x-link .x-cash { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
-
-/* Frische Quartalszahlen: Chip NEBEN dem Aktientitel (erw. → Ist) */
-.zahlen-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-.zahlen-chip .zk-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--ink-3); }
-.zahlen-chip .zk-ist { border-left: 1px solid var(--line-strong); padding-left: 10px; }
-.zahlen-chip.pos { border-color: rgba(34, 192, 126, 0.35); }
-.zahlen-chip.neg { border-color: rgba(240, 97, 109, 0.35); }
+/* (Die großen .x-link-Zeilen-Buttons und der .zahlen-chip neben dem Titel
+   sind seit Runde 25 durch .x-pill und .zahlen-banner ersetzt.) */
 
 /* Icon-Knöpfe (Ändern/Löschen) am Zeilenende der Dashboard-Tabellen */
 .row-actions { text-align: right; white-space: nowrap; width: 1%; }

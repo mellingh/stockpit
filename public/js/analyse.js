@@ -4,7 +4,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
-  signClass, AMPEL_TEXT, attachSearch, markActiveNav, newsBadgesRow, newsEinordnung,
+  signClass, attachSearch, markActiveNav, newsBadgesRow, newsEinordnung,
   radarChart, collapsible,
 } from './ui.js';
 
@@ -294,34 +294,40 @@ async function loadReport(symbol) {
   $('report').hidden = false;
   document.title = `Stockpit — ${a.name}`;
 
-  // Kopf: Badges + (falls frisch) Quartalszahlen als Badge in derselben Zeile
+  // Kopf
   $('r-name').textContent = a.name;
-  const z = a.zahlen;
-  let zahlenBadge = null;
-  if (z?.gemeldet) {
-    const fmtEps = (v) => (v > 0 ? '+' : '') + Number(v).toFixed(2).replace('.', ',');
-    const tage = Math.floor((Date.now() - z.gemeldet) / 86400000);
-    const wann = tage <= 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
-    const cls = z.ueberraschungPct > 0 ? 'pos' : z.ueberraschungPct < 0 ? 'neg' : '';
-    zahlenBadge = el('span', { class: `zahlen-chip ${cls}` },
-      el('span', { class: 'zk-label' }, `Zahlen ${wann}`),
-      z.epsErwartet != null ? el('span', {}, `EPS erw. ${fmtEps(z.epsErwartet)}`) : null,
-      z.epsTatsaechlich != null
-        ? el('span', { class: `zk-ist ${cls}` },
-            `Ist ${fmtEps(z.epsTatsaechlich)}`,
-            z.ueberraschungPct != null ? ` (${z.ueberraschungPct > 0 ? '+' : ''}${String(z.ueberraschungPct).replace('.', ',')} %)` : ''
-          )
-        : el('span', { class: 'zk-ist dim' }, 'Ergebnis folgt')
-    );
-  }
   setChildren($('r-meta'),
     el('span', { class: 'badge chip' }, a.symbol),
     a.kurs.boerse ? el('span', { class: 'badge' }, a.kurs.boerse) : null,
     a.type === 'ETF' ? el('span', { class: 'badge cat' }, 'ETF') : null,
     a.sektor ? el('span', { class: 'badge' }, a.sektor) : null,
-    a.branche ? el('span', { class: 'badge' }, a.branche) : null,
-    zahlenBadge
+    a.branche ? el('span', { class: 'badge' }, a.branche) : null
   );
+
+  // Frische Quartalszahlen: schmaler Banner über dem Chart (Yahoo-Stil),
+  // erscheint nur am Meldetag (heute/gestern) und verschwindet dann wieder
+  const z = a.zahlen;
+  const banner = $('r-zahlen-banner');
+  const zTage = z?.gemeldet ? Math.floor((Date.now() - z.gemeldet) / 86400000) : null;
+  if (z?.gemeldet && zTage <= 1) {
+    const fmtEps = (v) => (v > 0 ? '+' : '') + Number(v).toFixed(2).replace('.', ',');
+    const cls = z.ueberraschungPct > 0 ? 'pos' : z.ueberraschungPct < 0 ? 'neg' : '';
+    banner.hidden = false;
+    banner.className = `zahlen-banner ${cls}`;
+    setChildren(banner,
+      el('span', { class: 'zb-label' }, `Quartalszahlen ${zTage <= 0 ? 'heute' : 'gestern'}`),
+      z.epsErwartet != null ? el('span', { class: 'zb-wert' }, `EPS erw. ${fmtEps(z.epsErwartet)}`) : null,
+      z.epsTatsaechlich != null
+        ? el('span', { class: `zb-wert ${cls}` },
+            `Ist ${fmtEps(z.epsTatsaechlich)}`,
+            z.ueberraschungPct != null ? ` (${z.ueberraschungPct > 0 ? '+' : ''}${String(z.ueberraschungPct).replace('.', ',')} %)` : ''
+          )
+        : el('span', { class: 'zb-wert dim' }, 'Ergebnis folgt')
+    );
+  } else {
+    banner.hidden = true;
+    banner.replaceChildren();
+  }
   $('r-price').textContent = fmtMoney(a.kurs.preis, a.currency);
   $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
   $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
@@ -340,26 +346,8 @@ async function loadReport(symbol) {
     pp.replaceChildren();
   }
 
-  // Gesamteinschätzung: schlicht NEBEN dem Namen — nur Punkt + Urteil,
-  // ohne Rahmen (Micha, Runde 24). Klick springt weiter zur Einordnung.
-  const g = a.gesamt;
-  const gCard = $('r-gesamt');
-  if (g) {
-    gCard.hidden = false;
-    gCard.className = `gesamt-inline ${g.ampel === 'green' ? 'g-pos' : g.ampel === 'red' ? 'g-neg' : 'g-neu'}`;
-    gCard.replaceChildren(
-      el('span', { class: `dot ${g.ampel}` }),
-      AMPEL_TEXT[g.ampel]
-    );
-    gCard.title = 'Gesamteinschätzung (Technik + Analysten + News) — Klick springt zur Einordnung';
-    gCard.onclick = () => {
-      const ziel = document.getElementById('p-uebersicht');
-      if (ziel && !ziel.hidden) ziel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-  } else {
-    gCard.hidden = true;
-    gCard.replaceChildren();
-  }
+  // (Die Gesamteinschätzungs-Anzeige im Kopf wurde in Runde 25 komplett
+  // entfernt — der Server berechnet sie weiterhin.)
 
   // Chart
   document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.toggle('active', b.dataset.range === '1y'));
@@ -400,19 +388,16 @@ async function renderX(a, verwaltenOffen = false) {
   const suchLink = (h) =>
     `https://x.com/search?q=${encodeURIComponent(`from:${h} $${ticker}`)}&src=typed_query&f=live`;
 
-  // Eine durchgehende Liste: erst X-Accounts (X-Logo), dann Seiten (Globus)
+  // Kompakte Pills (Icon + Name), die umbrechen — statt großer Zeilen-Buttons.
+  // Der Ticker steckt im Link selbst, nicht im Label.
+  const pille = (icon, label, href, title) =>
+    el('a', { class: 'x-pill', href, target: '_blank', rel: 'noopener', title }, icon, label);
   const zeilen = [
     ...accounts.map((h) =>
-      el('a', { class: 'x-link', href: suchLink(h), target: '_blank', rel: 'noopener', title: `X-Suche: from:${h} $${ticker} — Anzeige auf x.com braucht ggf. Login` },
-        xLogo(13),
-        el('b', {}, `@${h}`),
-        el('span', { class: 'x-cash' }, `$${ticker} ↗`))
+      pille(xLogo(11), `@${h}`, suchLink(h), `Posts von @${h} zu $${ticker} auf X`)
     ),
     ...webLinks.map((l) =>
-      el('a', { class: 'x-link', href: l.url.replaceAll('{TICKER}', ticker), target: '_blank', rel: 'noopener', title: l.url.replaceAll('{TICKER}', ticker) },
-        globusIcon(13),
-        el('b', {}, l.name),
-        el('span', { class: 'x-cash' }, `${ticker} ↗`))
+      pille(globusIcon(11), l.name, l.url.replaceAll('{TICKER}', ticker), `${l.name}: ${ticker} öffnen`)
     ),
   ];
 
@@ -479,12 +464,15 @@ async function renderX(a, verwaltenOffen = false) {
     input.focus();
   };
 
+  // Die +-Pille reiht sich als letztes Element ein (Tag-Editor-Muster)
+  const plusPille = el('button', {
+    class: 'x-pill x-pill-plus', type: 'button',
+    title: 'Accounts & Links verwalten', onclick: oeffneVerwaltung,
+  }, '+');
+
   setChildren(box,
-    el('h2', { class: 'panel-title' }, 'Meinungen & Links',
-      el('button', { class: 'plus-btn', type: 'button', title: 'Accounts & Links verwalten', onclick: oeffneVerwaltung }, '+')),
-    zeilen.length
-      ? el('div', { class: 'x-links' }, zeilen)
-      : el('div', { class: 'empty' }, 'Noch nichts hinterlegt — über das Plus hinzufügen.')
+    el('h2', { class: 'panel-title' }, 'Meinungen & Links'),
+    el('div', { class: 'x-pills' }, zeilen, plusPille)
   );
   if (verwaltenOffen) oeffneVerwaltung();
 }
