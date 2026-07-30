@@ -44,6 +44,51 @@ attachSearch($('search'), (r) => {
 
 const params = new URLSearchParams(location.search);
 if (params.get('symbol')) loadReport(params.get('symbol'));
+else renderStart();
+
+// ---------- Startansicht (kein Symbol gewählt): eigene Werte + Trending ----------
+
+function startChip(w) {
+  return el('button', { class: 'start-chip', type: 'button', onclick: () => {
+    history.replaceState(null, '', `?symbol=${encodeURIComponent(w.symbol)}`);
+    loadReport(w.symbol);
+  } },
+    el('b', {}, w.symbol),
+    el('span', { class: 'sc-name' }, w.name || ''),
+    el('span', { class: `sc-pct ${signClass(w.tagesPct)}` }, fmtPct(w.tagesPct))
+  );
+}
+
+async function renderStart() {
+  $('start').hidden = false;
+
+  api.get('/api/dashboard').then((d) => {
+    const eigene = [
+      ...d.positions.map((p) => ({ symbol: p.symbol, name: p.name, tagesPct: p.tagesPct })),
+      ...d.watchlist.map((w) => ({ symbol: w.symbol, name: w.name, tagesPct: w.tagesPct })),
+    ];
+    // Dubletten raus (Wert in Depot UND Watchlist)
+    const gesehen = new Set();
+    const liste = eigene.filter((w) => !gesehen.has(w.symbol) && gesehen.add(w.symbol));
+    $('start-eigene').replaceChildren(
+      liste.length
+        ? el('div', { class: 'start-chips' }, liste.map(startChip))
+        : el('div', { class: 'empty' }, 'Noch keine Positionen oder Watchlist-Werte — im Dashboard anlegen.')
+    );
+  }).catch(() => {
+    $('start-eigene').replaceChildren(el('div', { class: 'empty' }, 'Werte konnten nicht geladen werden.'));
+  });
+
+  api.get('/api/trending').then((liste) => {
+    $('start-trend').replaceChildren(
+      liste.length
+        ? el('div', { class: 'start-chips' }, liste.map(startChip))
+        : el('div', { class: 'empty' }, 'Gerade keine Trend-Daten verfügbar.')
+    );
+  }).catch(() => {
+    $('start-trend').replaceChildren(el('div', { class: 'empty' }, 'Trend-Daten nicht erreichbar.'));
+  });
+}
 
 // ---------- Chart ----------
 
@@ -230,6 +275,7 @@ document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
 
 async function loadReport(symbol) {
   currentSymbol = symbol;
+  $('start').hidden = true;
   $('report').hidden = true;
   $('report-error').hidden = true;
   $('report-loading').hidden = false;

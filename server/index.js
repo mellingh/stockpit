@@ -622,6 +622,7 @@ app.get(
           symbol: null,
           name: e.titel,
           waehrung: e.waehrung,
+          land: e.land ?? null,
           date: e.zeit,
           days: e.days,
           prognose: e.prognose,
@@ -725,6 +726,26 @@ app.get(
   })
 );
 
+// ---------- Trending (Startansicht der Analyse-Seite) ----------
+
+app.get(
+  '/api/trending',
+  wrap(async (req, res) => {
+    const symbols = await yahoo.getTrendingSymbols().catch(() => []);
+    const quotes = await yahoo.getQuotes(symbols);
+    const items = symbols
+      .map((s) => quotes[s])
+      .filter((q) => q && ['EQUITY', 'ETF'].includes(q.quoteType))
+      .slice(0, 8)
+      .map((q) => ({
+        symbol: q.symbol,
+        name: displayName(q, q.symbol),
+        tagesPct: q.regularMarketChangePercent ?? null,
+      }));
+    res.json(items);
+  })
+);
+
 // ---------- Wirtschaftskalender ----------
 
 app.get(
@@ -809,7 +830,7 @@ app.get('/api/weblinks', (req, res) => {
 });
 
 app.post('/api/weblinks', (req, res) => {
-  const roh = String(req.body.url || '').trim();
+  let roh = String(req.body.url || '').trim();
   let parsed;
   try {
     parsed = new URL(roh.replace(/\{TICKER\}/g, 'TEST')); // Platzhalter für die Validierung
@@ -819,9 +840,24 @@ app.post('/api/weblinks', (req, res) => {
   if (!/^https?:$/.test(parsed.protocol) || roh.length > 300) {
     return res.status(400).json({ error: 'Nur http(s)-Links bis 300 Zeichen' });
   }
-  // Anzeigename aus der Domain ableiten ("finviz.com" → "Finviz")
   const host = parsed.hostname.replace(/^www\./, '');
-  const name = host.split('.')[0].charAt(0).toUpperCase() + host.split('.')[0].slice(1);
+  let name = host.split('.')[0].charAt(0).toUpperCase() + host.split('.')[0].slice(1);
+
+  // Ohne {TICKER} wäre der Link statisch (immer dieselbe Seite):
+  // bekannte Finanzseiten reparieren wir über ihr URL-Muster,
+  // alles andere lehnen wir mit einer Anleitung ab.
+  if (!roh.includes('{TICKER}')) {
+    const muster = store.sitePattern(roh);
+    if (muster) {
+      roh = muster.url;
+      name = muster.name;
+    } else {
+      return res.status(400).json({
+        error:
+          'Diese Seite kenne ich nicht — so würde immer nur die Startseite öffnen. Trick: Öffne dort eine beliebige Aktie und füge DEREN Seiten-URL ein; das Symbol darin wird automatisch zum Platzhalter.',
+      });
+    }
+  }
   res.json(store.addWebLink({ name, url: roh }));
 });
 

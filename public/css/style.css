@@ -451,6 +451,27 @@ table.data th.num { text-align: right; font-family: var(--font-body); font-size:
 /* Währungs-Textchip (USD/EUR) in den Markt-Event-Zeilen */
 .badge.chip-sm.cur { color: var(--ink-2); border-color: var(--line-strong); letter-spacing: 0.06em; }
 
+/* Startansicht der Analyse: klickbare Wert-Chips (eigene + Trending) */
+.start-chips { display: grid; gap: 8px; }
+.start-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+}
+.start-chip:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateX(2px); }
+.start-chip b { font-family: var(--font-mono); font-size: 13px; min-width: 52px; }
+.start-chip .sc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.start-chip .sc-pct { font-family: var(--font-mono); font-size: 12.5px; flex: none; }
+
 /* Aufklappbare Termin-Erklärung im Wirtschaftskalender —
    nutzt die Stichpunkt-Optik der News-Einordnung */
 .cal-detail td { background: transparent; padding: 2px 10px 12px; }

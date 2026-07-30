@@ -30,6 +30,20 @@
       <input type="text" id="search" placeholder="Aktie oder ETF suchen …" autocomplete="off" />
     </div>
 
+    <!-- Startansicht, solange keine Aktie gewählt ist: eigene Werte + Trending -->
+    <div id="start" hidden>
+      <div class="panel-grid">
+        <section class="panel">
+          <h2 class="panel-title">Deine Werte <span class="hint">· ein Klick öffnet die Analyse</span></h2>
+          <div id="start-eigene"><div class="loading-line"><span class="spinner"></span>Lade …</div></div>
+        </section>
+        <section class="panel">
+          <h2 class="panel-title">Gerade im Trend <span class="hint">· meistgesucht bei Yahoo (USA)</span></h2>
+          <div id="start-trend"><div class="loading-line"><span class="spinner"></span>Lade …</div></div>
+        </section>
+      </div>
+    </div>
+
     <div id="report" hidden>
       <div class="report-head">
         <div class="title">

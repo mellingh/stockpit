@@ -163,8 +163,8 @@ async function loadDashboard() {
       const kurzTitel = t.name.replace(/\s*\((Monat|Jahr|Quartal)\)/g, '');
       return el('a', { class: 'trow', href: './kalender.html', title: `${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}` },
         el('span', { class: 'wann' }, wannVon(t)),
-        // Textchip statt Flaggen-Emoji — das war im Dark Mode kaum erkennbar
-        el('span', { class: 'badge chip-sm cur' }, t.waehrung),
+        // Länderkürzel (US/EU/DE …) statt Währung — wie bei investing.com
+        el('span', { class: 'badge chip-sm cur', title: t.waehrung || '' }, t.land ?? t.waehrung),
         el('span', { class: 'tinfo' },
           kurzTitel,
           t.prognose ? el('span', { class: 'eps' }, `Prog. ${t.prognose}`) : null,

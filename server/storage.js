@@ -22,6 +22,36 @@ const DEFAULT_DATA = {
   ],
 };
 
+// Bekannte Finanzseiten: Ticker-URL-Muster, damit auch eine eingefügte
+// Startseiten-URL (z. B. "seekingalpha.com") zum funktionierenden
+// {TICKER}-Link wird. Schlüssel = Hostname ohne "www.".
+export const SITE_PATTERNS = {
+  'seekingalpha.com': { name: 'Seeking Alpha', url: 'https://seekingalpha.com/symbol/{TICKER}' },
+  'finviz.com': { name: 'Finviz', url: 'https://finviz.com/quote.ashx?t={TICKER}' },
+  'finance.yahoo.com': { name: 'Yahoo Finance', url: 'https://finance.yahoo.com/quote/{TICKER}/' },
+  'de.finance.yahoo.com': { name: 'Yahoo Finance', url: 'https://de.finance.yahoo.com/quote/{TICKER}/' },
+  'tradingview.com': { name: 'TradingView', url: 'https://www.tradingview.com/chart/?symbol={TICKER}' },
+  'de.tradingview.com': { name: 'TradingView', url: 'https://de.tradingview.com/chart/?symbol={TICKER}' },
+  'stockanalysis.com': { name: 'StockAnalysis', url: 'https://stockanalysis.com/stocks/{TICKER}/' },
+  'stocktwits.com': { name: 'Stocktwits', url: 'https://stocktwits.com/symbol/{TICKER}' },
+  'marketwatch.com': { name: 'MarketWatch', url: 'https://www.marketwatch.com/investing/stock/{TICKER}' },
+  'wsj.com': { name: 'WSJ', url: 'https://www.wsj.com/market-data/quotes/{TICKER}' },
+  'barchart.com': { name: 'Barchart', url: 'https://www.barchart.com/stocks/quotes/{TICKER}' },
+  'zacks.com': { name: 'Zacks', url: 'https://www.zacks.com/stock/quote/{TICKER}' },
+  'gurufocus.com': { name: 'GuruFocus', url: 'https://www.gurufocus.com/stock/{TICKER}/summary' },
+  'benzinga.com': { name: 'Benzinga', url: 'https://www.benzinga.com/quote/{TICKER}' },
+  'simplywall.st': { name: 'Simply Wall St', url: 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}' },
+};
+
+export function sitePattern(url) {
+  try {
+    const host = new URL(url.replace(/\{TICKER\}/g, 'TEST')).hostname.replace(/^www\./, '');
+    return SITE_PATTERNS[host] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 let data = null;
 
 function load() {
@@ -31,10 +61,19 @@ function load() {
   } catch {
     data = structuredClone(DEFAULT_DATA);
   }
-  // Migration (Runde 22): die alte SWS-Such-URL lief ins Leere
+  // Migrationen: alte SWS-Such-URL lief ins Leere (Runde 22); Links ohne
+  // {TICKER} (z. B. eingefügte Startseiten) über die bekannten
+  // Seiten-Muster reparieren (Runde 23)
   for (const l of data.webLinks ?? []) {
     if (l.url === 'https://simplywall.st/stocks?search={TICKER}') {
       l.url = 'https://www.google.com/search?q=site%3Asimplywall.st+{TICKER}';
+    }
+    if (!l.url.includes('{TICKER}')) {
+      const muster = sitePattern(l.url);
+      if (muster) {
+        l.name = muster.name;
+        l.url = muster.url;
+      }
     }
   }
   return data;

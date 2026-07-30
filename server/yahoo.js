@@ -115,6 +115,14 @@ export function getTickerNews(symbol) {
   });
 }
 
+// Gerade meistgesucht/im Trend bei Yahoo (US-Markt) — nur Symbolliste
+export function getTrendingSymbols() {
+  return cached('trending:US', 15 * MINUTE, async () => {
+    const result = await yahooFinance.trendingSymbols('US', { count: 15 });
+    return (result?.quotes ?? []).map((q) => q.symbol).filter(Boolean);
+  });
+}
+
 // Wechselkurs from→to (z.B. USD→EUR über "USDEUR=X")
 export async function getFxRate(from, to) {
   if (from === to) return 1;

@@ -21,6 +21,22 @@ const HEADERS = {
   referer: 'http://localhost:3001/',
 };
 
+// Ländername aus der Flaggen-Klasse des Widgets ("ceFlags United_States")
+const LAND_AUS_NAME = {
+  United_States: 'US', Germany: 'DE', Euro_Zone: 'EU', United_Kingdom: 'GB', Japan: 'JP',
+  China: 'CN', Switzerland: 'CH', Canada: 'CA', Australia: 'AU', New_Zealand: 'NZ',
+  France: 'FR', Italy: 'IT', Spain: 'ES', Brazil: 'BR', South_Africa: 'ZA', India: 'IN',
+  South_Korea: 'KR', Singapore: 'SG', Hong_Kong: 'HK', Netherlands: 'NL', Austria: 'AT',
+  Belgium: 'BE', Portugal: 'PT', Ireland: 'IE', Greece: 'GR', Sweden: 'SE', Norway: 'NO',
+  Denmark: 'DK', Poland: 'PL', Mexico: 'MX', Turkey: 'TR', Russia: 'RU',
+};
+// Fallback, wenn nur die Währung bekannt ist (ForexFactory / Flagge nicht lesbar)
+const LAND_AUS_WAEHRUNG = {
+  USD: 'US', EUR: 'EU', GBP: 'GB', JPY: 'JP', CHF: 'CH', CAD: 'CA', AUD: 'AU', NZD: 'NZ',
+  CNY: 'CN', INR: 'IN', KRW: 'KR', BRL: 'BR', SGD: 'SG', HKD: 'HK', ZAR: 'ZA', MXN: 'MX',
+  TRY: 'TR', SEK: 'SE', NOK: 'NO', DKK: 'DK', PLN: 'PL', RUB: 'RU',
+};
+
 // Zellen des Widgets: <td class="bold act greenFont ...">1,2%</td>
 function cell(row, cls) {
   const m = row.match(new RegExp(`<td[^>]*class="[^"]*\\b${cls}\\b[^"]*"[^>]*>([\\s\\S]*?)</td>`));
@@ -39,6 +55,7 @@ function parseInvesting(html) {
       if (!ts) return null;
       const stars = (row.match(/grayFullBullishIcon/g) || []).length;
       const currency = row.match(/class="flagCur">[\s\S]*?<\/span>\s*([A-Z]{3})/)?.[1] ?? null;
+      const landName = row.match(/ceFlags\s+([A-Za-z_]+)/)?.[1] ?? null;
       const event = cell(row, 'event');
       if (!event.text) return null;
       const act = cell(row, 'act');
@@ -47,6 +64,7 @@ function parseInvesting(html) {
       return {
         titel: event.text,
         waehrung: currency,
+        land: LAND_AUS_NAME[landName] ?? LAND_AUS_WAEHRUNG[currency] ?? null,
         zeit: new Date(ts.replace(' ', 'T') + 'Z').toISOString(), // Widget liefert UTC
         wichtigkeit: stars >= 3 ? 'High' : stars === 2 ? 'Medium' : 'Low',
         aktuell: act.text,
@@ -78,6 +96,7 @@ async function fromForexFactory() {
   const events = (await res.json()).map((e) => ({
     titel: e.title,
     waehrung: e.country,
+    land: LAND_AUS_WAEHRUNG[e.country] ?? null,
     zeit: new Date(e.date).toISOString(),
     wichtigkeit: e.impact === 'Holiday' ? 'Low' : e.impact,
     aktuell: null,
