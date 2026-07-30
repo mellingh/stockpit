@@ -316,17 +316,7 @@ async function loadReport(symbol) {
       el('div', { class: `gscore ${scoreCls}` },
         el('span', { class: `dot ${g.ampel}` }),
         AMPEL_TEXT[g.ampel]
-      ),
-      // Woraus sich das Urteil speist: Ampel-Punkt je Komponente (Tooltip = Detail)
-      g.components?.length
-        ? el('div', { class: 'g-comps' },
-            g.components.map((c) =>
-              el('span', { class: 'g-comp', title: c.text },
-                el('span', { class: `dot ${c.verdict === 'pos' ? 'green' : c.verdict === 'neg' ? 'red' : 'yellow'}` }),
-                c.label.replace('News-Sentiment', 'News'))
-            )
-          )
-        : null
+      )
     );
     gCard.title = 'Zur Einordnung springen (Stärken, Risiken, Snowflake)';
     gCard.onclick = () => {
@@ -497,13 +487,12 @@ function renderUebersicht(a) {
   box.hidden = false;
 
   // Linke Seite: Kurzbeschreibung + Stärken/Risiken.
-  // Punkte können {t, info} sein — info erklärt Fachbegriffe (PEG, ROE, …)
-  // als eingerückte Zeile darunter, damit auch Laien sofort verstehen.
+  // Punkte können {t, info} sein — info (Fachbegriff-Erklärung) steckt NUR im
+  // Hover-Tooltip; sichtbare Erklärzeilen fand Micha zu unübersichtlich (Runde 20).
   const punkt = (p, cls, pfeil) =>
-    el('div', { class: `ov-punkt ${cls}` },
+    el('div', { class: `ov-punkt ${cls}`, title: (typeof p === 'object' && p.info) || '' },
       `${pfeil} `,
-      typeof p === 'string' ? p : p.t,
-      typeof p === 'object' && p.info ? el('div', { class: 'ov-punkt-info' }, p.info) : null
+      typeof p === 'string' ? p : p.t
     );
   const kurz = u?.beschreibung && u.beschreibung.length > 260 ? u.beschreibung.slice(0, 260) + ' …' : u?.beschreibung;
   const links = el('div', { class: 'ov-links' },
