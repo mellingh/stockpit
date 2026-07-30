@@ -497,21 +497,31 @@ table.data th.num { text-align: right; font-family: var(--font-body); font-size:
 .news-sum .sum-kurs.neu { color: var(--ink-3); }
 
 /* OHLC-Zeile oben links im Chart (TradingView-Stil) */
-.chart-ohlc {
+/* Overlay oben links im Chart (TradingView-Stil):
+   Zeile 1 = "Wert · Zeitraum · Börse", Zeile 2 = OHLC + Volumen */
+.chart-overlay {
   position: absolute;
   top: 8px;
   left: 10px;
   z-index: 5;
+  pointer-events: none;
+  background: rgba(20, 24, 33, 0.7);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.chart-symline {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.chart-ohlc {
   display: flex;
   gap: 10px;
   align-items: baseline;
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--ink-3);
-  pointer-events: none;
-  background: rgba(20, 24, 33, 0.7);
-  padding: 3px 8px;
-  border-radius: 4px;
 }
 .chart-ohlc b { font-weight: 500; font-variant-numeric: tabular-nums; }
 .chart-ohlc .ohlc-vol b { color: var(--ink-2); }
@@ -625,7 +635,9 @@ input:focus, select:focus, textarea:focus {
 textarea { resize: vertical; min-height: 90px; }
 label.field { display: grid; gap: 5px; font-size: 12px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 
-button.btn {
+/* .btn gilt für <button> UND <a> (z. B. die X-Schnell-Links) */
+button.btn, a.btn {
+  display: inline-block;
   background: var(--accent);
   color: #fff;
   font-weight: 700;
@@ -634,19 +646,20 @@ button.btn {
   padding: 10px 18px;
   cursor: pointer;
   letter-spacing: 0.02em;
+  text-decoration: none;
   transition: transform 0.1s, filter 0.15s;
 }
-button.btn:hover { filter: brightness(1.08); }
-button.btn:active { transform: translateY(1px); }
-button.btn.ghost {
+button.btn:hover, a.btn:hover { filter: brightness(1.08); }
+button.btn:active, a.btn:active { transform: translateY(1px); }
+button.btn.ghost, a.btn.ghost {
   background: transparent;
   color: var(--ink-2);
   border: 1px solid var(--line-strong);
   font-weight: 500;
 }
-button.btn.ghost:hover { color: var(--ink); border-color: var(--ink-3); }
+button.btn.ghost:hover, a.btn.ghost:hover { color: var(--ink); border-color: var(--ink-3); }
 button.btn.danger { background: transparent; border: 1px solid rgba(230,103,103,0.4); color: var(--down); font-weight: 500; }
-button.btn.small { padding: 5px 11px; font-size: 12.5px; }
+button.btn.small, a.btn.small { padding: 5px 11px; font-size: 12.5px; }
 button:disabled { opacity: 0.5; cursor: wait; }
 
 /* ---------- Suche mit Vorschlägen ---------- */
@@ -655,6 +668,20 @@ button:disabled { opacity: 0.5; cursor: wait; }
 .search-wrap input {
   font-size: 14px;
   font-family: var(--font-mono);
+}
+/* Lupe im Suchfeld (Analyse) — prägnanter, TradingView-artig */
+.search-wrap .search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.search-wrap.search-lg input {
+  padding-left: 44px;
+  height: 48px;
+  font-size: 15px;
 }
 .suggestions {
   position: absolute;
@@ -732,9 +759,26 @@ button:disabled { opacity: 0.5; cursor: wait; }
   opacity: 0.85;
 }
 
-/* "Meinungen auf X": Schnell-Links pro Account */
-.x-links { display: flex; flex-wrap: wrap; gap: 8px; }
+/* "Meinungen auf X": Schnell-Links pro Account — je Account eine Zeile, kein Umbruch */
+.x-links { display: grid; gap: 8px; }
+.x-link { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .x-link b { font-weight: 600; }
+
+/* Icon-Knöpfe (Ändern/Löschen) am Zeilenende der Dashboard-Tabellen */
+.row-actions { text-align: right; white-space: nowrap; width: 1%; }
+.row-actions .icon-btn { opacity: 0.35; transition: opacity 0.12s; }
+tr:hover .row-actions .icon-btn { opacity: 1; }
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  line-height: 0;
+}
+.icon-btn:hover { color: var(--ink); background: var(--panel-2); }
+.icon-btn.danger:hover { color: var(--down); }
 .x-row {
   display: flex;
   align-items: center;

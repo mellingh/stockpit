@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass,
-  sparkline, donut, CAT_COLORS, markActiveNav, newsBadgesRow, newsEinordnung, chevronIcon, attachSearch,
+  sparkline, donut, CAT_COLORS, markActiveNav, newsBadgesRow, newsEinordnung, chevronIcon, attachSearch, collapsible,
 } from './ui.js';
 
 markActiveNav();
@@ -27,6 +27,55 @@ async function pollStatus() {
   } catch {}
 }
 pollStatus();
+
+// Kleine Icon-Knöpfe (Stift/Kreuz) am Zeilenende — Ändern/Löschen direkt
+// in der Tabelle, seit die separate Portfolio-Seite weg ist
+function iconBtn(art, title, onclick) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '15');
+  svg.setAttribute('height', '15');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const pfade = art === 'stift'
+    ? ['M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z']
+    : ['M18 6 6 18', 'm6 6 12 12'];
+  for (const d of pfade) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', d);
+    svg.append(p);
+  }
+  return el('button', { class: `icon-btn${art === 'kreuz' ? ' danger' : ''}`, type: 'button', title, onclick }, svg);
+}
+
+// Position direkt in der Zeile bearbeiten (Stückzahl + Ø-Kaufkurs)
+function editPosition(p, row, spalten) {
+  const stueck = el('input', { type: 'number', step: 'any', min: '0', value: p.shares, style: 'width:90px;height:36px' });
+  const kurs = el('input', { type: 'number', step: 'any', min: '0', value: p.buyPrice ?? '', placeholder: 'Ø-Kaufkurs', style: 'width:120px;height:36px' });
+  const editor = el('tr', {},
+    el('td', { class: 'name-cell' }, p.name, el('span', { class: 'sym' }, p.symbol)),
+    el('td', { colspan: String(spalten - 1) },
+      el('div', { class: 'inline-add', style: 'margin:0;justify-content:flex-end' },
+        el('span', { class: 'sym' }, 'Stück'), stueck,
+        el('span', { class: 'sym' }, 'Ø-Kaufkurs'), kurs,
+        el('button', { class: 'btn small', type: 'button', style: 'height:36px;padding:0 14px', onclick: async () => {
+          await api.patch(`/api/positions/${p.id}`, {
+            shares: Number(stueck.value),
+            buyPrice: kurs.value === '' ? null : Number(kurs.value),
+          });
+          loadDashboard();
+        } }, 'Speichern'),
+        el('button', { class: 'btn ghost small', type: 'button', style: 'height:36px;padding:0 14px', onclick: () => loadDashboard() }, 'Abbrechen')
+      )
+    )
+  );
+  row.replaceWith(editor);
+  stueck.focus();
+}
 
 // Kleine Zweitzeile unter dem Tages-%: vor-/nachbörslicher Kurs (US-Werte)
 function prepostMini(ab) {
@@ -126,13 +175,13 @@ async function loadDashboard() {
     );
   }
 
-  // Positionsliste
+  // Positionsliste — Ändern/Löschen direkt in der Zeile (Icons erscheinen beim Hover)
   const posBox = document.getElementById('positions');
   if (!hasPositions) {
     posBox.replaceChildren(
       el('div', { class: 'empty' },
         el('div', { class: 'big' }, 'Noch keine Positionen.'),
-        el('div', {}, 'Lege im ', el('a', { href: './portfolio.html' }, 'Portfolio'), ' deine erste Position an — die Kurse laufen dann automatisch hier ein.')
+        el('div', {}, 'Über „+ Position hinzufügen“ unten legst du deine erste Position an — die Kurse laufen dann automatisch hier ein.')
       )
     );
   } else {
@@ -144,12 +193,13 @@ async function loadDashboard() {
           el('th', { class: 'num' }, 'Heute'),
           el('th', {}, 'Trend', el('span', {class:'th-sub'}, ' 30 T.')),
           el('th', { class: 'num' }, 'Wert (EUR)'),
-          el('th', { class: 'num' }, 'G/V')
+          el('th', { class: 'num' }, 'G/V'),
+          el('th', {}, '')
         )
       ),
       el('tbody', {},
-        d.positions.map((p) =>
-          el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(p.symbol)}`) },
+        d.positions.map((p) => {
+          const row = el('tr', { class: 'rowlink', onclick: () => (location.href = `./analyse.html?symbol=${encodeURIComponent(p.symbol)}`) },
             el('td', { class: 'name-cell' }, p.name, el('span', { class: 'sym' }, `${p.symbol} · ${p.shares} Stk.`)),
             el('td', { class: 'num' }, fmtMoney(p.preis, p.waehrung)),
             el('td', { class: `num ${signClass(p.tagesPct)}` }, fmtPct(p.tagesPct), prepostMini(p.ausserboerslich)),
@@ -158,9 +208,17 @@ async function loadDashboard() {
             el('td', { class: `num ${signClass(p.gewinnEur)}` },
               `${fmtEur(p.gewinnEur)}`,
               el('span', { class: 'dim' }, ` (${fmtPct(p.gewinnPct)})`)
+            ),
+            el('td', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+              iconBtn('stift', 'Stückzahl / Ø-Kaufkurs ändern', () => editPosition(p, row, 7)),
+              iconBtn('kreuz', 'Position löschen', async () => {
+                await api.del(`/api/positions/${p.id}`);
+                loadDashboard();
+              })
             )
-          )
-        )
+          );
+          return row;
+        })
       )
     );
     posBox.replaceChildren(table);
@@ -169,7 +227,7 @@ async function loadDashboard() {
   // Watchlist: eigene, beschriftete Tabelle (gleiche Lesart wie Positionen)
   const watchBox = document.getElementById('watchlist');
   if (!d.watchlist.length) {
-    watchBox.replaceChildren(el('div', { class: 'empty' }, 'Keine beobachteten Werte. Im Portfolio hinzufügen.'));
+    watchBox.replaceChildren(el('div', { class: 'empty' }, 'Keine beobachteten Werte — über „+ Wert beobachten“ unten hinzufügen.'));
   } else {
     watchBox.replaceChildren(
       el('table', { class: 'data' },
@@ -178,7 +236,8 @@ async function loadDashboard() {
             el('th', {}, 'Wert'),
             el('th', { class: 'num' }, 'Kurs'),
             el('th', { class: 'num' }, 'Heute'),
-            el('th', {}, 'Trend', el('span', {class:'th-sub'}, ' 30 T.'))
+            el('th', {}, 'Trend', el('span', {class:'th-sub'}, ' 30 T.')),
+            el('th', {}, '')
           )
         ),
         el('tbody', {},
@@ -187,7 +246,13 @@ async function loadDashboard() {
               el('td', { class: 'name-cell' }, w.name, el('span', { class: 'sym' }, w.symbol)),
               el('td', { class: 'num' }, fmtMoney(w.preis, w.waehrung)),
               el('td', { class: `num ${signClass(w.tagesPct)}` }, fmtPct(w.tagesPct), prepostMini(w.ausserboerslich)),
-              el('td', {}, sparkline(w.sparkline))
+              el('td', {}, sparkline(w.sparkline)),
+              el('td', { class: 'row-actions', onclick: (e) => e.stopPropagation() },
+                iconBtn('kreuz', 'Von der Watchlist entfernen', async () => {
+                  await api.del(`/api/watchlist/${encodeURIComponent(w.symbol)}`);
+                  loadDashboard();
+                })
+              )
             )
           )
         )
@@ -279,7 +344,11 @@ async function loadNews() {
   const filterInfo = feed.gefiltert
     ? [el('div', { class: 'news-meta', style: 'padding:4px 0 8px' }, `${feed.gefiltert} unwichtige Meldungen ausgefiltert — gezeigt wird nur Marktrelevantes.`)]
     : [];
-  box.replaceChildren(...notices, ...filterInfo, ...nodes);
+  // Kompakt halten: erst 5 News, der Rest aufklappbar
+  const erste = nodes.slice(0, 5);
+  const rest = nodes.slice(5);
+  box.replaceChildren(...notices, ...filterInfo, ...erste,
+    ...(rest.length ? [collapsible(`Mehr anzeigen (${rest.length})`, rest)] : []));
 }
 
 // ---------- Inline-Hinzufügen direkt im Dashboard ----------

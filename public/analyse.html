@@ -15,7 +15,6 @@
       <a href="./index.html">Dashboard</a>
       <a href="./analyse.html">Analyse</a>
       <a href="./kalender.html">Kalender</a>
-      <a href="./portfolio.html">Portfolio</a>
     </nav>
     <div class="spacer"></div>
   </header>
@@ -26,8 +25,9 @@
       <h1 class="pagetitle">Ticker rein, <em>Einschätzung raus.</em></h1>
     </div>
 
-    <div class="search-wrap" style="max-width:560px">
-      <input type="text" id="search" placeholder="Aktie oder ETF suchen — Name oder Ticker, z. B. Nvidia, SAP, MSCI World …" autocomplete="off" />
+    <div class="search-wrap search-lg" style="max-width:560px">
+      <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="search" placeholder="Aktie oder ETF suchen …" autocomplete="off" />
     </div>
 
     <div id="report" hidden>
@@ -64,7 +64,6 @@
           <div id="chart"></div>
         </section>
         <aside class="chart-aside">
-          <section class="panel" id="p-technik"></section>
           <section class="panel" id="p-x" hidden></section>
         </aside>
       </div>
@@ -74,17 +73,13 @@
 
       <div class="panel-grid">
         <section class="panel" id="p-analysten"></section>
-        <section class="panel" id="p-kennzahlen" hidden></section>
+        <section class="panel" id="p-ratings" hidden></section>
         <section class="panel" id="p-fundamental"></section>
-        <section class="panel" id="p-ratings" hidden style="grid-column:1/-1"></section>
+        <section class="panel" id="p-extra" hidden></section>
       </div>
 
       <div class="panel-grid">
         <section class="panel" id="p-news" style="grid-column:1/-1"></section>
-      </div>
-
-      <div class="panel-grid">
-        <section class="panel" id="p-extra" hidden></section>
       </div>
     </div>
 

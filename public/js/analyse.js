@@ -4,7 +4,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
-  signClass, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, newsBadgesRow, newsEinordnung,
+  signClass, AMPEL_TEXT, attachSearch, markActiveNav, newsBadgesRow, newsEinordnung,
   radarChart, collapsible,
 } from './ui.js';
 
@@ -25,6 +25,15 @@ let sma200Series = null;
 let tooltip = null;
 let priceLines = []; // Vortag/Vorbörslich-Markierungen, pro Report neu gesetzt
 let priceZoom = 1; // Mausrad-Zoom der Preisachse (1 = Autoscale-Standard)
+let symline = null; // Titelzeile im Chart: "Wert · Zeitraum · Börse"
+let chartMeta = { name: '', boerse: '' };
+
+// Chart-Titel (TradingView-Stil) aktualisieren — Zeitraum kommt vom aktiven Knopf
+function updateChartTitle() {
+  if (!symline) return;
+  const range = document.querySelector('.chart-toolbar .rng.active')?.textContent ?? '';
+  symline.textContent = [chartMeta.name, range, chartMeta.boerse].filter(Boolean).join(' · ');
+}
 
 // ---------- Suche ----------
 
@@ -85,10 +94,12 @@ function ensureChart() {
   sma50Series = chart.addLineSeries({ color: '#e5a83b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
   sma200Series = chart.addLineSeries({ color: '#9085e9', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 
-  // OHLC-Zeile oben links im Chart (TradingView-Stil), folgt dem Fadenkreuz
+  // Titelzeile + OHLC-Zeile oben links im Chart (TradingView-Stil):
+  // erst "Wert · Zeitraum · Börse", darunter die Kerzenwerte zum Fadenkreuz
+  symline = el('div', { class: 'chart-symline' });
   tooltip = el('div', { class: 'chart-ohlc' });
   $('chart').style.position = 'relative';
-  $('chart').append(tooltip);
+  $('chart').append(el('div', { class: 'chart-overlay' }, symline, tooltip));
   const volFmt = (v) =>
     v == null ? '–' : v >= 1e9 ? `${(v / 1e9).toFixed(2).replace('.', ',')} Mrd.` : v >= 1e6 ? `${(v / 1e6).toFixed(2).replace('.', ',')} Mio.` : new Intl.NumberFormat('de-DE').format(v);
 
@@ -210,6 +221,7 @@ document.querySelectorAll('.chart-toolbar .rng').forEach((btn) => {
       applyChartData(data);
       priceZoom = 1;
       chart.timeScale().fitContent();
+      updateChartTitle();
     } catch {}
   });
 });
@@ -272,8 +284,7 @@ async function loadReport(symbol) {
     gCard.replaceChildren(
       el('div', {},
         el('div', { class: 'glabel' }, 'Gesamteinschätzung'),
-        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel]),
-        el('div', { class: 'gsub' }, 'zur Einordnung ↓')
+        el('div', { class: `gscore ${scoreCls}` }, AMPEL_TEXT[g.ampel])
       )
     );
     gCard.title = 'Zur Einordnung springen (Stärken, Risiken, Snowflake)';
@@ -289,13 +300,13 @@ async function loadReport(symbol) {
   document.querySelectorAll('.chart-toolbar .rng').forEach((b) => b.classList.toggle('active', b.dataset.range === '1y'));
   setChartData(a.chart);
   setPriceLines(a.kurs);
+  chartMeta = { name: a.name, boerse: a.kurs.boerse || '' };
+  updateChartTitle();
 
   currentCurrency = a.currency;
   renderQuoteStrip(a);
-  renderTechnik(a);
   renderAnalysten(a);
   renderRatings(a);
-  renderKennzahlen(a);
   renderFundamental(a);
   renderUebersicht(a);
   renderNews(a);
@@ -375,11 +386,15 @@ async function renderX(a, verwaltenOffen = false) {
   );
 }
 
-// Wichtigste Metriken horizontal unter dem Chart (Yahoo-Stil)
+// Wichtigste Metriken horizontal unter dem Chart (Yahoo-Stil).
+// Enthält seit Runde 14 auch die wertvollsten Finviz-Kennzahlen —
+// das eigene Kennzahlen-Panel ist dafür entfallen.
 function renderQuoteStrip(a) {
   const box = $('p-quotestrip');
   const k = a.kurs;
+  const perf = a.kennzahlen?.performance ?? {};
   const spanne = (lo, hi) => (lo != null && hi != null ? `${fmtNum(lo)} – ${fmtNum(hi)}` : '–');
+  // [Label, Wert, optionale Farb-Klasse]
   const zellen = [
     ['Kurs Vortag', fmtNum(k.vortag)],
     ['Eröffnung', fmtNum(k.eroeffnung)],
@@ -394,6 +409,9 @@ function renderQuoteStrip(a) {
     ['EPS (12 Mon.)', fmtNum(a.kennzahlen?.epsTtm)],
     ['Umsatzwachstum', a.fundamental?.umsatzwachstum != null ? fmtPctFrac(a.fundamental.umsatzwachstum) : '–'],
     ['Nettomarge', a.fundamental?.nettomarge != null ? fmtPctFrac(a.fundamental.nettomarge) : '–'],
+    ['Perf. seit 1.1.', fmtPct(perf.ytd), signClass(perf.ytd)],
+    ['Perf. 1 Jahr', fmtPct(perf.jahr), signClass(perf.jahr)],
+    ['Short Float', a.kennzahlen?.shortFloat != null ? fmtPctFrac(a.kennzahlen.shortFloat) : '–'],
     ['Nächste Zahlen', fmtDate(a.termine?.earnings)],
     ['Dividendenrendite', a.fundamental?.dividendenrendite != null ? fmtPct(a.fundamental.dividendenrendite, false) : '–'],
     ['Ex-Dividende', fmtDate(a.termine?.exDividende)],
@@ -402,8 +420,8 @@ function renderQuoteStrip(a) {
   box.hidden = false;
   box.replaceChildren(
     el('div', { class: 'quote-strip' },
-      zellen.map(([label, wert]) =>
-        el('div', { class: 'qs-cell' }, el('span', { class: 'qs-label' }, label), el('span', { class: 'qs-value' }, String(wert)))
+      zellen.map(([label, wert, cls]) =>
+        el('div', { class: 'qs-cell' }, el('span', { class: 'qs-label' }, label), el('span', { class: `qs-value ${cls || ''}` }, String(wert)))
       )
     )
   );
@@ -509,16 +527,16 @@ function renderRatings(a) {
     hatKursziele ? el('th', { class: 'num' }, 'Kursziel') : null
   ));
 
-  // Kompakt: die neueste Bewertung ist einfach Zeile 1 der Tabelle
-  const erste = a.ratings.slice(0, 6);
-  const rest = a.ratings.slice(6);
+  // Kompakt: maximal 5 Zeilen, der Rest hinter "Mehr anzeigen"
+  const erste = a.ratings.slice(0, 5);
+  const rest = a.ratings.slice(5);
   const tbody = el('tbody', {}, erste.map(zeile));
   let mehrBtn = null;
   if (rest.length) {
     mehrBtn = el('button', { class: 'btn ghost small', type: 'button', style: 'margin-top:10px', onclick: () => {
       rest.forEach((r) => tbody.append(zeile(r)));
       mehrBtn.remove();
-    } }, `${rest.length} ältere anzeigen`);
+    } }, `Mehr anzeigen (${rest.length})`);
   }
 
   setChildren(box,
@@ -530,113 +548,11 @@ function renderRatings(a) {
   );
 }
 
-// Kennzahlen im Finviz-Stil — aufklappbar, um Platz zu sparen
-function renderKennzahlen(a) {
-  const box = $('p-kennzahlen');
-  const k = a.kennzahlen;
-  if (!k) {
-    box.hidden = true;
-    return;
-  }
-  box.hidden = false;
+// Das Kennzahlen- und das Technik-Panel sind bewusst entfernt (Micha, Runde 14):
+// die wichtigsten Kennzahlen stehen im Quote-Strip, die Technik fließt weiter
+// in die Gesamteinschätzung ein.
 
-  const pctCell = (v) => (v == null ? el('dd', {}, '–') : el('dd', { class: signClass(v) }, fmtPct(v)));
-  const facts1 = [
-    ['Beta', fmtNum(k.beta)],
-    ['EPS (12 Mon.)', fmtNum(k.epsTtm)],
-    ['PEG', fmtNum(k.peg)],
-    ['Kurs/Buchwert', fmtNum(k.kbv)],
-    ['EV/EBITDA', fmtNum(k.evEbitda)],
-    ['ROE', k.roe != null ? fmtPctFrac(k.roe) : '–'],
-    ['ROA', k.roa != null ? fmtPctFrac(k.roa) : '–'],
-    ['Current Ratio', fmtNum(k.currentRatio)],
-  ];
-  const facts2 = [
-    ['Aktien gesamt', fmtCompact(k.aktienGesamt)],
-    ['Streubesitz', fmtCompact(k.streubesitz)],
-    ['Insider-Anteil', k.insiderAnteil != null ? fmtPctFrac(k.insiderAnteil) : '–'],
-    ['Institutionen', k.institutionenAnteil != null ? fmtPctFrac(k.institutionenAnteil) : '–'],
-    ['Short Float', k.shortFloat != null ? fmtPctFrac(k.shortFloat) : '–'],
-    ['Short Ratio', fmtNum(k.shortRatio)],
-    ['Volumen heute', fmtCompact(k.volumen)],
-    ['Volumen (Ø)', fmtCompact(k.volumenSchnitt)],
-  ];
-  const perf = k.performance || {};
-  const smaAb = k.smaAbstand || {};
-  const perfRows = [
-    ['Perf. Woche', perf.woche], ['Perf. Monat', perf.monat], ['Perf. Quartal', perf.quartal],
-    ['Perf. Halbjahr', perf.halbjahr], ['Perf. seit 1.1.', perf.ytd], ['Perf. Jahr', perf.jahr],
-    ['Abstand SMA20', smaAb.sma20], ['Abstand SMA50', smaAb.sma50], ['Abstand SMA200', smaAb.sma200],
-  ];
-
-  // Fundamentaldaten (ehem. eigenes Panel) — vollständig im Akkordeon
-  const f = a.fundamental;
-  const fundamentalRows = f
-    ? [
-        ['Kurs/Umsatz', fmtNum(f.kuv)],
-        ['Gewinnwachstum', fmtPctFrac(f.gewinnwachstum)],
-        ['Bruttomarge', fmtPctFrac(f.bruttomarge)],
-        ['Nettomarge', fmtPctFrac(f.nettomarge)],
-        ['Verschuldung (Debt/Equity)', f.verschuldung != null ? fmtNum(f.verschuldung, 0) + ' %' : '–'],
-        ['Free Cashflow', f.freeCashflow != null ? `${fmtCompact(f.freeCashflow)} ${a.currency}` : '–'],
-        ['Umsatzwachstum', fmtPctFrac(f.umsatzwachstum)],
-        ['KGV (aktuell)', fmtNum(f.kgv)],
-        ['KGV (erwartet)', fmtNum(f.kgvForward)],
-        ['Dividendenrendite', f.dividendenrendite != null ? fmtPct(f.dividendenrendite, false) : '–'],
-        ['Ausschüttungsquote', fmtPctFrac(f.ausschuettungsquote)],
-      ]
-    : [];
-
-  setChildren(box,
-    el('h2', { class: 'panel-title' }, 'Kennzahlen', el('span', { class: 'hint' }, ' · Finviz-Stil')),
-    el('div', { class: 'kpi-label', style: 'margin:0 0 6px' }, 'Performance & Trend-Abstand'),
-    el('div', { class: 'facts-2col' },
-      el('dl', { class: 'facts' }, perfRows.slice(0, 5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)])),
-      el('dl', { class: 'facts' }, perfRows.slice(5).flatMap(([kk, v]) => [el('dt', {}, kk), pctCell(v)]))
-    ),
-    collapsible('Alle Kennzahlen & Fundamentaldaten anzeigen',
-      el('div', { style: 'padding-top:10px' },
-        el('div', { class: 'facts-2col' },
-          el('dl', { class: 'facts' }, facts1.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
-          el('dl', { class: 'facts' }, facts2.flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
-        ),
-        fundamentalRows.length
-          ? el('div', {},
-              el('div', { class: 'kpi-label', style: 'margin:14px 0 6px' }, 'Fundamentaldaten'),
-              el('div', { class: 'facts-2col' },
-                el('dl', { class: 'facts' }, fundamentalRows.slice(0, 6).flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))])),
-                el('dl', { class: 'facts' }, fundamentalRows.slice(6).flatMap(([kk, v]) => [el('dt', {}, kk), el('dd', {}, String(v))]))
-              )
-            )
-          : null
-      )
-    )
-  );
-}
-
-function renderTechnik(a) {
-  const box = $('p-technik');
-  if (!a.technik) {
-    box.replaceChildren(el('h2', { class: 'panel-title' }, 'Technik'), el('div', { class: 'empty' }, 'Zu wenig Kurshistorie.'));
-    return;
-  }
-  const t = a.technik;
-  const verdictCls = t.ampel === 'green' ? 's-pos' : t.ampel === 'red' ? 's-neg' : 's-neu';
-  box.replaceChildren(
-    el('h2', { class: 'panel-title' }, 'Technisches Bild ', el('span', { class: `badge ${verdictCls}` }, ampelDot(t.ampel), AMPEL_TEXT[t.ampel])),
-    ...[...t.signals].sort((x, y) => {
-      const rang = { pos: 0, neutral: 1, neg: 2 };
-      return (rang[x.verdict] ?? 1) - (rang[y.verdict] ?? 1);
-    }).map((s) =>
-      el('div', { class: 'sig-row' },
-        ampelDot(s.verdict === 'pos' ? 'green' : s.verdict === 'neg' ? 'red' : 'yellow'),
-        el('div', {}, el('b', {}, `${s.label}: `), el('span', { class: 'txt' }, s.text))
-      )
-    )
-  );
-}
-
-const RECO_COLORS = { strongBuy: '#1fae72', buy: '#8fd695', hold: '#d6c063', sell: '#f0a35f', strongSell: '#f0616d' };
+const RECO_COLORS ={ strongBuy: '#1fae72', buy: '#8fd695', hold: '#d6c063', sell: '#f0a35f', strongSell: '#f0616d' };
 const RECO_LABELS = { strongBuy: 'Stark kaufen', buy: 'Kaufen', hold: 'Halten', sell: 'Verkaufen', strongSell: 'Stark verkaufen' };
 
 function renderAnalysten(a) {

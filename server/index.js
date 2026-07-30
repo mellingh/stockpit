@@ -55,6 +55,46 @@ async function trackedWithSectors() {
 const displayName = (quote, fallback) =>
   (quote?.longName || quote?.shortName || fallback || '').replace(/\s{2,}.*/, '').trim() || fallback;
 
+// Yahoo-Sektoren/Branchen auf Deutsch — fürs UI; intern (Snowflake,
+// Betroffenheits-Mapping) bleiben die englischen Originalwerte.
+const SEKTOR_DE = {
+  Technology: 'Technologie', Healthcare: 'Biotech/Healthcare', 'Financial Services': 'Fintech/Finanzen',
+  'Consumer Cyclical': 'Konsum (zyklisch)', 'Consumer Defensive': 'Konsum (defensiv)', Energy: 'Energie',
+  Industrials: 'Industrie', 'Basic Materials': 'Rohstoffe', Utilities: 'Versorger',
+  'Communication Services': 'Kommunikation', 'Real Estate': 'Immobilien', ETFs: 'ETFs', Sonstige: 'Sonstige',
+};
+
+const BRANCHE_DE = {
+  'Credit Services': 'Kreditdienstleistungen', 'Banks—Regional': 'Regionalbanken', 'Banks—Diversified': 'Großbanken',
+  'Capital Markets': 'Kapitalmärkte', 'Asset Management': 'Vermögensverwaltung',
+  'Financial Data & Stock Exchanges': 'Finanzdaten & Börsen', 'Insurance—Diversified': 'Versicherung',
+  'Insurance—Property & Casualty': 'Sach- & Unfallversicherung', 'Insurance—Life': 'Lebensversicherung',
+  'Software—Infrastructure': 'Software (Infrastruktur)', 'Software—Application': 'Software (Anwendungen)',
+  Semiconductors: 'Halbleiter', 'Semiconductor Equipment & Materials': 'Halbleiter-Ausrüstung',
+  'Consumer Electronics': 'Unterhaltungselektronik', 'Information Technology Services': 'IT-Dienstleistungen',
+  'Communication Equipment': 'Kommunikationstechnik', 'Computer Hardware': 'Computer-Hardware',
+  'Electronic Components': 'Elektronikkomponenten', 'Internet Content & Information': 'Internet-Inhalte & -Dienste',
+  'Internet Retail': 'Online-Handel', Biotechnology: 'Biotechnologie',
+  'Drug Manufacturers—General': 'Pharmahersteller', 'Drug Manufacturers—Specialty & Generic': 'Spezial- & Generika-Pharma',
+  'Medical Devices': 'Medizintechnik', 'Diagnostics & Research': 'Diagnostik & Forschung',
+  'Medical Instruments & Supplies': 'Medizinische Instrumente', 'Health Information Services': 'Gesundheits-IT',
+  'Auto Manufacturers': 'Automobilhersteller', 'Auto Parts': 'Autozulieferer',
+  'Specialty Retail': 'Facheinzelhandel', 'Discount Stores': 'Discounter', Restaurants: 'Gastronomie',
+  'Aerospace & Defense': 'Luftfahrt & Rüstung', 'Oil & Gas E&P': 'Öl & Gas (Exploration)',
+  'Oil & Gas Integrated': 'Öl & Gas (integriert)', 'Utilities—Regulated Electric': 'Stromversorger',
+  'Telecom Services': 'Telekommunikation', Entertainment: 'Unterhaltung',
+  'Electronic Gaming & Multimedia': 'Gaming & Multimedia', 'Specialty Chemicals': 'Spezialchemie',
+  Chemicals: 'Chemie', Railroads: 'Eisenbahnen', Airlines: 'Fluggesellschaften',
+  'Real Estate Services': 'Immobiliendienstleistungen', Steel: 'Stahl', Gold: 'Gold',
+};
+
+// Yahoo schreibt Bindestriche mal als "—", mal als "-" — beim Nachschlagen normalisieren
+function brancheDeutsch(branche) {
+  if (!branche) return null;
+  const norm = branche.replace(/\s*[—–-]\s*/g, '—');
+  return BRANCHE_DE[branche] ?? BRANCHE_DE[norm] ?? branche;
+}
+
 // Vor-/nachbörslicher Kurs (US-Börsen liefern das, XETRA & Co. meist nicht).
 // marketState: PREPRE/PRE → Pre-Market, POST/POSTPOST/CLOSED → After-Hours.
 function ausserboerslich(quote) {
@@ -364,8 +404,8 @@ app.get(
         boerse: quote.fullExchangeName,
         ausserboerslich: ausserboerslich(quote),
       },
-      sektor: profile.sector ?? null,
-      branche: profile.industry ?? null,
+      sektor: profile.sector ? SEKTOR_DE[profile.sector] ?? profile.sector : null,
+      branche: brancheDeutsch(profile.industry ?? null),
       // Firmen-Übersicht wie bei Yahoo Finance
       uebersicht: {
         beschreibung: profile.longBusinessSummary ?? null,
@@ -542,12 +582,6 @@ app.get(
     upcoming.sort((a, b) => a.days - b.days);
 
     // Allokation nach Sektor (ETFs als eigene Gruppe) statt Einzelwerten
-    const SEKTOR_DE = {
-      Technology: 'Technologie', Healthcare: 'Biotech/Healthcare', 'Financial Services': 'Fintech/Finanzen',
-      'Consumer Cyclical': 'Konsum (zyklisch)', 'Consumer Defensive': 'Konsum (defensiv)', Energy: 'Energie',
-      Industrials: 'Industrie', 'Basic Materials': 'Rohstoffe', Utilities: 'Versorger',
-      'Communication Services': 'Kommunikation', 'Real Estate': 'Immobilien', ETFs: 'ETFs', Sonstige: 'Sonstige',
-    };
     const sektorMap = new Map();
     for (const p of positions) {
       if (p.valueEur == null) continue;
