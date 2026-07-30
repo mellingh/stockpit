@@ -368,6 +368,21 @@ table.data th.num { text-align: right; }
 }
 .news-meta .meta-spacer { flex: 1; }
 .news-meta .badge.chip { text-transform: none; letter-spacing: 0.03em; }
+/* Prominente Ticker-Zuordnung: sofort erkennbar, zu welcher Aktie die News gehört */
+.badge.chip-strong {
+  background: var(--accent-soft);
+  border-color: rgba(76, 141, 255, 0.45);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 3px 10px;
+}
+.badge.chip-strong:hover { background: var(--accent); color: #fff; text-decoration: none; }
+
+/* Markt-Termine (Fed, EZB, Inflation …) im Termin-Panel: blau statt gelb */
+.termin.markt { border-color: rgba(76, 141, 255, 0.4); background: var(--accent-soft); }
+.termin.markt .days { color: var(--accent); }
+.termin.markt b { color: var(--accent); }
 
 /* Tabellen: Namen einheitlich groß wie die Zahlenspalten */
 .name-cell { font-size: 14px; }

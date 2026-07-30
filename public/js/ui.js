@@ -167,16 +167,37 @@ export function newsBadgesRow(n) {
   return el('div', { class: 'news-badges' }, kids);
 }
 
-// Aufklappbare Einordnung unter jeder News
+// Signalwörter, an denen sich die KI-Einstufung typischerweise festmacht —
+// damit die Einordnung konkret wird statt generisch
+const SIGNAL_POS =
+  /\b(rise[sn]?|rose|rall(y|ies)|surge[ds]?|jump(s|ed)?|soar(s|ed)?|gain(s|ed)?|beat(s)?|tops?|record|upgrade[ds]?|outperform(s|ed)?|buy|growth|profit(s)?|strong|wins?|raises?|boost(s|ed)?|partnership|deal|approval|breakthrough|expand(s|ed)?|lands?|positive|bullish|steigt|klettert|gewinnt|rekord|hochgestuft|übertrifft|stark)\b/gi;
+const SIGNAL_NEG =
+  /\b(fall(s)?|fell|drop(s|ped)?|plunge[ds]?|slump(s|ed)?|tumble[ds]?|sink(s)?|miss(es|ed)?|cut(s)?|downgrade[ds]?|lawsuit|probe|investigation|recall|warn(s|ing)?|loss(es)?|weak|layoffs?|bankruptcy|fraud|decline[ds]?|sell-?off|risks?|fears?|crash|underperform(s|ed)?|negative|bearish|halt(s|ed)?|fällt|stürzt|verliert|abgestuft|schwach|warnt|klage|verlust)\b/gi;
+
+// Aufklappbare Einordnung unter jeder News — konkret statt allgemein:
+// Kurs-Kontext, Signalwörter aus der Schlagzeile, verständliche KI-Sicherheit
 export function newsEinordnung(n) {
   const parts = [];
   if (n.erklaerung) parts.push(n.erklaerung);
+
   const s = n.sentiment;
-  if (s?.label && !s.unavailable) {
-    const fn = SENTIMENT_EXPLAIN[s.label];
-    if (fn) parts.push(fn(s));
+  if (s?.unavailable) {
+    parts.push('Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
+  } else if (s?.label) {
+    const worte = [
+      ...new Set(((n.title || '').match(s.label === 'negative' ? SIGNAL_NEG : SIGNAL_POS) || []).map((w) => w)),
+    ].slice(0, 3);
+    const p = Math.round((s.score || 0) * 100);
+    const sicherheit = p >= 85 ? 'sehr eindeutig' : p >= 65 ? 'recht klar' : 'eher unsicher — mit Vorsicht zu genießen';
+    if (s.label !== 'neutral' && worte.length) {
+      parts.push(`Die KI stützt sich auf Formulierungen wie ${worte.map((w) => `„${w}“`).join(', ')} in der Schlagzeile — Sicherheit ${p} % (${sicherheit}).`);
+    } else if (s.label !== 'neutral') {
+      parts.push(`Die KI liest den Gesamtton der Schlagzeile so ein, ohne einzelne eindeutige Signalwörter — Sicherheit ${p} % (${sicherheit}).`);
+    } else {
+      parts.push(`Keine klare Chancen- oder Risiko-Sprache in der Schlagzeile — für den Kurs vermutlich wenig relevant (Sicherheit ${p} %, ${sicherheit}).`);
+    }
   }
-  if (s?.unavailable) parts.push('Hinweis: Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
+
   const cExpl = CATEGORY_EXPLAIN[n.category?.id];
   if (cExpl) parts.push(cExpl);
   for (const b of n.betroffen || []) {

@@ -483,6 +483,31 @@ app.get(
         }
       } catch {}
     }
+    // Plus: die allerwichtigsten Markt-Termine der Woche (Fed, EZB, Inflation,
+    // Arbeitsmarkt …) — nur ★★★-Events in USD/EUR, damit das Panel den
+    // Kalender ergänzt statt ihn zu doppeln
+    const MARKT_EVENTS =
+      /(zinsentscheid|zinssatz|fed|fomc|ezb|leitzins|verbraucherpreis|cpi|pce|inflation|arbeitsmarkt|arbeitslosen|nonfarm|payroll|beschäftigung|bip\b|gdp|pressekonferenz|geldpolitik)/i;
+    try {
+      const kal = await getCalendar();
+      const marktTermine = (kal.events || [])
+        .filter((e) => e.wichtigkeit === 'High' && (e.waehrung === 'USD' || e.waehrung === 'EUR') && MARKT_EVENTS.test(e.titel))
+        .map((e) => ({ ...e, days: Math.floor((new Date(e.zeit) - new Date(new Date().toDateString())) / DAY) }))
+        .filter((e) => e.days >= 0)
+        .slice(0, 4)
+        .map((e) => ({
+          typ: 'Markt',
+          symbol: null,
+          name: e.titel,
+          waehrung: e.waehrung,
+          date: e.zeit,
+          days: e.days,
+          prognose: e.prognose,
+          vorher: e.vorher,
+        }));
+      upcoming.push(...marktTermine);
+    } catch {}
+
     upcoming.sort((a, b) => a.days - b.days);
 
     // Allokation nach Sektor (ETFs als eigene Gruppe) statt Einzelwerten

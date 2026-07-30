@@ -493,7 +493,7 @@ function renderTechnik(a) {
 }
 
 const RECO_COLORS = { strongBuy: '#1fae72', buy: '#8fd695', hold: '#d6c063', sell: '#f0a35f', strongSell: '#f0616d' };
-const RECO_LABELS = { strongBuy: 'Strong Buy', buy: 'Kaufen', hold: 'Halten', sell: 'Verkaufen', strongSell: 'Strong Sell' };
+const RECO_LABELS = { strongBuy: 'Stark kaufen', buy: 'Kaufen', hold: 'Halten', sell: 'Verkaufen', strongSell: 'Stark verkaufen' };
 
 function renderAnalysten(a) {
   const box = $('p-analysten');
@@ -565,9 +565,10 @@ function renderAnalysten(a) {
     el('h2', { class: 'panel-title' }, 'Analysten ', el('span', { class: 'hint' }, `· ${an.count ?? '?'} Analysten`)),
     el('div', { style: 'display:flex;align-items:baseline;gap:12px' },
       el('span', { class: 'kpi-value small', style: 'font-size:30px' }, an.mean?.toFixed(1)),
-      el('span', { class: 'dim' }, '/ 5 · Konsens (1 = Strong Buy)'),
+      el('span', { class: 'dim' }, '/ 5 · Konsens (1 = Stark kaufen)'),
       el('span', { class: `badge ${an.mean <= 2 ? 's-pos' : an.mean >= 3.5 ? 's-neg' : 's-neu'}` },
-        (an.key || '').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+        ({ strong_buy: 'Stark kaufen', buy: 'Kaufen', hold: 'Halten', underperform: 'Untergewichten', sell: 'Verkaufen', strong_sell: 'Stark verkaufen' })[an.key] ??
+          (an.key || '').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
     ),
     bar,
     legend,

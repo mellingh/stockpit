@@ -67,12 +67,14 @@ async function loadDashboard() {
     let offenesDetail = null;
 
     for (const t of d.termine) {
+      const istMarkt = t.typ === 'Markt';
       const datum = new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
       const wann = t.days === 0 ? 'heute' : t.days === 1 ? 'morgen' : `in ${t.days} Tagen`;
-      const chip = el('button', { class: `termin${t.days <= 2 ? ' soon' : ''}`, type: 'button', title: 'Klicken für Details' },
-        el('b', {}, t.symbol),
+      const chip = el('button', { class: `termin${!istMarkt && t.days <= 2 ? ' soon' : ''}${istMarkt ? ' markt' : ''}`, type: 'button', title: 'Klicken für Details' },
+        istMarkt ? el('b', {}, '🏛 Markt') : el('b', {}, t.symbol),
         el('span', {},
-          el('span', { class: 'termin-typ' }, t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
+          el('span', { class: 'termin-typ' },
+            istMarkt ? (t.name.length > 34 ? t.name.slice(0, 34) + '…' : t.name) : t.typ === 'Quartalszahlen' ? '📊 Quartalszahlen' : '💰 Ex-Dividende'),
           el('span', { class: 'termin-datum' }, ` · ${datum}`)
         ),
         el('span', { class: 'days' }, wann),
@@ -88,18 +90,32 @@ async function loadDashboard() {
         offenesDetail = t;
         chip.classList.add('open');
         const zeit = new Date(t.date).toLocaleString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-        const fakten = [
-          ['Unternehmen', t.name],
-          ['Ereignis', t.typ],
-          ['Termin', `${zeit} Uhr`],
-          t.epsErwartet != null ? ['Erwartetes EPS', (t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')] : null,
-          t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
-        ].filter(Boolean);
+        const fakten = istMarkt
+          ? [
+              ['Ereignis', t.name],
+              ['Termin', `${zeit} Uhr`],
+              ['Währungsraum', t.waehrung === 'USD' ? '🇺🇸 USA' : '🇪🇺 Eurozone'],
+              t.prognose ? ['Prognose', t.prognose] : null,
+              t.vorher ? ['Vorherig', t.vorher] : null,
+            ].filter(Boolean)
+          : [
+              ['Unternehmen', t.name],
+              ['Ereignis', t.typ],
+              ['Termin', `${zeit} Uhr`],
+              t.epsErwartet != null ? ['Erwartetes EPS', (t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')] : null,
+              t.umsatzErwartet != null ? ['Erwarteter Umsatz', fmtCompact(t.umsatzErwartet)] : null,
+            ].filter(Boolean);
         detailBox.replaceChildren(
           el('div', { class: 'news-explain-detail', style: 'margin-top:10px' },
             el('dl', { class: 'facts' }, fakten.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
-            t.typ === 'Quartalszahlen' ? el('div', { class: 'dim', style: 'font-size:12px;margin-top:6px' }, 'Rund um Quartalszahlen sind stärkere Kursschwankungen üblich — Positionsgröße im Blick behalten.') : null,
-            el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:6px', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}` }, 'Zur Analyse →')
+            istMarkt
+              ? el('div', { class: 'dim', style: 'font-size:12px;margin-top:6px' }, 'Marktweiter Termin — betrifft potenziell alle deine Werte.')
+              : t.typ === 'Quartalszahlen'
+                ? el('div', { class: 'dim', style: 'font-size:12px;margin-top:6px' }, 'Rund um Quartalszahlen sind stärkere Kursschwankungen üblich — Positionsgröße im Blick behalten.')
+                : null,
+            istMarkt
+              ? el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:6px', href: './kalender.html' }, 'Zum Kalender →')
+              : el('a', { class: 'btn ghost small', style: 'justify-self:start;margin-top:6px', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}` }, 'Zur Analyse →')
           )
         );
       });
@@ -108,7 +124,7 @@ async function loadDashboard() {
 
     document.getElementById('termine-wrap').replaceChildren(
       el('section', { class: 'panel', style: 'margin-bottom:18px' },
-        el('h2', { class: 'panel-title' }, 'Termin-Radar', el('span', { class: 'hint' }, ' · nächste 14 Tage · Klick für Details')),
+        el('h2', { class: 'panel-title' }, 'Wichtige Termine', el('span', { class: 'hint' }, ' · dein Portfolio + große Markt-Events · Klick für Details')),
         strip,
         detailBox
       )
@@ -259,15 +275,14 @@ async function loadNews() {
 
   const nodes = items.map((n) =>
     el('article', { class: 'news-item' },
-      // Betroffene Ticker stehen ÜBER der Schlagzeile in der Meta-Zeile
+      // Betroffene Ticker stehen prominent VORN in der Meta-Zeile
       el('div', { class: 'news-meta' },
-        el('span', {}, n.source || '—'),
-        el('span', {}, fmtAgo(n.pubDate)),
-        el('span', { class: 'meta-spacer' }),
         (n.betroffen || []).slice(0, 4).map((b) =>
-          el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
+          el('a', { class: 'badge chip chip-strong', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
             b.symbol, b.why === 'direkt' ? '' : ' ~')
-        )
+        ),
+        el('span', {}, n.source || '—'),
+        el('span', {}, fmtAgo(n.pubDate))
       ),
       el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
       newsBadgesRow(n),
