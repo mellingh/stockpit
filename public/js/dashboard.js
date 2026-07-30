@@ -147,11 +147,11 @@ async function loadDashboard() {
         el('span', { class: 'badge chip chip-sm' }, t.symbol),
         el('span', { class: 'tinfo' },
           t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende',
+          // Erwartung neutral grau (wie die Prognose bei Markt-Events) —
+          // Farbe bekommt nur der Ist-Wert (grün/rot = besser/schlechter)
           t.epsErwartet != null
-            ? el('span', { class: `eps ${t.epsErwartet > 0 ? 'pos' : t.epsErwartet < 0 ? 'neg' : ''}` },
-                `EPS erw. ${fmtEps(t.epsErwartet)}`)
+            ? el('span', { class: 'eps' }, `EPS erw. ${fmtEps(t.epsErwartet)}`)
             : null,
-          // Zahlen sind raus: tatsächliches EPS daneben, gefärbt nach Überraschung
           t.epsTatsaechlich != null
             ? el('span', { class: `eps ${t.ueberraschungPct > 0 ? 'pos' : t.ueberraschungPct < 0 ? 'neg' : ''}` },
                 `Ist ${fmtEps(t.epsTatsaechlich)}${t.ueberraschungPct != null ? ` (${t.ueberraschungPct > 0 ? '+' : ''}${String(t.ueberraschungPct).replace('.', ',')} %)` : ''}`)
@@ -360,13 +360,10 @@ async function loadNews() {
   );
 
   const notices = (feed.feedErrors || []).map((f) => el('div', { class: 'notice' }, `Feed nicht erreichbar: ${f}`));
-  const filterInfo = feed.gefiltert
-    ? [el('div', { class: 'news-meta', style: 'padding:4px 0 8px' }, `${feed.gefiltert} unwichtige Meldungen ausgefiltert — gezeigt wird nur Marktrelevantes.`)]
-    : [];
   // Kompakt halten: erst 5 News, der Rest aufklappbar
   const erste = nodes.slice(0, 5);
   const rest = nodes.slice(5);
-  box.replaceChildren(...notices, ...filterInfo, ...erste,
+  box.replaceChildren(...notices, ...erste,
     ...(rest.length ? [collapsible(`Mehr anzeigen (${rest.length})`, rest)] : []));
 }
 

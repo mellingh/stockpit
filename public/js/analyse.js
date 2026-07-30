@@ -401,9 +401,10 @@ async function renderX(a, verwaltenOffen = false) {
     ),
   ];
 
-  // Overlay-Verwaltung (öffnet über der Karte)
+  // Verwaltung als aufploppendes, zentriertes Modal (wie der Bestätigungs-
+  // dialog) — Overlay über der Karte und +-Pille sind verworfen (Runde 26)
   const oeffneVerwaltung = () => {
-    box.querySelector('.karten-overlay')?.remove();
+    document.querySelector('.xl-modal')?.remove();
 
     const hinweis = el('div', { class: 'notice', hidden: 'hidden' });
     const input = el('input', { type: 'text', placeholder: '@handle oder Seiten-URL …', autocomplete: 'off', style: 'flex:1;min-width:150px' });
@@ -438,41 +439,48 @@ async function renderX(a, verwaltenOffen = false) {
         el('button', { class: 'btn danger small', type: 'button', onclick: onRemove }, 'Entfernen')
       );
 
-    const overlay = el('div', { class: 'karten-overlay' },
-      el('div', { class: 'ko-kopf' },
-        el('span', { class: 'ko-titel' }, 'Accounts & Links verwalten'),
-        el('button', { class: 'icon-btn', type: 'button', title: 'Schließen', onclick: () => overlay.remove() }, '✕')
-      ),
-      form,
-      hinweis,
-      el('div', { class: 'ko-liste' },
-        accounts.map((h) =>
-          entfernRow(`@${h}`, async () => {
-            await api.del(`/api/xusers/${encodeURIComponent(h)}`);
-            renderX(a, true);
-          })
+    const schliessen = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') schliessen();
+    };
+    const overlay = el('div', { class: 'modal-overlay xl-modal', onclick: (e) => { if (e.target === overlay) schliessen(); } },
+      el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' },
+        el('div', { class: 'ko-kopf' },
+          el('span', { class: 'ko-titel' }, 'Accounts & Links'),
+          el('button', { class: 'icon-btn', type: 'button', title: 'Schließen', onclick: schliessen }, '✕')
         ),
-        webLinks.map((l) =>
-          entfernRow(l.name, async () => {
-            await api.del(`/api/weblinks?url=${encodeURIComponent(l.url)}`);
-            renderX(a, true);
-          })
+        form,
+        hinweis,
+        el('div', { class: 'ko-liste' },
+          accounts.map((h) =>
+            entfernRow(`@${h}`, async () => {
+              await api.del(`/api/xusers/${encodeURIComponent(h)}`);
+              renderX(a, true);
+            })
+          ),
+          webLinks.map((l) =>
+            entfernRow(l.name, async () => {
+              await api.del(`/api/weblinks?url=${encodeURIComponent(l.url)}`);
+              renderX(a, true);
+            })
+          )
         )
       )
     );
-    box.append(overlay);
+    document.body.append(overlay);
+    document.addEventListener('keydown', onKey);
     input.focus();
   };
 
-  // Die +-Pille reiht sich als letztes Element ein (Tag-Editor-Muster)
-  const plusPille = el('button', {
-    class: 'x-pill x-pill-plus', type: 'button',
-    title: 'Accounts & Links verwalten', onclick: oeffneVerwaltung,
-  }, '+');
-
   setChildren(box,
     el('h2', { class: 'panel-title' }, 'Meinungen & Links'),
-    el('div', { class: 'x-pills' }, zeilen, plusPille)
+    zeilen.length
+      ? el('div', { class: 'x-pills' }, zeilen)
+      : el('div', { class: 'empty' }, 'Noch nichts hinterlegt.'),
+    el('button', { class: 'btn ghost small add-row', type: 'button', onclick: oeffneVerwaltung }, '+ Hinzufügen')
   );
   if (verwaltenOffen) oeffneVerwaltung();
 }
