@@ -5,8 +5,13 @@
 
 const clamp = (v) => Math.max(0, Math.min(5, Math.round(v * 10) / 10));
 
-export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, technik, termine }) {
+export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, technik, termine, sektor }) {
   if (!f) return null; // ETFs u. Ä. haben keine Fundamentaldaten
+
+  // Banken/Finanzwerte: Debt/Equity, Current Ratio und FCF sind dort
+  // strukturell nicht aussagekräftig (Yahoo liefert sie meist gar nicht) —
+  // die Bilanz-Dimension wird deshalb anders bewertet.
+  const istFinanzwert = sektor === 'Financial Services';
 
   const staerken = [];
   const risiken = [];
@@ -35,7 +40,7 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
   // ---- ZUKUNFT: Wächst das Geschäft? ----
   let zukunft = 0;
   if (f.umsatzwachstum != null) {
-    if (f.umsatzwachstum > 0.15) { zukunft += 2; staerken.push(`Starkes Umsatzwachstum: ${pct(f.umsatzwachstum)} pro Jahr`); }
+    if (f.umsatzwachstum > 0.15) { zukunft += 2; staerken.push(`Starkes Umsatzwachstum: +${pct(f.umsatzwachstum)} ggü. Vorjahresquartal`); }
     else if (f.umsatzwachstum > 0.05) zukunft += 1.25;
     else if (f.umsatzwachstum < 0) risiken.push(`Umsatz schrumpft (${pct(f.umsatzwachstum)})`);
   }
@@ -72,21 +77,37 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
 
   // ---- BILANZ: Wie gesund sind die Finanzen? ----
   let bilanz = 0;
-  if (f.verschuldung != null) {
-    if (f.verschuldung < 50) { bilanz += 2; staerken.push(`Solide Bilanz: Verschuldung nur ${Math.round(f.verschuldung)} % des Eigenkapitals`); }
-    else if (f.verschuldung < 100) bilanz += 1.25;
-    else if (f.verschuldung > 150) risiken.push(`Hohe Verschuldung: ${Math.round(f.verschuldung)} % des Eigenkapitals`);
+  let bilanzOhneDaten = false;
+  if (istFinanzwert) {
+    // Banken-Bilanz über Profitabilität statt klassischer Kennzahlen bewerten
+    bilanz = 2.5;
+    if (k?.roe != null && k.roe > 0.12) bilanz += 1.25;
+    if (f.nettomarge != null && f.nettomarge > 0.15) bilanz += 1.25;
+    else if (f.nettomarge != null && f.nettomarge < 0) bilanz -= 1.5;
   } else {
-    bilanz += 1; // keine Daten ≠ schlecht — neutral werten
-  }
-  if (k?.currentRatio != null) {
-    if (k.currentRatio > 1.5) bilanz += 1.5;
-    else if (k.currentRatio > 1) bilanz += 0.75;
-    else risiken.push(`Kurzfristige Verbindlichkeiten übersteigen das Umlaufvermögen (Current Ratio ${k.currentRatio.toFixed(2)})`);
-  }
-  if (f.freeCashflow != null) {
-    if (f.freeCashflow > 0) { bilanz += 1.5; staerken.push('Positiver Free Cashflow — Geschäft trägt sich selbst'); }
-    else risiken.push('Negativer Free Cashflow — verbrennt derzeit Geld');
+    const hatBilanzDaten = f.verschuldung != null || k?.currentRatio != null || f.freeCashflow != null;
+    if (!hatBilanzDaten) {
+      // Keine Datenlage ≠ schwache Bilanz — neutral werten und im Fazit ignorieren
+      bilanz = 2.5;
+      bilanzOhneDaten = true;
+    } else {
+      if (f.verschuldung != null) {
+        if (f.verschuldung < 50) { bilanz += 2; staerken.push(`Solide Bilanz: Verschuldung nur ${Math.round(f.verschuldung)} % des Eigenkapitals`); }
+        else if (f.verschuldung < 100) bilanz += 1.25;
+        else if (f.verschuldung > 150) risiken.push(`Hohe Verschuldung: ${Math.round(f.verschuldung)} % des Eigenkapitals`);
+      } else {
+        bilanz += 1;
+      }
+      if (k?.currentRatio != null) {
+        if (k.currentRatio > 1.5) bilanz += 1.5;
+        else if (k.currentRatio > 1) bilanz += 0.75;
+        else risiken.push(`Kurzfristige Verbindlichkeiten übersteigen das Umlaufvermögen (Current Ratio ${k.currentRatio.toFixed(2)})`);
+      }
+      if (f.freeCashflow != null) {
+        if (f.freeCashflow > 0) { bilanz += 1.5; staerken.push('Positiver Free Cashflow — Geschäft trägt sich selbst'); }
+        else risiken.push('Negativer Free Cashflow — verbrennt derzeit Geld');
+      }
+    }
   }
 
   // ---- DIVIDENDE ----
@@ -125,8 +146,11 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
   const sortiert = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const [besteKey, besteVal] = sortiert[0];
   // "Keine Dividende" ist bei Wachstumsaktien normal — als Schwachpunkt
-  // nur nennen, wenn sonst alles solide ist
-  const schwKandidaten = sortiert.filter(([k]) => k !== 'dividende');
+  // nur nennen, wenn sonst alles solide ist. Bilanz ohne Datenlage bzw.
+  // bei Banken ebenfalls nicht als Schwachpunkt ausrufen.
+  const schwKandidaten = sortiert.filter(
+    ([key]) => key !== 'dividende' && !(key === 'bilanz' && (bilanzOhneDaten || istFinanzwert))
+  );
   const [schwKey, schwVal] =
     schwKandidaten[schwKandidaten.length - 1][1] < 2.5 ? schwKandidaten[schwKandidaten.length - 1] : sortiert[sortiert.length - 1];
   let fazit;

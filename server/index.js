@@ -314,7 +314,7 @@ app.get(
     });
 
     // Snowflake-Profil (Simply-Wall-St-Stil) — nur für Aktien
-    const snowflake = computeSnowflake({ fundamental, kennzahlen, analysts, technik, termine });
+    const snowflake = computeSnowflake({ fundamental, kennzahlen, analysts, technik, termine, sektor: profile.sector ?? null });
 
     res.json({
       symbol,

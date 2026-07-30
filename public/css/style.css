@@ -366,6 +366,11 @@ table.data th.num { text-align: right; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+.news-meta .meta-spacer { flex: 1; }
+.news-meta .badge.chip { text-transform: none; letter-spacing: 0.03em; }
+
+/* Tabellen: Namen einheitlich groß wie die Zahlenspalten */
+.name-cell { font-size: 14px; }
 .news-title { font-size: 15px; font-weight: 600; line-height: 1.35; }
 .news-title a { color: var(--ink); }
 .news-title a:hover { color: var(--accent); text-decoration: none; }
@@ -483,15 +488,20 @@ input, select, textarea, button {
   font-size: 14px;
   color: var(--ink);
 }
+/* Einheitliche Eingabefelder: gleiche Höhe (42px) und Placeholder-Optik überall */
 input[type='text'], input[type='number'], input[type='date'], select, textarea {
   background: var(--bg);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  padding: 9px 12px;
+  padding: 0 12px;
+  height: 42px;
+  font-size: 14px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   width: 100%;
 }
+textarea { height: auto; padding: 10px 12px; }
+::placeholder { color: var(--ink-3); opacity: 1; font-size: 13.5px; }
 input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -527,8 +537,7 @@ button:disabled { opacity: 0.5; cursor: wait; }
 
 .search-wrap { position: relative; }
 .search-wrap input {
-  font-size: 16px;
-  padding: 13px 16px;
+  font-size: 14px;
   font-family: var(--font-mono);
 }
 .suggestions {
@@ -829,7 +838,7 @@ details.clap > summary:hover { text-decoration: underline; }
 .reco-col { display: flex; flex-direction: column; align-items: center; width: 44px; }
 .reco-col-total { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); margin-bottom: 4px; }
 .reco-col-plot { flex: 1; width: 26px; display: flex; align-items: flex-end; min-height: 0; }
-.reco-col-stack { display: flex; flex-direction: column-reverse; width: 100%; border-radius: 4px; overflow: hidden; gap: 1px; }
+.reco-col-stack { display: flex; flex-direction: column; width: 100%; border-radius: 4px; overflow: hidden; gap: 1px; }
 .reco-col-stack span { display: block; min-height: 2px; }
 .reco-col-monat { font-size: 11px; color: var(--ink-3); margin-top: 6px; text-transform: capitalize; }
 
@@ -905,6 +914,43 @@ button.termin { cursor: pointer; font-family: var(--font-body); font-size: 13px;
 .expert-post { padding: 10px 0; border-bottom: 1px solid var(--line); display: grid; gap: 5px; font-size: 13.5px; }
 .expert-post:last-child { border-bottom: none; }
 .expert-post .txt { color: var(--ink-2); white-space: pre-wrap; }
+
+/* ---------- Bestätigungs-Modal (statt Browser-confirm) ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 10, 0.65);
+  backdrop-filter: blur(3px);
+  animation: rise 0.15s ease both;
+}
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  padding: 22px;
+  max-width: 420px;
+  width: calc(100% - 40px);
+}
+.modal-text { font-size: 14.5px; line-height: 1.5; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+button.btn.danger-solid {
+  background: var(--down);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+button.btn.danger-solid:hover { filter: brightness(1.1); }
 
 /* ---------- Leere Zustände / Meldungen ---------- */
 

@@ -4,7 +4,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtNum, fmtPct, fmtPctFrac, fmtCompact, fmtDate, fmtAgo,
-  signClass, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, newsSummaryLine,
+  signClass, ampelDot, AMPEL_TEXT, attachSearch, markActiveNav, newsBadgesRow, newsEinordnung,
   radarChart, collapsible,
 } from './ui.js';
 
@@ -480,7 +480,10 @@ function renderTechnik(a) {
   const verdictCls = t.ampel === 'green' ? 's-pos' : t.ampel === 'red' ? 's-neg' : 's-neu';
   box.replaceChildren(
     el('h2', { class: 'panel-title' }, 'Technisches Bild ', el('span', { class: `badge ${verdictCls}` }, ampelDot(t.ampel), AMPEL_TEXT[t.ampel])),
-    ...t.signals.map((s) =>
+    ...[...t.signals].sort((x, y) => {
+      const rang = { pos: 0, neutral: 1, neg: 2 };
+      return (rang[x.verdict] ?? 1) - (rang[y.verdict] ?? 1);
+    }).map((s) =>
       el('div', { class: 'sig-row' },
         ampelDot(s.verdict === 'pos' ? 'green' : s.verdict === 'neg' ? 'red' : 'yellow'),
         el('div', {}, el('b', {}, `${s.label}: `), el('span', { class: 'txt' }, s.text))
@@ -602,8 +605,8 @@ function renderNews(a) {
         el('article', { class: 'news-item' },
           el('div', { class: 'news-meta' }, el('span', {}, n.source || '—'), el('span', {}, fmtAgo(n.pubDate))),
           el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-          newsSummaryLine(n),
-          n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
+          newsBadgesRow(n),
+          newsEinordnung(n)
         );
 
     // Platz sparen: erst 5 News, Rest aufklappbar

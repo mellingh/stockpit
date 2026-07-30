@@ -34,11 +34,11 @@ hat Micha verworfen — Repo und Ordner heißen ebenfalls stockpit).
 - **News-Relevanz-Filter** (`analysis.js` → `isRelevant`): Portfolio-/Watchlist-News immer und zuerst; Makro nur bei Marktbewegern (Fed/EZB/Zins/Inflation/Geopolitik/Präsident); Fokus-Sektoren **Fintech, Biotech, Tech** (Michas Schwerpunkte); Ratgeber-/Boulevard-Artikel raus.
 - Kursziele je einzelner Bank gibt es kostenlos nicht → nur Konsens-Spanne + Rating-Historie je Bank zeigen; ehrlich kommunizieren.
 - Gesamteinschätzung = Technik + Analysten + News-Sentiment, jede Komponente offen begründet (keine Blackbox).
-- **Snowflake-Analyse** (`server/snowflake.js`, SWS-Stil): 5 Dimensionen (Wert/Zukunft/Vergangenheit/Bilanz/Dividende) je 0–5, regelbasiert, plus Stärken/Risiken in Klartext — in der Übersichts-Querkarte der Analyse-Seite mit SVG-Radar (`radarChart` in ui.js).
+- **Snowflake-Analyse** (`server/snowflake.js`, SWS-Stil): 5 Dimensionen (Wert/Zukunft/Vergangenheit/Bilanz/Dividende) je 0–5, regelbasiert, plus Stärken/Risiken in Klartext. **Financial Services**: Bilanz über ROE/Marge bewerten (D/E, Current Ratio, FCF fehlen bei Banken strukturell) und nie als Schwachpunkt ausrufen, wenn Datenlage fehlt — in der Übersichts-Querkarte der Analyse-Seite mit SVG-Radar (`radarChart` in ui.js).
 - Dashboard-Allokation gruppiert nach **Sektor** (ETFs eigener Topf), nicht nach Einzelwerten; Klumpenrisiko-Warnung bei >50 % in einer Position.
 - Platzsparen mit `<details>`-Akkordeons (`collapsible()` in ui.js) — Micha mag aufklappbare Elemente; nichts darf horizontal scrollen (Seite max 1440px, 3-spaltiges Grid). Aufklapp-Indikator: klassisches SVG-Chevron (`chevronIcon()` in ui.js), gut sichtbar.
 - **Keine nackten Score-Zahlen im UI** (Micha-Feedback): Gesamteinschätzung und Technik zeigen nur das farbige Urteil (Bullisch/Neutral/Bärisch) — keine Skalen, keine "+28"-Werte, keine Begründungs-Panels.
-- News-Darstellung: großer Titel + eine Zusammenfassungszeile (`newsSummaryLine()` in ui.js): Sentiment farbig mit KI-%-Sicherheit, Kategorie blau, "Kurs am Tag ±x %" rot/grün — nichts Klickbares außer Ticker-Chips.
+- News-Darstellung (Runde 8): Ticker-Chips OBEN in der Meta-Zeile, dann großer Titel, dann Badge-Zeile (`newsBadgesRow()`) OHNE %-Zahl (verwirrte Micha), darunter aufklappbare "Einordnung" (`newsEinordnung()`) mit ausführlicher Erklärung inkl. KI-Sicherheit.
 - Chart im TradingView-Stil: Zeiträume 1T/1W (Intraday via `getIntraday`) + 1M/6M/1J/5J/Max, OHLC-Zeile oben links folgt dem Fadenkreuz, Rad-Zoom + Achsen-Drag aktiv. **News-Marker im Chart wurden komplett entfernt** (Micha-Feedback: verwirrend, TradingView hat sie auch nicht) — nicht wieder einbauen.
 - Fundamentaldaten haben kein eigenes Panel: Kernwerte im Kennzahlen-Strip unterm Chart, Rest im Kennzahlen-Akkordeon (ETF-Profil bleibt eigenes Panel).
 - Seeking Alpha, nasdaq.com, nyse.com, justETF: geprüft und verworfen (Paywall/redundant).
@@ -49,6 +49,8 @@ hat Micha verworfen — Repo und Ordner heißen ebenfalls stockpit).
 - Design (Michas Wunsch, Feedback-Runde 3): **TradingView/Finviz Dark Mode** — neutrales Schwarz/Grau (#0b0e13), Blau als Akzent (#4c8dff), Grün/Rot nur für Markt, Gelb (--warn) nur für Ampel/Sterne. Sans (Instrument Sans) für alles inkl. großer Zahlen, Mono für Kursdaten — keine Serifen mehr. Fonts lokal in `public/fonts/`. Chart-Kategorienfarben sind eine validierte Palette — nicht frei ändern.
 - Portfolio: **kein Kaufdatum** (bewusst entfernt — Micha kauft in Tranchen, es zählt nur Stückzahl + Ø-Kaufkurs).
 - `replaceChildren()` nie mit möglichen `null`-Kindern aufrufen (rendert als Text "null") — `setChildren()`-Helfer in `analyse.js` nutzen.
+- Nie Browser-confirm()/alert() — `confirmDialog()` aus ui.js nutzen. Eingabefelder: einheitlich 42px hoch, überall Placeholder.
+- Analysten-Monatssäulen: Strong Buy OBEN (wie Yahoo); Technik-Signale sortiert grün → gelb → rot.
 - Fehler-Zustände immer benutzerfreundlich abfangen (Feed down, Ticker unbekannt, offline) — App darf nie leer/kaputt aussehen.
 - Ehrliche Grenzen im UI/README benennen statt Features vorzutäuschen. Überall gilt: keine Anlageberatung.
 

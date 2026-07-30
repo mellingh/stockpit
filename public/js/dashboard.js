@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import {
   el, fmtEur, fmtMoney, fmtPct, fmtAgo, fmtDate, fmtCompact, signClass,
-  sparkline, donut, CAT_COLORS, markActiveNav, newsSummaryLine, chevronIcon,
+  sparkline, donut, CAT_COLORS, markActiveNav, newsBadgesRow, newsEinordnung, chevronIcon,
 } from './ui.js';
 
 markActiveNav();
@@ -259,21 +259,19 @@ async function loadNews() {
 
   const nodes = items.map((n) =>
     el('article', { class: 'news-item' },
+      // Betroffene Ticker stehen ÜBER der Schlagzeile in der Meta-Zeile
       el('div', { class: 'news-meta' },
         el('span', {}, n.source || '—'),
-        el('span', {}, fmtAgo(n.pubDate))
+        el('span', {}, fmtAgo(n.pubDate)),
+        el('span', { class: 'meta-spacer' }),
+        (n.betroffen || []).slice(0, 4).map((b) =>
+          el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
+            b.symbol, b.why === 'direkt' ? '' : ' ~')
+        )
       ),
       el('div', { class: 'news-title' }, el('a', { href: n.link, target: '_blank', rel: 'noopener' }, n.title)),
-      newsSummaryLine(n),
-      (n.betroffen || []).length
-        ? el('div', { class: 'news-badges' },
-            (n.betroffen || []).slice(0, 4).map((b) =>
-              el('a', { class: 'badge chip', href: `./analyse.html?symbol=${encodeURIComponent(b.symbol)}`, title: b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}` },
-                b.symbol, b.why === 'direkt' ? '' : ' ~')
-            )
-          )
-        : null,
-      n.erklaerung ? el('div', { class: 'news-explain' }, n.erklaerung) : null
+      newsBadgesRow(n),
+      newsEinordnung(n)
     )
   );
 

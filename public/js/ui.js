@@ -153,30 +153,68 @@ function attachBadgeExplain(badge, buildText) {
   return badge;
 }
 
-// Zusammenfassungszeile für News: Einstufung (farbig) · Kategorie · Kursbewegung (farbig).
-// Klipp und klar, ohne Klicken.
-const SENTIMENT_WORD = { positive: 'Positiv', negative: 'Negativ', neutral: 'Neutral' };
-
-export function newsSummaryLine(n) {
-  const s = n.sentiment;
-  const kids = [];
-  if (s?.label) {
-    const cls = s.label === 'positive' ? 'pos' : s.label === 'negative' ? 'neg' : 'neu';
+// News-Bausteine: Badge-Zeile (ohne verwirrende Prozentzahl — die
+// KI-Sicherheit steckt im Tooltip und in der Einordnung) und
+// aufklappbare "Einordnung" mit der ausführlichen Erklärung.
+export function newsBadgesRow(n) {
+  const kids = [sentimentBadge(n.sentiment), categoryBadge(n.category)];
+  if (n.reaction?.dayChangePct != null) {
     kids.push(
-      el('span', { class: `sum-tag ${cls}`, title: s.unavailable ? 'KI-Modell lädt noch' : `Einstufung der lokalen Finanz-KI (Sicherheit ${Math.round((s.score || 0) * 100)} %)` },
-        SENTIMENT_WORD[s.label] ?? s.label,
-        s.score && !s.unavailable ? el('span', { class: 'sum-conf' }, ` ${Math.round(s.score * 100)} %`) : null
-      )
+      el('span', { class: `badge ${n.reaction.dayChangePct > 0 ? 's-pos' : n.reaction.dayChangePct < 0 ? 's-neg' : 's-neu'}` },
+        `Kurs am Tag ${fmtPct(n.reaction.dayChangePct)}`)
     );
   }
-  if (n.category && n.category.id !== 'other') {
-    kids.push(el('span', { class: 'sum-cat', title: CATEGORY_EXPLAIN[n.category.id] || '' }, n.category.label));
+  return el('div', { class: 'news-badges' }, kids);
+}
+
+// Aufklappbare Einordnung unter jeder News
+export function newsEinordnung(n) {
+  const parts = [];
+  if (n.erklaerung) parts.push(n.erklaerung);
+  const s = n.sentiment;
+  if (s?.label && !s.unavailable) {
+    const fn = SENTIMENT_EXPLAIN[s.label];
+    if (fn) parts.push(fn(s));
   }
-  if (n.reaction?.dayChangePct != null) {
-    const cls = n.reaction.dayChangePct > 0 ? 'pos' : n.reaction.dayChangePct < 0 ? 'neg' : 'neu';
-    kids.push(el('span', { class: `sum-kurs ${cls}` }, `Kurs am Tag ${fmtPct(n.reaction.dayChangePct)}`));
+  if (s?.unavailable) parts.push('Hinweis: Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
+  const cExpl = CATEGORY_EXPLAIN[n.category?.id];
+  if (cExpl) parts.push(cExpl);
+  for (const b of n.betroffen || []) {
+    if (b.why !== 'direkt') parts.push(`${b.symbol}: indirekt betroffen über ${b.why}.`);
   }
-  return el('div', { class: 'news-sum' }, kids);
+  if (!parts.length) return null;
+  return collapsible(
+    'Einordnung',
+    el('div', { class: 'news-explain-detail', style: 'margin-top:8px' }, parts.map((p) => el('div', {}, p)))
+  );
+}
+
+// ---------- Bestätigungs-Dialog (statt Browser-confirm) ----------
+
+export function confirmDialog(message, { okText = 'Löschen', cancelText = 'Abbrechen' } = {}) {
+  return new Promise((resolve) => {
+    const close = (result) => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(false);
+      if (e.key === 'Enter') close(true);
+    };
+    const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) close(false); } },
+      el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' },
+        el('div', { class: 'modal-text' }, message),
+        el('div', { class: 'modal-actions' },
+          el('button', { class: 'btn ghost', type: 'button', onclick: () => close(false) }, cancelText),
+          el('button', { class: 'btn danger-solid', type: 'button', onclick: () => close(true) }, okText)
+        )
+      )
+    );
+    document.body.append(overlay);
+    document.addEventListener('keydown', onKey);
+    overlay.querySelector('.btn.ghost').focus();
+  });
 }
 
 export function explainableSentimentBadge(sentiment) {

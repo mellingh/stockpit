@@ -145,6 +145,25 @@ export function analyzeTechnicals(history) {
   if (offHigh > -5) score += 0.5; // nahe Hoch = Stärke
   if (offLow < 10) score -= 0.5;
 
+  // Volumen: läuft überdurchschnittlich viel Umsatz? (für Swing wichtig —
+  // Bewegungen mit hohem Volumen sind belastbarer)
+  const vols = history.map((q) => q.volume).filter((v) => v > 0);
+  if (vols.length > 70) {
+    const avg3m = vols.slice(-63).reduce((a, b) => a + b, 0) / 63;
+    const avg5d = vols.slice(-5).reduce((a, b) => a + b, 0) / 5;
+    const rel = avg3m > 0 ? avg5d / avg3m : 1;
+    signals.push({
+      label: 'Volumen',
+      verdict: rel > 1.5 ? 'pos' : 'neutral',
+      text:
+        rel > 1.5
+          ? `Handelsvolumen zuletzt ${Math.round((rel - 1) * 100)} % über dem 3-Monats-Schnitt — erhöhtes Interesse`
+          : rel < 0.5
+            ? `Handelsvolumen zuletzt deutlich unter dem 3-Monats-Schnitt — wenig Beteiligung`
+            : `Handelsvolumen im normalen Bereich (${Math.round(rel * 100)} % des 3-Monats-Schnitts)`,
+    });
+  }
+
   const ampel = score >= 1.5 ? 'green' : score <= -1.5 ? 'red' : 'yellow';
 
   // Performance über Standard-Zeiträume (Handelstage) + Jahresstart
