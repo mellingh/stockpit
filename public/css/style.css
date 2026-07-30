@@ -121,13 +121,10 @@ a:hover { text-decoration: underline; }
 
 .brand {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 19px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: var(--ink);
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   white-space: nowrap;
 }
 .brand:hover { text-decoration: none; }
