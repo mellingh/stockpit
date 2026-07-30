@@ -261,6 +261,34 @@ async function loadReport(symbol) {
   $('r-chg').textContent = `${fmtPct(a.kurs.veraenderungPct)} heute`;
   $('r-chg').className = `chg ${signClass(a.kurs.veraenderungPct)}`;
 
+  // Frische Quartalszahlen prominent unterm Titel: Ist vs. erwartet
+  const z = a.zahlen;
+  const zBox = $('r-zahlen');
+  if (z?.gemeldet) {
+    const fmtEps = (v) => (v > 0 ? '+' : '') + Number(v).toFixed(2).replace('.', ',');
+    const tage = Math.floor((Date.now() - z.gemeldet) / 86400000);
+    const wann = tage <= 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
+    const cls = z.ueberraschungPct > 0 ? 'pos' : z.ueberraschungPct < 0 ? 'neg' : '';
+    zBox.hidden = false;
+    zBox.className = `zahlen-chip ${cls}`;
+    setChildren(zBox,
+      el('span', { class: 'zk-label' }, `Quartalszahlen ${wann}`),
+      z.epsTatsaechlich != null
+        ? el('span', { class: cls },
+            `EPS Ist ${fmtEps(z.epsTatsaechlich)}`,
+            z.epsErwartet != null ? ` vs. erw. ${fmtEps(z.epsErwartet)}` : '',
+            z.ueberraschungPct != null ? ` (${z.ueberraschungPct > 0 ? '+' : ''}${String(z.ueberraschungPct).replace('.', ',')} %)` : ''
+          )
+        : el('span', {},
+            z.epsErwartet != null ? `EPS erw. ${fmtEps(z.epsErwartet)} — ` : '',
+            el('span', { class: 'dim' }, 'Ergebnis folgt')
+          )
+    );
+  } else {
+    zBox.hidden = true;
+    zBox.replaceChildren();
+  }
+
   // Vor-/nachbörslicher Kurs (nur wenn die Börse ihn liefert, v. a. US-Werte)
   const ab = a.kurs.ausserboerslich;
   const pp = $('r-prepost');
@@ -338,8 +366,10 @@ async function renderX(a, verwaltenOffen = false) {
 
   const links = el('div', { class: 'x-links' },
     accounts.map((h) =>
-      el('a', { class: 'btn ghost small x-link', href: suchLink(h), target: '_blank', rel: 'noopener', title: `X-Suche: from:${h} $${ticker}` },
-        el('b', {}, `@${h}`), el('span', { class: 'dim' }, ` · $${ticker}`))
+      el('a', { class: 'x-link', href: suchLink(h), target: '_blank', rel: 'noopener', title: `X-Suche: from:${h} $${ticker} — Anzeige auf x.com braucht ggf. Login` },
+        xLogo(13),
+        el('b', {}, `@${h}`),
+        el('span', { class: 'x-cash' }, `$${ticker} ↗`))
     )
   );
 
@@ -379,14 +409,28 @@ async function renderX(a, verwaltenOffen = false) {
   );
 
   setChildren(box,
-    el('h2', { class: 'panel-title' }, 'Meinungen auf X', el('span', { class: 'hint' }, ' · öffnet die X-Suche zum Ticker')),
+    el('h2', { class: 'panel-title' }, 'Meinungen auf', xLogo(14)),
+    el('div', { class: 'x-sub' }, `Die neuesten Posts deiner Accounts zu $${ticker} — ein Klick öffnet die X-Suche.`),
     accounts.length
       ? links
       : el('div', { class: 'empty' }, 'Noch keine X-Accounts hinterlegt — unten hinzufügen.'),
-    el('div', { class: 'sym', style: 'margin:10px 0 8px' },
-      'Zeigt Posts des Accounts zum Cashtag $' + ticker + ' auf x.com (dortige Anzeige erfordert ggf. X-Login).'),
     verwalten
   );
+}
+
+// Offizielles X-Logo (schlicht, currentColor)
+function xLogo(size = 13) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('fill', 'currentColor');
+  svg.setAttribute('class', 'x-logo');
+  const p = document.createElementNS(svgNS, 'path');
+  p.setAttribute('d', 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z');
+  svg.append(p);
+  return svg;
 }
 
 // Wichtigste Metriken horizontal unter dem Chart (Yahoo-Stil).

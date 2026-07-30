@@ -67,6 +67,7 @@ const STOCK_MODULES = [
   'calendarEvents',
   'assetProfile',
   'upgradeDowngradeHistory',
+  'earningsHistory',
 ];
 
 export function getSummary(symbol) {

@@ -813,10 +813,48 @@ button:disabled { opacity: 0.5; cursor: wait; }
   opacity: 0.85;
 }
 
-/* "Meinungen auf X": Schnell-Links pro Account — je Account eine Zeile, kein Umbruch */
+/* "Meinungen auf X": Logo im Titel (einzeilig), Subline darunter,
+   prominente Schnell-Link-Buttons — je Account eine Zeile, kein Umbruch */
+#p-x .panel-title { white-space: nowrap; }
+#p-x .panel-title .x-logo { flex: none; }
+.x-sub { font-size: 12px; color: var(--ink-3); margin: -4px 0 12px; line-height: 1.5; }
 .x-links { display: grid; gap: 8px; }
-.x-link { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-.x-link b { font-weight: 600; }
+a.x-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 13.5px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+}
+a.x-link:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateX(2px); }
+.x-link .x-logo { color: var(--ink-2); flex: none; }
+.x-link b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.x-link .x-cash { margin-left: auto; flex: none; font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+
+/* Frische Quartalszahlen: Chip unterm Aktientitel (Ist vs. erwartet) */
+.zahlen-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.zahlen-chip .zk-label { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.zahlen-chip.pos { border-color: rgba(34, 192, 126, 0.35); }
+.zahlen-chip.neg { border-color: rgba(240, 97, 109, 0.35); }
 
 /* Icon-Knöpfe (Ändern/Löschen) am Zeilenende der Dashboard-Tabellen */
 .row-actions { text-align: right; white-space: nowrap; width: 1%; }

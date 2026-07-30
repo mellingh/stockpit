@@ -133,6 +133,7 @@ async function loadDashboard() {
           ? 'morgen'
           : new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
+    const fmtEps = (v) => (v > 0 ? '+' : '') + Number(v).toFixed(2).replace('.', ',');
     const eigeneZeile = (t) =>
       el('a', { class: 'trow', href: `./analyse.html?symbol=${encodeURIComponent(t.symbol)}`, title: `${t.name} — ${t.typ}, ${fmtDate(t.date)}` },
         el('span', { class: 'wann' }, wannVon(t)),
@@ -141,7 +142,12 @@ async function loadDashboard() {
           t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende',
           t.epsErwartet != null
             ? el('span', { class: `eps ${t.epsErwartet > 0 ? 'pos' : t.epsErwartet < 0 ? 'neg' : ''}` },
-                `EPS erw. ${(t.epsErwartet > 0 ? '+' : '') + Number(t.epsErwartet).toFixed(2).replace('.', ',')}`)
+                `EPS erw. ${fmtEps(t.epsErwartet)}`)
+            : null,
+          // Zahlen sind raus: tatsächliches EPS daneben, gefärbt nach Überraschung
+          t.epsTatsaechlich != null
+            ? el('span', { class: `eps ${t.ueberraschungPct > 0 ? 'pos' : t.ueberraschungPct < 0 ? 'neg' : ''}` },
+                `Ist ${fmtEps(t.epsTatsaechlich)}${t.ueberraschungPct != null ? ` (${t.ueberraschungPct > 0 ? '+' : ''}${String(t.ueberraschungPct).replace('.', ',')} %)` : ''}`)
             : null
         )
       );
@@ -153,7 +159,12 @@ async function loadDashboard() {
         el('span', { class: 'badge chip-sm' }, t.waehrung === 'USD' ? '🇺🇸' : '🇪🇺'),
         el('span', { class: 'tinfo' },
           kurzTitel,
-          t.prognose ? el('span', { class: 'eps' }, `Prog. ${t.prognose}`) : null
+          t.prognose ? el('span', { class: 'eps' }, `Prog. ${t.prognose}`) : null,
+          // Wert ist veröffentlicht: Ist-Wert daneben, grün/rot je nach Trend
+          t.aktuell
+            ? el('span', { class: `eps ${t.aktuellTrend === 'gut' ? 'pos' : t.aktuellTrend === 'schlecht' ? 'neg' : ''}` },
+                `Ist ${t.aktuell}`)
+            : null
         )
       );
     };
@@ -422,9 +433,12 @@ bindAddForm('add-pos-btn', 'add-pos-form', (box, zuklappen) => {
   box.append(form, hinweis);
 });
 
-// Watchlist: Wert suchen → direkt beobachten
+// Watchlist: Wert suchen → direkt beobachten.
+// Wichtig: erst in den .search-wrap einhängen, DANN attachSearch —
+// sonst findet die Vorschlagsbox ihren Anker nicht.
 bindAddForm('add-watch-btn', 'add-watch-form', (box, zuklappen) => {
-  const suche = el('input', { type: 'text', placeholder: 'Name oder Ticker suchen — Auswahl landet direkt auf der Watchlist', autocomplete: 'off' });
+  const suche = el('input', { type: 'text', placeholder: 'Name oder Ticker suchen …', autocomplete: 'off' });
+  box.append(el('div', { class: 'inline-add' }, el('span', { class: 'search-wrap', style: 'flex:1' }, suche)));
   attachSearch(suche, async (r) => {
     suche.value = '';
     zuklappen();
@@ -432,7 +446,6 @@ bindAddForm('add-watch-btn', 'add-watch-form', (box, zuklappen) => {
     loadDashboard();
     loadNews();
   });
-  box.append(el('div', { class: 'inline-add' }, el('span', { class: 'search-wrap', style: 'flex:1' }, suche)));
 });
 
 loadDashboard();

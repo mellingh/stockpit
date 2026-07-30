@@ -382,7 +382,9 @@ export function collapsible(summaryChildren, bodyChildren, open = false) {
 // ---------- Ticker-Suche mit Vorschlägen ----------
 
 export function attachSearch(input, onPick) {
-  const wrap = input.closest('.search-wrap');
+  // Lazy auflösen: das Input steckt evtl. erst NACH attachSearch im Wrap
+  let wrap = input.closest('.search-wrap');
+  const getWrap = () => (wrap ??= input.closest('.search-wrap'));
   let box = null;
   let items = [];
   let sel = -1;
@@ -410,7 +412,7 @@ export function attachSearch(input, onPick) {
       box.append(btn);
       return btn;
     });
-    wrap.append(box);
+    getWrap()?.append(box);
   };
 
   input.addEventListener('input', () => {
@@ -438,7 +440,7 @@ export function attachSearch(input, onPick) {
   });
 
   document.addEventListener('click', (e) => {
-    if (!wrap.contains(e.target)) close();
+    if (!getWrap()?.contains(e.target)) close();
   });
 }
 

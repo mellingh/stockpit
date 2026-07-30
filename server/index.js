@@ -95,6 +95,37 @@ function brancheDeutsch(branche) {
   return BRANCHE_DE[branche] ?? BRANCHE_DE[norm] ?? branche;
 }
 
+// Frisch gemeldete Quartalszahlen: die jüngste earningsHistory-Zeile gehört
+// zum laufenden Berichtszyklus, wenn ihr Quartalsende < 60 Tage her ist
+// (die vorherige Zeile wäre > 90 Tage alt). Meldezeitpunkt kommt aus der
+// Quote (earningsTimestamp), sofern er in den letzten 14 Tagen liegt.
+function frischeZahlen(summary, quote) {
+  const rows = summary?.earningsHistory?.history ?? [];
+  let best = null;
+  for (const r of rows) {
+    if (r?.epsActual == null || !r.quarter) continue;
+    const q = new Date(r.quarter).getTime();
+    if (!best || q > best.q) best = { q, r };
+  }
+  const reihe = best && Date.now() - best.q <= 60 * DAY ? best.r : null;
+
+  // Meldezeitpunkt aus der Quote — direkt nach dem Report aktuell, während
+  // die earningsHistory das Ist-EPS oft erst Stunden später nachträgt
+  const ts = (quote?.earningsTimestamp ? new Date(quote.earningsTimestamp).getTime() : 0) || 0;
+  const gemeldet = ts && ts <= Date.now() && Date.now() - ts <= 14 * DAY ? ts : null;
+
+  if (!reihe && !gemeldet) return null;
+  return {
+    gemeldet,
+    epsErwartet: reihe?.epsEstimate ?? summary?.calendarEvents?.earnings?.earningsAverage ?? null,
+    epsTatsaechlich: reihe?.epsActual ?? null, // null = gemeldet, Ist noch nicht bei Yahoo
+    ueberraschungPct:
+      reihe?.epsEstimate
+        ? Math.round(((reihe.epsActual - reihe.epsEstimate) / Math.abs(reihe.epsEstimate)) * 1000) / 10
+        : null,
+  };
+}
+
 // Vor-/nachbörslicher Kurs (US-Börsen liefern das, XETRA & Co. meist nicht).
 // marketState: PREPRE/PRE → Pre-Market, POST/POSTPOST/CLOSED → After-Hours.
 function ausserboerslich(quote) {
@@ -423,6 +454,7 @@ app.get(
       kennzahlen,
       snowflake,
       termine,
+      zahlen: frischeZahlen(summary, quote),
       etf,
       trials,
       news,
@@ -522,8 +554,27 @@ app.get(
       try {
         const summary = await yahoo.getSummary(t.symbol);
         const cal = summary?.calendarEvents ?? {};
+
+        // Frisch gemeldete Zahlen (letzte 3 Tage): der Termin bleibt stehen
+        // und zeigt zusätzlich das tatsächliche EPS neben der Erwartung
+        const zahlen = frischeZahlen(summary, quotes[t.symbol]);
+        let gemeldetGezeigt = false;
+        if (zahlen?.gemeldet && Date.now() - zahlen.gemeldet <= 3 * DAY) {
+          gemeldetGezeigt = true;
+          upcoming.push({
+            symbol: t.symbol,
+            name: t.name,
+            typ: 'Quartalszahlen',
+            date: zahlen.gemeldet,
+            days: Math.max(daysUntil(zahlen.gemeldet), 0),
+            epsErwartet: zahlen.epsErwartet,
+            epsTatsaechlich: zahlen.epsTatsaechlich,
+            ueberraschungPct: zahlen.ueberraschungPct,
+          });
+        }
+
         const earnings = cal.earnings?.earningsDate?.[0];
-        if (earnings) {
+        if (earnings && !gemeldetGezeigt) {
           const days = daysUntil(earnings);
           if (days >= 0 && days <= 14) {
             upcoming.push({
@@ -575,6 +626,8 @@ app.get(
           days: e.days,
           prognose: e.prognose,
           vorher: e.vorher,
+          aktuell: e.aktuell ?? null,
+          aktuellTrend: e.aktuellTrend ?? null,
         }));
       upcoming.push(...marktTermine);
     } catch {}
