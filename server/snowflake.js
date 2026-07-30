@@ -24,17 +24,17 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
     if (kgv < 15) wert += 2;
     else if (kgv < 25) wert += 1.25;
     else if (kgv < 40) wert += 0.5;
-    if (kgv > 60) risiken.push(`Hohe Bewertung: KGV ${Math.round(kgv)} — viel Zukunft ist eingepreist`);
+    if (kgv > 60) risiken.push({ t: `Hohe Bewertung: KGV ${Math.round(kgv)} — viel Zukunft ist eingepreist`, info: 'KGV = Kurs-Gewinn-Verhältnis: wie viele Jahresgewinne man für die Aktie bezahlt. Werte über ~60 gelten als sehr teuer.' });
   }
   if (k?.peg != null && k.peg > 0) {
-    if (k.peg < 1) { wert += 1.5; staerken.push(`Günstig fürs Wachstum: PEG ${k.peg.toFixed(2)} (unter 1)`); }
+    if (k.peg < 1) { wert += 1.5; staerken.push({ t: `Günstig fürs Wachstum: PEG ${k.peg.toFixed(2)} (unter 1)`, info: 'PEG = KGV geteilt durch das erwartete Gewinnwachstum. Unter 1 heißt: Der Preis ist im Verhältnis zum Wachstum niedrig.' }); }
     else if (k.peg < 2) wert += 0.75;
   }
   const upside = analysts?.targets?.upsidePct;
   if (upside != null) {
-    if (upside > 25) { wert += 1.5; staerken.push(`Analysten sehen ${Math.round(upside)} % Kurspotenzial zum Ø-Kursziel`); }
+    if (upside > 25) { wert += 1.5; staerken.push({ t: `Analysten sehen ${Math.round(upside)} % Kurspotenzial zum Ø-Kursziel`, info: 'Ø-Kursziel = Durchschnitt der Kursziele aller Banken, die die Aktie bewerten.' }); }
     else if (upside > 10) wert += 0.75;
-    else if (upside < -10) risiken.push(`Kurs liegt ${Math.abs(Math.round(upside))} % über dem Ø-Kursziel der Analysten`);
+    else if (upside < -10) risiken.push({ t: `Kurs liegt ${Math.abs(Math.round(upside))} % über dem Ø-Kursziel der Analysten`, info: 'Ø-Kursziel = Durchschnitt der Kursziele aller Banken — der Markt ist hier schon optimistischer als die Profis.' });
   }
 
   // ---- ZUKUNFT: Wächst das Geschäft? ----
@@ -58,16 +58,16 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
   let vergangenheit = 0;
   if (k?.epsTtm != null) {
     if (k.epsTtm > 0) vergangenheit += 1.25;
-    else risiken.push('Nicht profitabel: negatives Ergebnis je Aktie (12 Monate)');
+    else risiken.push({ t: 'Nicht profitabel: negatives Ergebnis je Aktie (12 Monate)', info: 'Ergebnis je Aktie (EPS) = Gewinn geteilt durch die Zahl der Aktien — negativ bedeutet: Die Firma macht unterm Strich Verlust.' });
   }
   if (k?.roe != null) {
-    if (k.roe > 0.15) { vergangenheit += 1.5; staerken.push(`Hohe Eigenkapitalrendite: ROE ${pct(k.roe)}`); }
+    if (k.roe > 0.15) { vergangenheit += 1.5; staerken.push({ t: `Hohe Eigenkapitalrendite: ROE ${pct(k.roe)}`, info: 'ROE (Return on Equity) = Gewinn im Verhältnis zum Eigenkapital — zeigt, wie effizient das Geld der Aktionäre arbeitet.' }); }
     else if (k.roe > 0) vergangenheit += 0.75;
   }
   if (f.nettomarge != null) {
     if (f.nettomarge > 0.1) vergangenheit += 1;
     else if (f.nettomarge > 0) vergangenheit += 0.5;
-    else risiken.push(`Negative Nettomarge (${pct(f.nettomarge)})`);
+    else risiken.push({ t: `Negative Nettomarge (${pct(f.nettomarge)})`, info: 'Nettomarge = Gewinn in Prozent vom Umsatz — negativ heißt: Von jedem umgesetzten Euro bleibt ein Verlust.' });
   }
   const perfJahr = k?.performance?.jahr;
   if (perfJahr != null) {
@@ -101,11 +101,11 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
       if (k?.currentRatio != null) {
         if (k.currentRatio > 1.5) bilanz += 1.5;
         else if (k.currentRatio > 1) bilanz += 0.75;
-        else risiken.push(`Kurzfristige Verbindlichkeiten übersteigen das Umlaufvermögen (Current Ratio ${k.currentRatio.toFixed(2)})`);
+        else risiken.push({ t: `Kurzfristige Verbindlichkeiten übersteigen das Umlaufvermögen (Current Ratio ${k.currentRatio.toFixed(2)})`, info: 'Current Ratio = schnell verfügbares Vermögen geteilt durch kurzfristige Schulden — unter 1 wird es eng, wenn Rechnungen fällig werden.' });
       }
       if (f.freeCashflow != null) {
-        if (f.freeCashflow > 0) { bilanz += 1.5; staerken.push('Positiver Free Cashflow — Geschäft trägt sich selbst'); }
-        else risiken.push('Negativer Free Cashflow — verbrennt derzeit Geld');
+        if (f.freeCashflow > 0) { bilanz += 1.5; staerken.push({ t: 'Positiver Free Cashflow — Geschäft trägt sich selbst', info: 'Free Cashflow = Geld, das nach allen laufenden Kosten und Investitionen tatsächlich übrig bleibt.' }); }
+        else risiken.push({ t: 'Negativer Free Cashflow — verbrennt derzeit Geld', info: 'Free Cashflow = Geld, das nach Kosten und Investitionen übrig bleibt — negativ: Die Firma braucht laufend frisches Kapital.' });
       }
     }
   }
@@ -118,20 +118,20 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
     else dividende += 0.75;
     if (f.ausschuettungsquote != null) {
       if (f.ausschuettungsquote > 0.15 && f.ausschuettungsquote < 0.7) dividende += 1.5;
-      else if (f.ausschuettungsquote >= 0.9) risiken.push(`Ausschüttungsquote ${pct(f.ausschuettungsquote)} — Dividende kaum verdient`);
+      else if (f.ausschuettungsquote >= 0.9) risiken.push({ t: `Ausschüttungsquote ${pct(f.ausschuettungsquote)} — Dividende kaum verdient`, info: 'Ausschüttungsquote = Anteil des Gewinns, der als Dividende ausgezahlt wird — über 90 % ist auf Dauer kaum zu halten.' });
       else dividende += 0.5;
     }
   }
 
   // ---- Weitere Warnsignale ----
   if (k?.shortFloat != null && k.shortFloat > 0.1) {
-    risiken.push(`Short Float ${pct(k.shortFloat)} — viele Wetten auf fallende Kurse`);
+    risiken.push({ t: `Short Float ${pct(k.shortFloat)} — viele Wetten auf fallende Kurse`, info: 'Short Float = Anteil der frei handelbaren Aktien, die leerverkauft sind. Leerverkäufer verdienen nur bei fallendem Kurs — ein hoher Wert zeigt viel Skepsis.' });
   }
   if (termine?.earnings) {
     const tage = Math.round((new Date(termine.earnings) - Date.now()) / 86_400_000);
     if (tage >= 0 && tage <= 7) risiken.push(`Quartalszahlen in ${tage === 0 ? 'wenigen Stunden' : `${tage} Tag${tage === 1 ? '' : 'en'}`} — erhöhte Schwankung möglich`);
   }
-  if (technik?.ampel === 'green') staerken.push('Technischer Aufwärtstrend (Kurs über den gleitenden Durchschnitten)');
+  if (technik?.ampel === 'green') staerken.push({ t: 'Technischer Aufwärtstrend (Kurs über den gleitenden Durchschnitten)', info: 'Gleitende Durchschnitte (SMA 50/200) = geglättete Kurslinien der letzten 50 bzw. 200 Handelstage — notiert der Kurs darüber, gilt das als Aufwärtstrend.' });
 
   const scores = {
     wert: clamp(wert),

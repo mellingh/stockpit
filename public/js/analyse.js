@@ -316,7 +316,17 @@ async function loadReport(symbol) {
       el('div', { class: `gscore ${scoreCls}` },
         el('span', { class: `dot ${g.ampel}` }),
         AMPEL_TEXT[g.ampel]
-      )
+      ),
+      // Woraus sich das Urteil speist: Ampel-Punkt je Komponente (Tooltip = Detail)
+      g.components?.length
+        ? el('div', { class: 'g-comps' },
+            g.components.map((c) =>
+              el('span', { class: 'g-comp', title: c.text },
+                el('span', { class: `dot ${c.verdict === 'pos' ? 'green' : c.verdict === 'neg' ? 'red' : 'yellow'}` }),
+                c.label.replace('News-Sentiment', 'News'))
+            )
+          )
+        : null
     );
     gCard.title = 'Zur Einordnung springen (Stärken, Risiken, Snowflake)';
     gCard.onclick = () => {
@@ -441,28 +451,29 @@ function renderQuoteStrip(a) {
   const k = a.kurs;
   const perf = a.kennzahlen?.performance ?? {};
   const spanne = (lo, hi) => (lo != null && hi != null ? `${fmtNum(lo)} – ${fmtNum(hi)}` : '–');
-  // [Label, Wert, optionale Farb-Klasse]
+  // [Label, Wert, optionale Farb-Klasse] — Labels bewusst auf ENGLISCH
+  // (Michas Wunsch: die Fachbegriffe wie bei Yahoo/Finviz, nur in dieser Leiste)
   const zellen = [
-    ['Kurs Vortag', fmtNum(k.vortag)],
-    ['Eröffnung', fmtNum(k.eroeffnung)],
-    ['Tagesspanne', spanne(k.tagesTief, k.tagesHoch)],
-    ['52-Wochen-Spanne', spanne(k.w52Tief, k.w52Hoch)],
-    ['Volumen', fmtCompact(k.volumen)],
-    ['Ø-Volumen', fmtCompact(k.volumenSchnitt)],
-    ['Marktkap.', k.marktkap != null ? `${fmtCompact(k.marktkap)} ${a.currency}` : '–'],
+    ['Previous Close', fmtNum(k.vortag)],
+    ['Open', fmtNum(k.eroeffnung)],
+    ['Day Range', spanne(k.tagesTief, k.tagesHoch)],
+    ['52 Week Range', spanne(k.w52Tief, k.w52Hoch)],
+    ['Volume', fmtCompact(k.volumen)],
+    ['Avg. Volume', fmtCompact(k.volumenSchnitt)],
+    ['Market Cap', k.marktkap != null ? `${fmtCompact(k.marktkap)} ${a.currency}` : '–'],
     ['Beta', fmtNum(a.kennzahlen?.beta)],
-    ['KGV (12 Mon.)', fmtNum(a.fundamental?.kgv)],
-    ['KGV (erwartet)', fmtNum(a.fundamental?.kgvForward)],
-    ['EPS (12 Mon.)', fmtNum(a.kennzahlen?.epsTtm)],
-    ['Umsatzwachstum', a.fundamental?.umsatzwachstum != null ? fmtPctFrac(a.fundamental.umsatzwachstum) : '–'],
-    ['Nettomarge', a.fundamental?.nettomarge != null ? fmtPctFrac(a.fundamental.nettomarge) : '–'],
-    ['Perf. seit 1.1.', fmtPct(perf.ytd), signClass(perf.ytd)],
-    ['Perf. 1 Jahr', fmtPct(perf.jahr), signClass(perf.jahr)],
+    ['PE Ratio (TTM)', fmtNum(a.fundamental?.kgv)],
+    ['Forward PE', fmtNum(a.fundamental?.kgvForward)],
+    ['EPS (TTM)', fmtNum(a.kennzahlen?.epsTtm)],
+    ['Revenue Growth', a.fundamental?.umsatzwachstum != null ? fmtPctFrac(a.fundamental.umsatzwachstum) : '–'],
+    ['Net Margin', a.fundamental?.nettomarge != null ? fmtPctFrac(a.fundamental.nettomarge) : '–'],
+    ['Perf. YTD', fmtPct(perf.ytd), signClass(perf.ytd)],
+    ['Perf. 1Y', fmtPct(perf.jahr), signClass(perf.jahr)],
     ['Short Float', a.kennzahlen?.shortFloat != null ? fmtPctFrac(a.kennzahlen.shortFloat) : '–'],
-    ['Nächste Zahlen', fmtDate(a.termine?.earnings)],
-    ['Dividendenrendite', a.fundamental?.dividendenrendite != null ? fmtPct(a.fundamental.dividendenrendite, false) : '–'],
-    ['Ex-Dividende', fmtDate(a.termine?.exDividende)],
-    ['Ø-Kursziel', a.analysts?.targets?.mean != null ? fmtNum(a.analysts.targets.mean) : '–'],
+    ['Next Earnings', fmtDate(a.termine?.earnings)],
+    ['Dividend Yield', a.fundamental?.dividendenrendite != null ? fmtPct(a.fundamental.dividendenrendite, false) : '–'],
+    ['Ex-Dividend', fmtDate(a.termine?.exDividende)],
+    ['Avg. Price Target', a.analysts?.targets?.mean != null ? fmtNum(a.analysts.targets.mean) : '–'],
   ];
   box.hidden = false;
   box.replaceChildren(
@@ -485,20 +496,28 @@ function renderUebersicht(a) {
   }
   box.hidden = false;
 
-  // Linke Seite: Kurzbeschreibung + Stärken/Risiken
+  // Linke Seite: Kurzbeschreibung + Stärken/Risiken.
+  // Punkte können {t, info} sein — info erklärt Fachbegriffe (PEG, ROE, …)
+  // als eingerückte Zeile darunter, damit auch Laien sofort verstehen.
+  const punkt = (p, cls, pfeil) =>
+    el('div', { class: `ov-punkt ${cls}` },
+      `${pfeil} `,
+      typeof p === 'string' ? p : p.t,
+      typeof p === 'object' && p.info ? el('div', { class: 'ov-punkt-info' }, p.info) : null
+    );
   const kurz = u?.beschreibung && u.beschreibung.length > 260 ? u.beschreibung.slice(0, 260) + ' …' : u?.beschreibung;
   const links = el('div', { class: 'ov-links' },
     el('p', { class: 'uebersicht-text' }, kurz || ''),
     sf?.staerken?.length
       ? el('div', {},
           el('div', { class: 'kpi-label', style: 'margin:10px 0 6px' }, 'Stärken'),
-          sf.staerken.map((t) => el('div', { class: 'ov-punkt pos' }, '▲ ', t))
+          sf.staerken.map((p) => punkt(p, 'pos', '▲'))
         )
       : null,
     sf?.risiken?.length
       ? el('div', {},
           el('div', { class: 'kpi-label', style: 'margin:10px 0 6px' }, 'Risiken'),
-          sf.risiken.map((t) => el('div', { class: 'ov-punkt neg' }, '▼ ', t))
+          sf.risiken.map((p) => punkt(p, 'neg', '▼'))
         )
       : null
   );
