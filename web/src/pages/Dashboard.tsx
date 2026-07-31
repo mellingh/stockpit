@@ -154,17 +154,13 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); reset(); } }}>
-      <DialogContent className="p-0">
-        <div className="p-5 pb-0">
-          <DialogTitle>Position hinzufügen</DialogTitle>
-        </div>
+      <DialogContent>
+        <DialogTitle>Position hinzufügen</DialogTitle>
         {!gewaehlt ? (
-          <div className="px-1.5 pb-1.5">
-            <SymbolSearch onPick={setGewaehlt} placeholder="Name oder Ticker …" />
-          </div>
+          <SymbolSearch onPick={setGewaehlt} placeholder="Name oder Ticker …" autoFocus />
         ) : (
           <form
-            className="grid gap-3 p-5 pt-1"
+            className="grid gap-4"
             onSubmit={(e) => {
               e.preventDefault();
               mutation.mutate(
@@ -214,10 +210,10 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
               <p className="text-small text-down">Fehler: {(mutation.error as Error).message}</p>
             )}
             <div className="flex justify-end gap-2.5">
-              <Button type="button" variant="ghost" size="sm" onClick={() => { onClose(); reset(); }}>
+              <Button type="button" variant="ghost" onClick={() => { onClose(); reset(); }}>
                 Abbrechen
               </Button>
-              <Button type="submit" size="sm" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending}>
                 Hinzufügen
               </Button>
             </div>
@@ -249,7 +245,7 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
           {position?.name} <span className="text-ink3">({position?.symbol})</span>
         </DialogTitle>
         <form
-          className="grid gap-3"
+          className="grid gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (!position) return;
@@ -273,10 +269,10 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
             <p className="text-small text-down">Fehler: {(mutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-2.5">
-            <Button type="button" variant="ghost" size="sm" onClick={() => { onClose(); setGeladenFuer(null); }}>
+            <Button type="button" variant="ghost" onClick={() => { onClose(); setGeladenFuer(null); }}>
               Abbrechen
             </Button>
-            <Button type="submit" size="sm" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending}>
               Speichern
             </Button>
           </div>
@@ -290,19 +286,16 @@ function AddWatchDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const mutation = usePortfolioMutation((symbol: string) => api.post('/api/watchlist', { symbol }));
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="p-0">
-        <div className="p-5 pb-0">
-          <DialogTitle>Wert beobachten</DialogTitle>
-        </div>
-        <div className="px-1.5 pb-1.5">
-          <SymbolSearch
-            placeholder="Name oder Ticker suchen …"
-            onPick={(r) => {
-              mutation.mutate(r.symbol);
-              onClose();
-            }}
-          />
-        </div>
+      <DialogContent>
+        <DialogTitle>Wert beobachten</DialogTitle>
+        <SymbolSearch
+          autoFocus
+          placeholder="Name oder Ticker suchen …"
+          onPick={(r) => {
+            mutation.mutate(r.symbol);
+            onClose();
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

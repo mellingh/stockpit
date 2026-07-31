@@ -18,7 +18,7 @@ const buttonVariants = cva(
         danger:
           'border border-down/40 bg-transparent text-down hover:bg-down-soft hover:border-down',
         subtle: 'bg-panel2 text-ink2 border border-line hover:text-ink hover:border-line-strong',
-        icon: 'bg-transparent text-ink3 hover:text-ink hover:bg-panel2 rounded-md',
+        icon: 'bg-transparent text-ink3 hover:text-ink rounded-md',
       },
       size: {
         md: 'h-control-md px-5 text-base',

@@ -56,8 +56,8 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
-        <div className="mx-auto flex h-16 w-full max-w-[1460px] items-center gap-7 px-5">
-          <Link to="/" className="font-display text-[20px] font-bold tracking-tight text-ink">
+        <div className="mx-auto flex h-[4.25rem] w-full max-w-[1600px] items-center gap-8 px-6">
+          <Link to="/" className="font-display text-[1.45rem] font-bold tracking-tight text-ink">
             Stock<span className="text-accent">pit</span>
           </Link>
           <nav className="flex items-center gap-1">
@@ -92,7 +92,7 @@ export default function App() {
         />
       </header>
 
-      <main className="mx-auto w-full max-w-[1460px] flex-1 px-5 pb-16 pt-7">
+      <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 pb-20 pt-8">
         <Seite />
       </main>
 

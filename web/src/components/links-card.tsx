@@ -63,11 +63,11 @@ export function LinksCard({ symbol }: { symbol: string }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`${beschreibung} — öffnet in neuem Tab`}
-      className="group inline-flex h-control-sm items-center gap-2 rounded-full border border-line-strong bg-panel2 pl-3 pr-2.5 text-small text-ink2 transition-all duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink"
+      className="group flex h-control-sm items-center gap-2 overflow-hidden rounded-full border border-line-strong bg-panel2 pl-3 pr-2.5 text-small text-ink2 transition-colors duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink"
     >
       <span className="text-ink3 transition-colors group-hover:text-accent">{icon}</span>
-      {label}
-      <ArrowUpRight size={13} className="text-ink3 transition-colors group-hover:text-accent" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <ArrowUpRight size={13} className="shrink-0 text-ink3 transition-colors group-hover:text-accent" aria-hidden />
     </a>
   );
 
@@ -102,7 +102,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
       {accounts.length + webLinks.length === 0 ? (
         <Empty>Noch nichts hinterlegt.</Empty>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {accounts.map((h) => (
             <LinkPill
               key={h}

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { SymbolSearch } from '@/components/symbol-search';
+import { SearchDialog } from '@/components/search-dialog';
 import { StockChart } from '@/components/stock-chart';
 import { LinksCard } from '@/components/links-card';
 import { RadarChart } from '@/components/radar';
@@ -741,11 +741,7 @@ export default function AnalysePage() {
         <h1 className="mb-5 mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight">
           Ticker rein, <em className="not-italic text-accent">Einschätzung raus.</em>
         </h1>
-        <SymbolSearch
-          groß
-          className="max-w-[560px]"
-          onPick={(r) => waehlen(r.symbol)}
-        />
+        <SearchDialog className="max-w-[600px]" onPick={(r) => waehlen(r.symbol)} />
       </header>
       {symbol ? <Report symbol={symbol} /> : <Startansicht onPick={waehlen} />}
     </div>

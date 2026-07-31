@@ -6,7 +6,7 @@ export function Panel({ className, ...props }: React.ComponentProps<'section'>) 
   return (
     <section
       className={cn(
-        'rounded-lg border border-line bg-panel p-5 shadow-panel',
+        'rounded-lg border border-line bg-panel p-6 shadow-panel',
         className
       )}
       {...props}
@@ -25,7 +25,7 @@ export function PanelTitle({
   return (
     <h2
       className={cn(
-        'mb-4 flex items-center gap-2.5 text-micro font-bold uppercase tracking-[0.14em] text-ink2',
+        'mb-5 flex items-center gap-2.5 text-micro font-bold uppercase tracking-[0.14em] text-ink2',
         className
       )}
       {...props}

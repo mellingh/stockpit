@@ -20,8 +20,8 @@ const TAGE = [
   ['woche', 'Diese Woche'],
 ] as const;
 const WICHTIGKEIT = [
-  ['high', '★★★'],
   ['med', '★★☆+'],
+  ['high', '★★★'],
   ['all', 'Alle'],
 ] as const;
 
@@ -90,24 +90,25 @@ function EventZeile({ e }: { e: KalenderEvent }) {
         title="Klick: Was bedeutet dieser Termin?"
         className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
       >
-        <td className="w-[56px] py-2.5 font-mono text-small text-ink3 tnum">{zeit}</td>
-        <td className="w-[86px] whitespace-nowrap py-2.5 text-base" title={e.waehrung ?? ''}>
-          {flagge(e.land)} {e.land ?? e.waehrung ?? '–'}
+        <td className="w-[56px] py-3 font-mono text-small text-ink3 tnum">{zeit}</td>
+        <td className="w-[94px] whitespace-nowrap py-3 text-base" title={e.waehrung ?? ''}>
+          <span className="mr-2 text-[1.15em] leading-none">{flagge(e.land)}</span>
+          <span className="font-mono text-small text-ink2">{e.land ?? e.waehrung ?? '–'}</span>
         </td>
-        <td className="w-[62px] py-2.5">
+        <td className="w-[66px] py-3">
           <span className={cn('text-micro tracking-widest', imp.cls)} title={imp.label}>
             {imp.stars}
           </span>
         </td>
-        <td className="py-2.5 pr-3 text-base font-medium text-ink">{e.titel}</td>
+        <td className="py-3 pr-3 text-base font-medium text-ink">{e.titel}</td>
         <td
-          className={cn('py-2.5 text-right font-mono text-small tnum', aktuellCls)}
+          className={cn('py-3 text-right font-mono text-small tnum', aktuellCls)}
           title={e.aktuellTrend ? `${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als Prognose` : ''}
         >
           {e.aktuell ?? '–'}
         </td>
-        <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.prognose ?? '–'}</td>
-        <td className="py-2.5 text-right font-mono text-small text-ink3 tnum">{e.vorher ?? '–'}</td>
+        <td className="py-3 text-right font-mono text-small text-ink2 tnum">{e.prognose ?? '–'}</td>
+        <td className="py-3 text-right font-mono text-small text-ink3 tnum">{e.vorher ?? '–'}</td>
       </tr>
       {offen && (
         <tr className="border-b border-line last:border-b-0">
@@ -152,18 +153,19 @@ export default function KalenderPage() {
       </header>
 
       <Panel className="animate-rise" style={{ animationDelay: '70ms' }}>
-        <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
           {TAGE.map(([key, label]) => (
             <FilterPill key={key} aktiv={tag === key} onClick={() => setTag(key)}>
               {label}
             </FilterPill>
           ))}
-          <span className="mx-2 h-4 w-px bg-line-strong" />
-          {WICHTIGKEIT.map(([key, label]) => (
-            <FilterPill key={key} aktiv={imp === key} onClick={() => setImp(key)}>
-              {label}
-            </FilterPill>
-          ))}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {WICHTIGKEIT.map(([key, label]) => (
+              <FilterPill key={key} aktiv={imp === key} onClick={() => setImp(key)}>
+                {label}
+              </FilterPill>
+            ))}
+          </div>
         </div>
 
         {isLoading && <Skeleton className="h-[320px]" />}
