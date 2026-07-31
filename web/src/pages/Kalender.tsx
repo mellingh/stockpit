@@ -159,7 +159,7 @@ function EventZeile({ e, autoOffen = false }: { e: KalenderEvent; autoOffen?: bo
       </tr>
       {offen && (
         <tr className="border-b border-line last:border-b-0">
-          <td colSpan={7} className="px-2 pb-3 pt-1">
+          <td colSpan={7} className="px-0 py-2.5">
             <BulletListe punkte={punkte} />
           </td>
         </tr>

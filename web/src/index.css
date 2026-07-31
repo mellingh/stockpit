@@ -65,7 +65,7 @@
        text-small      13px  ALLE Mono-/Kurs-/Tabellendaten, Listenzeilen, Hilfstexte
        text-base       15px  Fließtext, Teaser, Formularfelder, Sucheingabe
        text-lg         16px  News-Titel, Sterne
-       display-sm/md/lg 20/28/36px  Logo, Kennzahlen/Panel-Zahlen, Seitentitel
+       display-sm/md/lg 22/28/36px  Logo, Kennzahlen/Panel-Zahlen, Seitentitel
      Kontrollhöhen (8px-Raster, alles Klickbare):
        h-control-xs    24px  statische Chips/Badges
        h-control-sm    32px  Filter-Pills, kleine Buttons, Icon-Buttons, Nav
@@ -81,7 +81,7 @@
   --text-base--line-height: 1.5;
   --text-lg: 16px;
   --text-lg--line-height: 1.4;
-  --text-display-sm: 20px;
+  --text-display-sm: 22px;
   --text-display-sm--line-height: 1.25;
   --text-display-md: 28px;
   --text-display-md--line-height: 1.15;
