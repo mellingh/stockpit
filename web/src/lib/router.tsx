@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 
 interface RouterState {
   url: string;
-  navigate: (to: string) => void;
+  navigate: (to: string, opts?: { replace?: boolean; scroll?: boolean }) => void;
 }
 
 const RouterContext = createContext<RouterState>({ url: '/', navigate: () => {} });
@@ -18,10 +18,13 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const navigate = useCallback((to: string) => {
-    history.pushState(null, '', to);
+  const navigate = useCallback((to: string, opts?: { replace?: boolean; scroll?: boolean }) => {
+    // replace für Filter-/Zeitraumwechsel: füllt die Verlaufsliste nicht zu,
+    // der Zurück-Button springt trotzdem zur vorherigen Ansicht
+    if (opts?.replace) history.replaceState(null, '', to);
+    else history.pushState(null, '', to);
     setUrl(to);
-    window.scrollTo({ top: 0 });
+    if (opts?.scroll !== false && !opts?.replace) window.scrollTo({ top: 0 });
   }, []);
 
   return <RouterContext.Provider value={{ url, navigate }}>{children}</RouterContext.Provider>;
@@ -29,6 +32,25 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
 
 export function useNavigate() {
   return useContext(RouterContext).navigate;
+}
+
+/**
+ * Einzelnen Query-Parameter setzen/entfernen, ohne die anderen zu verlieren.
+ * Damit landen Filter und Zeiträume in der URL (teilbar, Zurück-Button, F5-fest).
+ */
+export function useSetParam() {
+  const { url, navigate } = useContext(RouterContext);
+  return useCallback(
+    (schluessel: string, wert: string | null) => {
+      const [pfad, query = ''] = url.split('?');
+      const params = new URLSearchParams(query);
+      if (wert == null) params.delete(schluessel);
+      else params.set(schluessel, wert);
+      const suffix = params.toString();
+      navigate(suffix ? `${pfad}?${suffix}` : pfad, { replace: true });
+    },
+    [url, navigate]
+  );
 }
 
 export function usePathname() {

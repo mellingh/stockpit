@@ -230,22 +230,23 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
   );
 }
 
+/**
+ * Bearbeiten-Dialog. Die Startwerte kommen aus der Position; der Aufrufer
+ * gibt der Komponente ein `key` mit der Positions-ID, damit React sie beim
+ * Wechsel neu erzeugt — so braucht es kein State-Sync im Render (React-Regel
+ * „derived state without effect").
+ */
 function EditPositionDialog({ position, onClose }: { position: Position | null; onClose: () => void }) {
-  const [shares, setShares] = useState('');
-  const [buyPrice, setBuyPrice] = useState('');
-  const [geladenFuer, setGeladenFuer] = useState<string | null>(null);
+  const [shares, setShares] = useState(position ? String(position.shares) : '');
+  const [buyPrice, setBuyPrice] = useState(
+    position?.buyPrice != null ? String(position.buyPrice) : ''
+  );
   const mutation = usePortfolioMutation((input: { id: string; shares: number; buyPrice: number | null }) =>
     api.patch(`/api/positions/${input.id}`, { shares: input.shares, buyPrice: input.buyPrice })
   );
 
-  if (position && geladenFuer !== position.id) {
-    setShares(String(position.shares));
-    setBuyPrice(position.buyPrice != null ? String(position.buyPrice) : '');
-    setGeladenFuer(position.id);
-  }
-
   return (
-    <Dialog open={!!position} onOpenChange={(o) => { if (!o) { onClose(); setGeladenFuer(null); } }}>
+    <Dialog open={!!position} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogTitle>
           {position?.name} <span className="text-ink3">({position?.symbol})</span>
@@ -257,7 +258,7 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
             if (!position) return;
             mutation.mutate(
               { id: position.id, shares: Number(shares), buyPrice: buyPrice === '' ? null : Number(buyPrice) },
-              { onSuccess: () => { onClose(); setGeladenFuer(null); } }
+              { onSuccess: onClose }
             );
           }}
         >
@@ -277,7 +278,7 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
             <p className="text-[12.5px] text-down">Fehler: {(mutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-2.5">
-            <Button type="button" variant="ghost" size="sm" onClick={() => { onClose(); setGeladenFuer(null); }}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Abbrechen
             </Button>
             <Button type="submit" size="sm" disabled={mutation.isPending}>
@@ -358,7 +359,14 @@ function Positionen({ d }: { d: Dashboard }) {
                 className="group cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
               >
                 <td className="py-3 pr-3">
-                  <div className="font-medium text-ink">{p.name}</div>
+                  {/* echter Link: Strg-/Mittelklick öffnet einen neuen Tab */}
+                  <Link
+                    to={`/analyse?symbol=${encodeURIComponent(p.symbol)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-medium text-ink transition-colors hover:text-accent"
+                  >
+                    {p.name}
+                  </Link>
                   <div className="font-mono text-[11px] tracking-wide text-ink3">
                     {p.symbol} · {p.shares} Stk.
                   </div>
@@ -400,7 +408,7 @@ function Positionen({ d }: { d: Dashboard }) {
         + Position hinzufügen
       </Button>
       <AddPositionDialog open={addOffen} onClose={() => setAddOffen(false)} />
-      <EditPositionDialog position={bearbeite} onClose={() => setBearbeite(null)} />
+      <EditPositionDialog key={bearbeite?.id ?? "leer"} position={bearbeite} onClose={() => setBearbeite(null)} />
     </Panel>
   );
 }
@@ -436,7 +444,13 @@ function Watchlist({ d }: { d: Dashboard }) {
                 className="group cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
               >
                 <td className="py-3 pr-3">
-                  <div className="font-medium text-ink">{w.name}</div>
+                  <Link
+                    to={`/analyse?symbol=${encodeURIComponent(w.symbol)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-medium text-ink transition-colors hover:text-accent"
+                  >
+                    {w.name}
+                  </Link>
                   <div className="font-mono text-[11px] tracking-wide text-ink3">{w.symbol}</div>
                 </td>
                 <td className="py-3 text-right font-mono text-[13px] tnum">{fmtMoney(w.preis, w.waehrung)}</td>

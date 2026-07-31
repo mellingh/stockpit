@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { Panel, Empty } from '@/components/panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
+import { useSearchParams, useSetParam } from '@/lib/router';
 import { useKalender } from '@/lib/queries';
 import { erklaerungFuer, flagge } from '@/lib/event-lexikon';
 import type { KalenderEvent } from '@/lib/api';
@@ -19,9 +20,10 @@ const TAGE = [
   ['morgen', 'Morgen'],
   ['woche', 'Diese Woche'],
 ] as const;
+// Reihenfolge nach Michas Wunsch: aufsteigende Strenge, „Alle" rechts außen
 const WICHTIGKEIT = [
-  ['high', '★★★'],
   ['med', '★★☆+'],
+  ['high', '★★★'],
   ['all', 'Alle'],
 ] as const;
 
@@ -123,8 +125,13 @@ function EventZeile({ e }: { e: KalenderEvent }) {
 
 export default function KalenderPage() {
   const { data, isLoading, error } = useKalender();
-  const [tag, setTag] = useState<string>('heute');
-  const [imp, setImp] = useState<string>('all');
+  // Filter stehen in der URL: teilbar, überlebt F5, Zurück-Button funktioniert
+  const params = useSearchParams();
+  const setParam = useSetParam();
+  const tag = params.get('tag') ?? 'heute';
+  const imp = params.get('relevanz') ?? 'all';
+  const setTag = (v: string) => setParam('tag', v === 'heute' ? null : v);
+  const setImp = (v: string) => setParam('relevanz', v === 'all' ? null : v);
 
   const events = useMemo(() => {
     if (!data) return [];
@@ -153,18 +160,20 @@ export default function KalenderPage() {
       </header>
 
       <Panel className="animate-rise" style={{ animationDelay: '70ms' }}>
+        {/* Zeitraum links, Relevanz rechtsbündig — kein Trennstrich (Micha) */}
         <div className="mb-4 flex flex-wrap items-center gap-1.5">
           {TAGE.map(([key, label]) => (
             <FilterPill key={key} aktiv={tag === key} onClick={() => setTag(key)}>
               {label}
             </FilterPill>
           ))}
-          <span className="mx-2 h-4 w-px bg-line-strong" />
-          {WICHTIGKEIT.map(([key, label]) => (
-            <FilterPill key={key} aktiv={imp === key} onClick={() => setImp(key)}>
-              {label}
-            </FilterPill>
-          ))}
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {WICHTIGKEIT.map(([key, label]) => (
+              <FilterPill key={key} aktiv={imp === key} onClick={() => setImp(key)}>
+                {label}
+              </FilterPill>
+            ))}
+          </div>
         </div>
 
         {isLoading && <Skeleton className="h-[320px]" aria-label="Kalender wird geladen" />}

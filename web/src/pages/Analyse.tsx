@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from '@/lib/router';
+import { useNavigate, useSearchParams, useSetParam } from '@/lib/router';
 import { Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
@@ -625,8 +625,12 @@ function EtfProfil({ a }: { a: Analyse }) {
 
 function Report({ symbol }: { symbol: string }) {
   const { data: a, isLoading, error } = useAnalyse(symbol);
-  const [range, setRange] = useState('1y');
-  useEffect(() => setRange('1y'), [symbol]);
+  // Zeitraum steht in der URL — ein Link auf „PGY, 5 Jahre" ist teilbar
+  // und der Zurück-Button springt zum vorherigen Zeitraum
+  const params = useSearchParams();
+  const setParam = useSetParam();
+  const range = params.get('range') ?? '1y';
+  const setRange = (v: string) => setParam('range', v === '1y' ? null : v);
   const history = useHistory(range !== '1y' ? symbol : null, range);
   const chartData = range === '1y' ? a?.chart : (history.data ?? a?.chart);
   const rangeLabel = RANGES.find(([r]) => r === range)?.[1] ?? '1J';
