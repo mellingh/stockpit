@@ -112,18 +112,28 @@ function EventZeile({ e }: { e: KalenderEvent }) {
     <Fragment>
       <tr
         onClick={() => setOffen(!offen)}
+        // Guideline: klickbare Zeilen müssen auch per Tastatur bedienbar sein
+        tabIndex={0}
+        role="button"
+        aria-expanded={offen}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setOffen(!offen);
+          }
+        }}
         title="Klick: Was bedeutet dieser Termin?"
         className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
       >
         <td className="w-[56px] py-2.5 font-mono text-micro text-ink3 tnum">{zeit}</td>
         <td className="w-[86px] whitespace-nowrap py-2.5 text-small" title={e.waehrung ?? ''}>
-          <span className="mr-1.5 text-base leading-none">{flagge(e.land)}</span>
+          <span className="mr-1.5 text-lg leading-none">{flagge(e.land)}</span>
           {e.land ?? e.waehrung ?? '–'}
         </td>
         <td className="w-[66px] py-2.5">
           <Sterne wichtigkeit={e.wichtigkeit} />
         </td>
-        <td className="py-2.5 pr-3 text-base font-medium text-ink">{e.titel}</td>
+        <td className="py-2.5 pr-3 text-small font-medium text-ink">{e.titel}</td>
         <td
           className={cn('py-2.5 text-right font-mono text-small tnum', aktuellCls)}
           title={e.aktuellTrend ? `${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als Prognose` : ''}

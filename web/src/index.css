@@ -49,9 +49,10 @@
   --color-down: #ff6b78;
   --color-down-soft: rgba(255, 107, 120, 0.13);
   --color-warn: #edb95c;
-  /* Marktwirkung im Kalender: Gold für 1–2 Sterne, kräftiges Orangerot für 3.
-     Bewusst NICHT das Markt-Rot (--color-down) — sonst liest man „Kurs fällt". */
-  --color-hoch: #ff8348;
+  /* Marktwirkung im Kalender: Gold für 1–2 Sterne, ROT für 3 (Micha, Runde 10 —
+     das Orangerot hob sich zu wenig vom Gold ab; die Verwechslungsgefahr mit
+     der Markt-Farbe nimmt er bewusst in Kauf). */
+  --color-hoch: #ff6b78;
   --color-warn-soft: rgba(237, 185, 92, 0.12);
 
   /* ---------- Größen-Skala — VERBINDLICH ----------
@@ -59,37 +60,38 @@
      keine `text-[13.5px]`-Sonderfälle. Wer eine neue Größe braucht,
      nimmt die nächstliegende Stufe — oder die Skala wird hier geändert.
 
-     Schrift:
+     Schrift — DATEN sind klein, PROSA ist Basis:
        text-micro      12px  Uppercase-Labels, Badges, Spaltenköpfe, Meta-Zeilen
-       text-small      13px  Mono-Kursdaten, Hilfstexte, Tabellen-Nebenwerte
-       text-base       14px  Standardtext, Tabellenzellen, Formularfelder
-       text-lg         16px  News-Titel, Sucheingabe, Sterne
-       display-sm/md/lg 22/28/36px  Kennzahlen, Panel-Zahlen, Seitentitel
-     Kontrollhöhen (alles Klickbare):
+       text-small      13px  ALLE Mono-/Kurs-/Tabellendaten, Listenzeilen, Hilfstexte
+       text-base       15px  Fließtext, Teaser, Formularfelder, Sucheingabe
+       text-lg         16px  News-Titel, Sterne
+       display-sm/md/lg 20/28/36px  Logo, Kennzahlen/Panel-Zahlen, Seitentitel
+     Kontrollhöhen (8px-Raster, alles Klickbare):
        h-control-xs    24px  statische Chips/Badges
-       h-control-sm    28px  Filter-Pills, kleine Buttons, Icon-Buttons
-       h-control-md    36px  Standard-Buttons, Eingabefelder
-       h-control-lg    44px  große Suche
-     Zeilenhöhe in Tabellen/Listen: py-2.5 (= 10px oben/unten). */
+       h-control-sm    32px  Filter-Pills, kleine Buttons, Icon-Buttons, Nav
+       h-control-md    40px  Standard-Buttons, Eingabefelder
+       h-control-lg    48px  große Suche
+     Zeilenhöhe in Tabellen/Listen: py-2.5 (= 10px oben/unten).
+     Radius: Bedienelemente rounded-md, runde Pills rounded-full — sonst nichts. */
   --text-micro: 12px;
   --text-micro--line-height: 1.35;
   --text-small: 13px;
   --text-small--line-height: 1.45;
-  --text-base: 14px;
+  --text-base: 15px;
   --text-base--line-height: 1.5;
   --text-lg: 16px;
   --text-lg--line-height: 1.4;
-  --text-display-sm: 22px;
-  --text-display-sm--line-height: 1.2;
+  --text-display-sm: 20px;
+  --text-display-sm--line-height: 1.25;
   --text-display-md: 28px;
   --text-display-md--line-height: 1.15;
   --text-display-lg: 36px;
   --text-display-lg--line-height: 1.1;
 
   --spacing-control-xs: 24px;
-  --spacing-control-sm: 28px;
-  --spacing-control-md: 36px;
-  --spacing-control-lg: 44px;
+  --spacing-control-sm: 32px;
+  --spacing-control-md: 40px;
+  --spacing-control-lg: 48px;
 
   --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
   --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
@@ -138,7 +140,7 @@ body {
     var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.004em;
   min-height: 100vh;
 }

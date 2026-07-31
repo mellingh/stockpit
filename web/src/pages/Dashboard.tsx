@@ -339,7 +339,7 @@ function Positionen({ d }: { d: Dashboard }) {
           Über „+ Position hinzufügen" unten legst du deine erste an — die Kurse laufen dann automatisch ein.
         </Empty>
       ) : (
-        <table className="w-full border-collapse text-base">
+        <table className="w-full border-collapse text-small">
           <thead>
             <tr>
               <TH>Wert</TH>
@@ -426,7 +426,7 @@ function Watchlist({ d }: { d: Dashboard }) {
       {d.watchlist.length === 0 ? (
         <Empty>Keine beobachteten Werte — über „+ Wert beobachten" unten hinzufügen.</Empty>
       ) : (
-        <table className="w-full border-collapse text-base">
+        <table className="w-full border-collapse text-small">
           <thead>
             <tr>
               <TH>Wert</TH>
@@ -662,7 +662,7 @@ export default function DashboardPage() {
             <StatCard
               label="Gesamtwert (EUR)"
               value={d.positions.length ? fmtEur(d.totalEur) : '—'}
-              sub={d.fx?.USD ? `USD→EUR ${d.fx.USD.toFixed(4)}` : undefined}
+              sub={d.fx?.USD ? `1 USD = ${d.fx.USD.toFixed(4).replace('.', ',')} €` : undefined}
               featured
             />
             <StatCard

@@ -111,7 +111,24 @@ function frischeZahlen(summary, quote) {
     const q = new Date(r.quarter).getTime();
     if (!best || q > best.q) best = { q, r };
   }
-  const reihe = best && Date.now() - best.q <= 60 * DAY ? best.r : null;
+  let reihe = best && Date.now() - best.q <= 60 * DAY ? best.r : null;
+
+  // Zweite Quelle: earningsChart.quarterly wird nach einem Report oft Stunden
+  // früher befüllt als earningsHistory (dort hing z. B. AMZN am Tag danach noch
+  // auf dem Vorquartal). Nur nutzen, wenn das jüngste Quartal dort neuer ist.
+  if (!reihe?.epsActual) {
+    const qs = summary?.earnings?.earningsChart?.quarterly ?? [];
+    const letzte = qs[qs.length - 1];
+    // date-Format "2Q2026" → Quartalsende; wie oben nur akzeptieren, wenn das
+    // Quartal frisch ist (sonst stünde ein altes Ist als gestriges Ergebnis da)
+    const m = /^([1-4])Q(\d{4})$/.exec(letzte?.date ?? '');
+    if (m && letzte?.actual != null && letzte?.estimate != null) {
+      const quartalsEnde = new Date(Number(m[2]), Number(m[1]) * 3, 0).getTime();
+      if (Date.now() - quartalsEnde <= 60 * DAY) {
+        reihe = { epsActual: letzte.actual, epsEstimate: letzte.estimate };
+      }
+    }
+  }
 
   // Meldezeitpunkt aus der Quote — direkt nach dem Report aktuell, während
   // die earningsHistory das Ist-EPS oft erst Stunden später nachträgt
@@ -721,7 +738,11 @@ app.get(
             reaction,
             holdings.find((h) => h.symbol === direct.symbol)?.name ?? direct.symbol
           );
-        } catch {}
+        } catch (err) {
+          // Nicht still schlucken: ohne Historie fehlen alle Einordnungs-Sätze
+          // (nur der "Worum es geht"-Teaser bleibt) — das soll im Log auffallen.
+          console.warn(`[newsfeed] Kursreaktion für ${direct.symbol} fehlgeschlagen:`, err.message);
+        }
       }
       out.push(enriched);
     }

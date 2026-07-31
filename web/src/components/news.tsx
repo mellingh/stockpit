@@ -77,7 +77,7 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
         <span>{n.source ?? '—'}</span>
         <span>{fmtAgo(n.pubDate)}</span>
       </div>
-      <h3 className="text-base font-semibold leading-snug">
+      <h3 className="text-lg font-semibold leading-snug">
         <a
           href={n.link}
           target="_blank"

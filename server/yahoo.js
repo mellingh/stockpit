@@ -68,10 +68,15 @@ const STOCK_MODULES = [
   'assetProfile',
   'upgradeDowngradeHistory',
   'earningsHistory',
+  // earningsChart.quarterly trägt das Ist-EPS nach einem Report oft Stunden
+  // früher nach als earningsHistory — zweite Quelle für "Frische Zahlen"
+  'earnings',
 ];
 
 export function getSummary(symbol) {
-  return cached(`summary:${symbol}`, DAY, () =>
+  // 4 h statt 1 Tag: Yahoo trägt das Ist-EPS am Meldetag stundenweise nach —
+  // mit Tages-Cache stünde "Ist-Wert noch nicht veröffentlicht" zu lange da.
+  return cached(`summary:${symbol}`, 4 * HOUR, () =>
     yahooFinance.quoteSummary(symbol, { modules: STOCK_MODULES }).catch(async (err) => {
       // Bei Validierungsfehlern liefert Yahoo trotzdem brauchbare Teildaten
       if (err?.result) return err.result;

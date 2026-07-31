@@ -87,7 +87,7 @@ function StartChip({
   return (
     <button
       onClick={() => onPick(symbol)}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 py-2.5 text-left text-base transition-colors duration-150 hover:border-accent hover:bg-accent-soft"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 py-2.5 text-left text-small transition-colors duration-150 hover:border-accent hover:bg-accent-soft"
     >
       <b className="min-w-[56px] font-mono text-small">{symbol}</b>
       <span className="flex-1 truncate text-ink2">{name}</span>
@@ -664,7 +664,7 @@ function Extra({ a }: { a: Analyse }) {
               <Badge>{t.status ?? ''}</Badge>
               {t.completion && <span className="text-micro text-ink3">Abschluss ~ {t.completion}</span>}
             </div>
-            <a href={t.link} target="_blank" rel="noopener" className="text-base text-ink transition-colors hover:text-accent">
+            <a href={t.link} target="_blank" rel="noopener" className="text-small text-ink transition-colors hover:text-accent">
               {t.title}
             </a>
             {t.conditions?.length ? (
