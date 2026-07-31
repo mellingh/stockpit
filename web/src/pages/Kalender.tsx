@@ -66,7 +66,7 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        'flex h-control-xs cursor-pointer items-center gap-1.5 rounded-md border px-2.5 font-mono text-micro transition-colors',
+        'flex h-control-xs cursor-pointer items-center gap-1.5 rounded-full border px-3 font-mono text-micro transition-colors',
         aktiv
           // Sterne im aktiven Pill mitfärben, sonst leuchten sie auf dem Hellblau
           ? 'border-accent bg-accent font-semibold text-[#0b1524] [&_.stern]:text-[#0b1524] [&_.stern-leer]:text-[#0b1524]/35'

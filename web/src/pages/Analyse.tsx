@@ -795,7 +795,7 @@ function Report({ symbol }: { symbol: string }) {
                 key={r}
                 onClick={() => setRange(r)}
                 className={cn(
-                  'h-control-xs cursor-pointer rounded-md border px-2.5 font-mono text-micro transition-colors',
+                  'h-control-xs cursor-pointer rounded-full border px-3 font-mono text-micro transition-colors',
                   range === r
                     ? 'border-accent bg-accent font-semibold text-[#0b1524]'
                     : 'border-line-strong text-ink2 hover:border-ink3 hover:bg-panel2 hover:text-ink'

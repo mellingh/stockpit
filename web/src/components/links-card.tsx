@@ -115,12 +115,13 @@ export function LinksCard({ symbol }: { symbol: string }) {
             }}
           >
             <Input
+              className="h-control-sm"
               autoFocus
               placeholder="@handle oder Seiten-URL …"
               value={eingabe}
               onChange={(e) => setEingabe(e.target.value)}
             />
-            <Button type="submit" className="shrink-0" disabled={hinzufuegen.isPending}>
+            <Button type="submit" size="sm" className="shrink-0" disabled={hinzufuegen.isPending}>
               {/* Der Server prüft kurz, ob Account/Seite existieren — das dauert
                   einen Moment und darf nicht wie ein toter Klick wirken. */}
               {hinzufuegen.isPending ? (

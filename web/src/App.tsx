@@ -73,10 +73,12 @@ export default function App() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  'flex h-control-sm items-center rounded-md px-3.5 text-base font-medium transition-colors',
+                  // Aktiv-Zustand als hellblauer Unterstrich auf der Topbar-Kante —
+                  // passt zur Linien-Sprache der App (Micha, Runde 15)
+                  'relative flex h-16 items-center px-3.5 text-base font-medium transition-colors',
                   istAktiv(n.to)
-                    ? 'bg-accent-soft text-accent'
-                    : 'text-ink2 hover:bg-panel2 hover:text-ink'
+                    ? 'text-ink after:absolute after:inset-x-3.5 after:bottom-0 after:h-[2px] after:bg-accent'
+                    : 'text-ink2 hover:text-ink'
                 )}
               >
                 {n.label}
