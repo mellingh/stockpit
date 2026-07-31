@@ -189,6 +189,7 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 Stück
                 <Input
                   type="number"
+                  inputMode="decimal"
                   step="any"
                   min="0"
                   required
@@ -202,6 +203,7 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 Ø-Kaufkurs
                 <Input
                   type="number"
+                  inputMode="decimal"
                   step="any"
                   min="0"
                   placeholder="z. B. 105,50"
@@ -262,11 +264,13 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink3">
               Stück
-              <Input type="number" step="any" min="0" required autoFocus value={shares} onChange={(e) => setShares(e.target.value)} />
+              <Input type="number"
+                  inputMode="decimal" step="any" min="0" required autoFocus value={shares} onChange={(e) => setShares(e.target.value)} />
             </label>
             <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink3">
               Ø-Kaufkurs
-              <Input type="number" step="any" min="0" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} />
+              <Input type="number"
+                  inputMode="decimal" step="any" min="0" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} />
             </label>
           </div>
           {mutation.isError && (
@@ -534,7 +538,7 @@ function NewsLage() {
           ))}
         </div>
       )}
-      {error && <Empty>News nicht erreichbar: {(error as Error).message}</Empty>}
+      {error && <Empty role="status" aria-live="polite">News nicht erreichbar: {(error as Error).message}</Empty>}
       {data &&
         (data.items.length === 0 ? (
           <Empty>Keine News gefunden.</Empty>
@@ -585,7 +589,7 @@ export default function DashboardPage() {
           {heute}
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight">
+        <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight text-balance">
           Dein Depot, <em className="not-italic text-accent">auf einen Blick.</em>
         </h1>
       </header>

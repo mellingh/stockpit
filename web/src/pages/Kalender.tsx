@@ -147,7 +147,7 @@ export default function KalenderPage() {
           Wirtschaftskalender · diese Woche
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight">
+        <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight text-balance">
           Was den Markt <em className="not-italic text-accent">bewegt.</em>
         </h1>
       </header>
@@ -167,8 +167,8 @@ export default function KalenderPage() {
           ))}
         </div>
 
-        {isLoading && <Skeleton className="h-[320px]" />}
-        {error && <Empty>Kalender nicht erreichbar: {(error as Error).message}</Empty>}
+        {isLoading && <Skeleton className="h-[320px]" aria-label="Kalender wird geladen" />}
+        {error && <Empty role="status" aria-live="polite">Kalender nicht erreichbar: {(error as Error).message}</Empty>}
         {data &&
           (events.length === 0 ? (
             <Empty>
@@ -176,7 +176,7 @@ export default function KalenderPage() {
               Tipp: „Diese Woche" wählen oder die Wichtigkeit auf „Alle" stellen.
             </Empty>
           ) : (
-            <table className="w-full border-collapse">
+            <table className="lange-liste w-full border-collapse">
               <thead>
                 <tr className="text-left text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3">
                   <th className="pb-2.5">Zeit</th>

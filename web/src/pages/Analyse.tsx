@@ -9,7 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { SymbolSearch } from '@/components/symbol-search';
-import { StockChart } from '@/components/stock-chart';
+import { lazy, Suspense } from 'react';
+const StockChart = lazy(() =>
+  import('@/components/stock-chart').then((m) => ({ default: m.StockChart }))
+);
 import { LinksCard } from '@/components/links-card';
 import { RadarChart } from '@/components/radar';
 import { NewsItem } from '@/components/news';
@@ -46,7 +49,7 @@ function SucheDialog({ onPick }: { onPick: (symbol: string) => void }) {
     <>
       <button
         onClick={() => setOffen(true)}
-        className="flex h-11 w-full max-w-[560px] cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel px-4 text-[13.5px] text-ink3 transition-all hover:border-ink3 focus-visible:ring-2 focus-visible:ring-accent/40 outline-none"
+        className="flex h-11 w-full max-w-[560px] cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel px-4 text-[13.5px] text-ink3 transition-colors hover:border-ink3 focus-visible:ring-2 focus-visible:ring-accent/40 outline-none"
       >
         <Search size={16} />
         Aktie oder ETF suchen …
@@ -84,7 +87,7 @@ function StartChip({
   return (
     <button
       onClick={() => onPick(symbol)}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 py-2.5 text-left text-[13.5px] transition-all duration-150 hover:border-accent hover:bg-accent-soft"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 py-2.5 text-left text-[13.5px] transition-colors duration-150 hover:border-accent hover:bg-accent-soft"
     >
       <b className="min-w-[56px] font-mono text-[12.5px]">{symbol}</b>
       <span className="flex-1 truncate text-ink2">{name}</span>
@@ -651,7 +654,7 @@ function Report({ symbol }: { symbol: string }) {
   return (
     <div className="grid gap-5 [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms] [&>*:nth-child(6)]:[animation-delay:250ms]">
       <header>
-        <h1 className="font-display text-[clamp(26px,3.2vw,36px)] font-bold tracking-tight">{a.name}</h1>
+        <h1 className="font-display text-[clamp(26px,3.2vw,36px)] font-bold tracking-tight text-balance">{a.name}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="chip">{a.symbol}</Badge>
           {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
@@ -708,12 +711,14 @@ function Report({ symbol }: { symbol: string }) {
             </span>
           </div>
           {chartData && (
-            <StockChart
-              data={chartData}
-              titelZeile={[a.name, rangeLabel, a.kurs.boerse].filter(Boolean).join(' · ')}
-              vortag={a.kurs.vortag}
-              ausserboerslich={a.kurs.ausserboerslich}
-            />
+            <Suspense fallback={<Skeleton className="h-[380px] w-full" aria-label="Chart wird geladen" />}>
+              <StockChart
+                data={chartData}
+                titelZeile={[a.name, rangeLabel, a.kurs.boerse].filter(Boolean).join(' · ')}
+                vortag={a.kurs.vortag}
+                ausserboerslich={a.kurs.ausserboerslich}
+              />
+            </Suspense>
           )}
         </Panel>
         <LinksCard symbol={a.symbol} />
@@ -772,7 +777,7 @@ export default function AnalysePage() {
           Aktien-Analyse
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mb-5 mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight">
+        <h1 className="mb-5 mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight text-balance">
           Ticker rein, <em className="not-italic text-accent">Einschätzung raus.</em>
         </h1>
         <SucheDialog onPick={waehlen} />

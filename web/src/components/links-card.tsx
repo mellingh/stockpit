@@ -48,7 +48,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
     `https://x.com/search?q=${encodeURIComponent(`from:${h} $${ticker}`)}&src=typed_query&f=live`;
 
   const pillKlasse =
-    'inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-panel2 px-3 py-[5px] text-[12.5px] text-ink2 transition-all duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink cursor-pointer';
+    'inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-panel2 px-3 py-[5px] text-[12.5px] text-ink2 transition-colors duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink cursor-pointer';
 
   return (
     <Panel>

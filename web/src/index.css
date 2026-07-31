@@ -87,6 +87,8 @@
 
 html {
   color-scheme: dark;
+  /* kein 300-ms-Verzug beim Tippen auf Touchscreens */
+  touch-action: manipulation;
 }
 
 body {
@@ -125,6 +127,20 @@ body::before {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* Tastatur-Fokus sichtbar machen — Mausklicks bleiben ohne Ring */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Lange Tabellen: Zeilen außerhalb des Sichtfelds nicht rendern
+   (Kalender-Wochenansicht hat >300 Zeilen) */
+.lange-liste tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 44px;
 }
 
 /* Zahlen immer tabellarisch */

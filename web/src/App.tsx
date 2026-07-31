@@ -55,6 +55,13 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Sprungmarke für Tastatur-Nutzer (nur bei Fokus sichtbar) */}
+      <a
+        href="#inhalt"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-sm focus:bg-accent focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-[#0b1524]"
+      >
+        Zum Inhalt springen
+      </a>
       <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className="mx-auto flex h-[54px] w-full max-w-[1460px] items-center gap-7 px-5">
           <Link to="/" className="font-display text-[19px] font-bold tracking-tight text-ink">
@@ -91,7 +98,7 @@ export default function App() {
         />
       </header>
 
-      <main className="mx-auto w-full max-w-[1460px] flex-1 px-5 pb-16 pt-7">
+      <main id="inhalt" className="mx-auto w-full max-w-[1460px] flex-1 px-5 pb-16 pt-7">
         <Seite />
       </main>
 
