@@ -71,7 +71,10 @@ function TerminWert({ t }: { t: Termin }) {
       className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
     >
       <span className="w-[86px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
-      <Badge variant="chip">{t.symbol}</Badge>
+      {/* feste Spaltenbreite: sonst beginnt „Quartalszahlen" je nach Ticker-Länge woanders */}
+      <span className="w-[68px] shrink-0">
+        <Badge variant="chip">{t.symbol}</Badge>
+      </span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
         {t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende'}
         {t.epsErwartet != null && (

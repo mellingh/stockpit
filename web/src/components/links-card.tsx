@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Globe, Loader2, Plus, X } from 'lucide-react';
+import { ArrowUpRight, Globe, Loader2, X } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,7 +94,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
         </div>
       )}
       <Button variant="action" size="sm" className="mt-4" onClick={() => setVerwaltenOffen(true)}>
-        <Plus size={14} /> Hinzufügen
+        + Hinzufügen
       </Button>
 
       <Dialog open={verwaltenOffen} onOpenChange={(o) => { setVerwaltenOffen(o); setFehler(null); }}>

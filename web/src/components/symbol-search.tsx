@@ -255,7 +255,7 @@ export function SymbolSearch({
           placeholder={placeholder}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          className="w-full border-0 bg-transparent p-0 text-lg text-ink outline-none placeholder:text-ink3"
+          className="w-full border-0 bg-transparent p-0 text-base text-ink outline-none placeholder:text-ink3"
         />
         {laedt && <Loader2 size={15} className="shrink-0 animate-spin text-ink3" aria-hidden />}
       </div>
