@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonRows, SkeletonText } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { SymbolSearch } from '@/components/symbol-search';
 import { Sparkline } from '@/components/sparkline';
@@ -406,7 +406,7 @@ function Positionen({ d }: { d: Dashboard }) {
           </tbody>
         </table>
       )}
-      <Button variant="ghost" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
+      <Button variant="action" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
         + Position hinzufügen
       </Button>
       <AddPositionDialog open={addOffen} onClose={() => setAddOffen(false)} />
@@ -481,7 +481,7 @@ function Watchlist({ d }: { d: Dashboard }) {
           </tbody>
         </table>
       )}
-      <Button variant="ghost" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
+      <Button variant="action" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
         + Wert beobachten
       </Button>
       <AddWatchDialog open={addOffen} onClose={() => setAddOffen(false)} />
@@ -548,9 +548,17 @@ function NewsLage() {
     <Panel className="animate-rise" style={{ animationDelay: '150ms' }}>
       <PanelTitle>News-Lage</PanelTitle>
       {isLoading && (
-        <div className="grid gap-3">
+        /* Gerüst einer News: Meta-Zeile, Titel, Badge-Zeile */
+        <div className="grid gap-5" role="status" aria-label="News werden geladen">
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-[72px]" />
+            <div key={i} className="grid gap-2 border-b border-line pb-4 last:border-b-0">
+              <Skeleton className="h-3 w-[190px]" />
+              <SkeletonText zeilen={2} />
+              <div className="mt-1 flex gap-2">
+                <Skeleton className="h-control-xs w-[92px] rounded-full" />
+                <Skeleton className="h-control-xs w-[66px] rounded-full" />
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -620,10 +628,31 @@ export default function DashboardPage() {
       )}
 
       {isLoading && (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-[128px]" />
-          ))}
+        /* Gerüst des ganzen Dashboards: KPI-Karten, Termin-Spalten, Tabellen */
+        <div className="grid gap-5" role="status" aria-label="Dashboard wird geladen">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(280px,1.35fr)_1fr_1fr]">
+            {[0, 1, 2].map((i) => (
+              <Panel key={i} className="flex min-h-[128px] flex-col justify-between">
+                <Skeleton className="h-3 w-[110px]" />
+                <div className="grid gap-2">
+                  <Skeleton className="h-7 w-[150px]" />
+                  <Skeleton className="h-3 w-[96px]" />
+                </div>
+              </Panel>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {[0, 1].map((i) => (
+              <Panel key={i}>
+                <Skeleton className="mb-4 h-3 w-[130px]" />
+                <SkeletonRows zeilen={4} />
+              </Panel>
+            ))}
+          </div>
+          <Panel>
+            <Skeleton className="mb-4 h-3 w-[110px]" />
+            <SkeletonRows zeilen={5} />
+          </Panel>
         </div>
       )}
 

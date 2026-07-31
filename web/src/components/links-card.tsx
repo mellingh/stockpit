@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Globe, Plus, X } from 'lucide-react';
+import { ArrowUpRight, Globe, Loader2, Plus, X } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,7 +93,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
           ))}
         </div>
       )}
-      <Button variant="ghost" size="sm" className="mt-4" onClick={() => setVerwaltenOffen(true)}>
+      <Button variant="action" size="sm" className="mt-4" onClick={() => setVerwaltenOffen(true)}>
         <Plus size={14} /> Hinzufügen
       </Button>
 
@@ -121,10 +121,22 @@ export function LinksCard({ symbol }: { symbol: string }) {
               onChange={(e) => setEingabe(e.target.value)}
             />
             <Button type="submit" size="sm" className="h-9 shrink-0" disabled={hinzufuegen.isPending}>
-              Hinzufügen
+              {/* Der Server prüft kurz, ob Account/Seite existieren — das dauert
+                  einen Moment und darf nicht wie ein toter Klick wirken. */}
+              {hinzufuegen.isPending ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" aria-hidden /> Prüfe …
+                </>
+              ) : (
+                'Hinzufügen'
+              )}
             </Button>
           </form>
-          {fehler && <p className="mb-3 text-[12.5px] leading-relaxed text-down">{fehler}</p>}
+          {fehler && (
+            <p role="status" aria-live="polite" className="mb-3 text-[12.5px] leading-relaxed text-down">
+              {fehler}
+            </p>
+          )}
           <div className="scroll-dezent max-h-[300px] overflow-y-auto pr-1">
             {/* Entfernen als dezentes ✕ (die rote Button-Kolonne wirkte unruhig) */}
             {accounts.map((h) => (

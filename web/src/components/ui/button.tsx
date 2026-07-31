@@ -11,6 +11,11 @@ const buttonVariants = cva(
         // der wirkte neben den ruhigen Pills wie ein Fremdkörper (Micha).
         default:
           'border border-accent bg-accent text-[#0b1524] font-semibold hover:brightness-110 active:translate-y-px',
+        // Einstiegs-Aktion (z. B. „+ Position hinzufügen"): blaue Outline wie die
+        // Ticker-Badges — erkennbar als Aktion, ohne die Fläche zu dominieren.
+        // Vollflächiges Blau bleibt der Bestätigung im Dialog vorbehalten.
+        action:
+          'border border-accent/70 bg-transparent text-accent hover:border-accent hover:bg-accent-soft',
         ghost:
           'border border-line-strong bg-transparent text-ink2 hover:text-ink hover:border-ink3 hover:bg-panel2',
         danger:

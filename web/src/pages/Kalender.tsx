@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Panel, Empty } from '@/components/panel';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
 import { useSearchParams, useSetParam } from '@/lib/router';
 import { useKalender } from '@/lib/queries';
@@ -8,11 +8,34 @@ import { erklaerungFuer, flagge } from '@/lib/event-lexikon';
 import type { KalenderEvent } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-const IMPACT: Record<string, { stars: string; cls: string; label: string }> = {
-  High: { stars: '★★★', cls: 'text-warn', label: 'hohe Marktwirkung' },
-  Medium: { stars: '★★☆', cls: 'text-ink2', label: 'mittlere Marktwirkung' },
-  Low: { stars: '★☆☆', cls: 'text-ink3', label: 'geringe Marktwirkung' },
+const IMPACT: Record<string, { n: number; label: string }> = {
+  High: { n: 3, label: 'hohe Marktwirkung' },
+  Medium: { n: 2, label: 'mittlere Marktwirkung' },
+  Low: { n: 1, label: 'geringe Marktwirkung' },
 };
+
+/**
+ * Marktwirkung als drei Sterne (investing.com-Optik, aber größer — 15 px):
+ * drei Sterne = Orangerot, ein/zwei = Gold, ungefüllte dezent grau.
+ * Rot bleibt der Marktfarbe (fallende Kurse) vorbehalten.
+ */
+function Sterne({ wichtigkeit, klein = false }: { wichtigkeit: string; klein?: boolean }) {
+  const { n, label } = IMPACT[wichtigkeit] ?? IMPACT.Low;
+  const farbe = n === 3 ? 'text-hoch' : 'text-warn';
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className={cn('inline-flex gap-px leading-none', klein ? 'text-[13px]' : 'text-[15px]')}
+    >
+      {[0, 1, 2].map((i) => (
+        <span key={i} aria-hidden className={i < n ? `stern ${farbe}` : 'stern-leer text-line-strong'}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const TAGE = [
   ['gestern', 'Gestern'],
@@ -22,8 +45,8 @@ const TAGE = [
 ] as const;
 // Reihenfolge nach Michas Wunsch: aufsteigende Strenge, „Alle" rechts außen
 const WICHTIGKEIT = [
-  ['med', '★★☆+'],
-  ['high', '★★★'],
+  ['med', 'Medium'],
+  ['high', 'High'],
   ['all', 'Alle'],
 ] as const;
 
@@ -43,9 +66,10 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        'h-7 cursor-pointer rounded-md border px-3 font-mono text-[11.5px] transition-colors',
+        'flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 font-mono text-[11.5px] transition-colors',
         aktiv
-          ? 'border-accent bg-accent font-semibold text-[#0b1524]'
+          // Sterne im aktiven Pill mitfärben, sonst leuchten sie auf dem Hellblau
+          ? 'border-accent bg-accent font-semibold text-[#0b1524] [&_.stern]:text-[#0b1524] [&_.stern-leer]:text-[#0b1524]/35'
           : 'border-line-strong text-ink2 hover:border-ink3 hover:bg-panel2 hover:text-ink'
       )}
     >
@@ -56,7 +80,6 @@ function FilterPill({
 
 function EventZeile({ e }: { e: KalenderEvent }) {
   const [offen, setOffen] = useState(false);
-  const imp = IMPACT[e.wichtigkeit] ?? IMPACT.Low;
   const zeit = new Date(e.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   const aktuellCls =
     e.aktuellTrend === 'gut' ? 'text-up' : e.aktuellTrend === 'schlecht' ? 'text-down' : '';
@@ -97,10 +120,8 @@ function EventZeile({ e }: { e: KalenderEvent }) {
           <span className="mr-1.5 text-[15px] leading-none">{flagge(e.land)}</span>
           {e.land ?? e.waehrung ?? '–'}
         </td>
-        <td className="w-[62px] py-2.5">
-          <span className={cn('text-[11px] tracking-widest', imp.cls)} title={imp.label}>
-            {imp.stars}
-          </span>
+        <td className="w-[66px] py-2.5">
+          <Sterne wichtigkeit={e.wichtigkeit} />
         </td>
         <td className="py-2.5 pr-3 text-[13.5px] font-medium text-ink">{e.titel}</td>
         <td
@@ -120,6 +141,32 @@ function EventZeile({ e }: { e: KalenderEvent }) {
         </tr>
       )}
     </Fragment>
+  );
+}
+
+/** Uhrzeit, die sich minütlich aktualisiert — für die „jetzt"-Linie */
+function useJetzt() {
+  const [jetzt, setJetzt] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setJetzt(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return jetzt;
+}
+
+/** Trennlinie „hier stehen wir gerade" mit Uhrzeit (wie bei investing.com) */
+function JetztLinie({ jetzt }: { jetzt: Date }) {
+  return (
+    <tr aria-hidden>
+      <td colSpan={7} className="p-0">
+        <div className="relative flex items-center gap-2 py-1.5">
+          <span className="rounded border border-accent px-1.5 py-px font-mono text-[11px] font-semibold text-accent tnum">
+            {jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          <span className="h-px flex-1 bg-accent/55" />
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -144,8 +191,15 @@ export default function KalenderPage() {
     });
   }, [data, tag, imp]);
 
-  const heuteKey = dayKey(new Date());
+  const jetzt = useJetzt();
+  const heuteKey = dayKey(jetzt);
   let letzterTag: string | null = null;
+  // Die „jetzt"-Linie kommt vor den ersten Termin, der noch aussteht (nur in
+  // Ansichten, die den heutigen Tag enthalten).
+  const jetztVor =
+    tag === 'heute' || tag === 'woche'
+      ? events.findIndex((e) => new Date(e.zeit).getTime() > jetzt.getTime())
+      : -1;
 
   return (
     <div className="grid gap-5">
@@ -170,13 +224,18 @@ export default function KalenderPage() {
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
             {WICHTIGKEIT.map(([key, label]) => (
               <FilterPill key={key} aktiv={imp === key} onClick={() => setImp(key)}>
-                {label}
+                {label === 'Alle' ? 'Alle' : <Sterne wichtigkeit={label} klein />}
+                {label === 'Medium' ? <span className="opacity-60">+</span> : null}
               </FilterPill>
             ))}
           </div>
         </div>
 
-        {isLoading && <Skeleton className="h-[320px]" aria-label="Kalender wird geladen" />}
+        {isLoading && (
+          <div role="status" aria-label="Kalender wird geladen">
+            <SkeletonRows zeilen={9} />
+          </div>
+        )}
         {error && <Empty role="status" aria-live="polite">Kalender nicht erreichbar: {(error as Error).message}</Empty>}
         {data &&
           (events.length === 0 ? (
@@ -217,6 +276,7 @@ export default function KalenderPage() {
                   return (
                     <Fragment key={`${e.titel}-${e.zeit}-${i}`}>
                       {separator}
+                      {i === jetztVor && <JetztLinie jetzt={jetzt} />}
                       <EventZeile e={e} />
                     </Fragment>
                   );

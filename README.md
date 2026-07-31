@@ -57,7 +57,7 @@ Alternativ per Terminal: `npm install` und dann `npm start`.
 | Makro-News | RSS: CNBC, MarketWatch, tagesschau Wirtschaft |
 | Artikel-Teaser („Worum es geht") | og:description der Artikelseiten |
 | Rating-Historie mit Kurszielen je Bank | stockanalysis.com (US-Werte) |
-| Wirtschaftskalender | investing.com-Widget, Fallback: ForexFactory-Wochenfeed |
+| Wirtschaftskalender | TradingView-Kalender (mit Ist-Werten), Fallback: investing.com-Widget → ForexFactory-Wochenfeed |
 | Klinische Studien | clinicaltrials.gov (offizielle API v2) |
 | News-Bewertung | **FinBERT** — KI-Modell, läuft lokal auf deinem Rechner (Transformers.js) |
 | Technische Signale | selbst berechnet aus der Kurshistorie (gleiche Werte wie Finviz/TradingView) |

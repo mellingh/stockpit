@@ -5,7 +5,7 @@ import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonPills, SkeletonRows } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { SymbolSearch } from '@/components/symbol-search';
@@ -114,7 +114,7 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
       <Panel>
         <PanelTitle>Deine Werte</PanelTitle>
         {!d ? (
-          <Skeleton className="h-[160px]" />
+          <SkeletonRows zeilen={4} />
         ) : eigene.length === 0 ? (
           <Empty>Noch keine Positionen oder Watchlist-Werte — im Dashboard anlegen.</Empty>
         ) : (
@@ -128,7 +128,7 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
       <Panel>
         <PanelTitle>Gerade im Trend</PanelTitle>
         {trendLaedt ? (
-          <Skeleton className="h-[160px]" />
+          <SkeletonRows zeilen={4} />
         ) : !trending?.length ? (
           <Empty>Gerade keine Trend-Daten verfügbar.</Empty>
         ) : (
@@ -139,6 +139,69 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
           </div>
         )}
       </Panel>
+    </div>
+  );
+}
+
+// ---------- Lade-Gerüst ----------
+
+/**
+ * Zeigt beim Laden die Struktur des Reports (Kopf, Chart-Karte mit Zeitraum-Pills,
+ * Seitenspalte, Kennzahlen-Leiste, Panels) statt leerer Flächen — so springt beim
+ * Eintreffen der Daten nichts mehr.
+ */
+function ReportSkelett() {
+  return (
+    <div className="grid gap-5" role="status" aria-label="Analyse wird geladen">
+      <header className="grid gap-2.5">
+        <Skeleton className="h-8 w-[280px]" />
+        <div className="flex gap-2">
+          <Skeleton className="h-control-xs w-[64px] rounded-full" />
+          <Skeleton className="h-control-xs w-[78px] rounded-full" />
+          <Skeleton className="h-control-xs w-[110px] rounded-full" />
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <Panel className="p-4">
+          <div className="mb-3 flex items-baseline gap-3 px-1">
+            <Skeleton className="h-7 w-[130px]" />
+            <Skeleton className="h-4 w-[90px]" />
+          </div>
+          <div className="mb-3 flex flex-wrap gap-1.5 px-1">
+            {RANGES.map(([r]) => (
+              <Skeleton key={r} className="h-7 w-[46px]" />
+            ))}
+          </div>
+          <Skeleton className="h-[380px] w-full" />
+        </Panel>
+        <Panel>
+          <Skeleton className="mb-4 h-3 w-[150px]" />
+          <SkeletonPills anzahl={7} />
+        </Panel>
+      </div>
+
+      <Panel>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 md:grid-cols-4">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="flex items-center justify-between gap-4">
+              <Skeleton className="h-3 w-[92px]" />
+              <Skeleton className="h-3 w-[54px]" />
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Panel>
+          <Skeleton className="mb-4 h-3 w-[120px]" />
+          <SkeletonRows zeilen={4} />
+        </Panel>
+        <Panel>
+          <Skeleton className="mb-4 h-3 w-[140px]" />
+          <SkeletonRows zeilen={4} />
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -643,15 +706,7 @@ function Report({ symbol }: { symbol: string }) {
   const chartData = range === '1y' ? a?.chart : (history.data ?? a?.chart);
   const rangeLabel = RANGES.find(([r]) => r === range)?.[1] ?? '1J';
 
-  if (isLoading) {
-    return (
-      <div className="grid gap-5">
-        <Skeleton className="h-[70px]" />
-        <Skeleton className="h-[440px]" />
-        <Skeleton className="h-[220px]" />
-      </div>
-    );
-  }
+  if (isLoading) return <ReportSkelett />;
   if (error || !a) {
     return (
       <Panel>

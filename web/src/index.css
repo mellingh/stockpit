@@ -49,6 +49,9 @@
   --color-down: #ff6b78;
   --color-down-soft: rgba(255, 107, 120, 0.13);
   --color-warn: #edb95c;
+  /* Marktwirkung im Kalender: Gold für 1–2 Sterne, kräftiges Orangerot für 3.
+     Bewusst NICHT das Markt-Rot (--color-down) — sonst liest man „Kurs fällt". */
+  --color-hoch: #ff8348;
   --color-warn-soft: rgba(237, 185, 92, 0.12);
 
   --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
@@ -162,6 +165,31 @@ select:focus-visible {
 .lange-liste tr {
   content-visibility: auto;
   contain-intrinsic-size: auto 44px;
+}
+
+/* Ladeplatzhalter: ruhiger Schimmer von links nach rechts über dem Panelton.
+   Bei prefers-reduced-motion bleibt die Fläche einfach still stehen. */
+.skelett {
+  background-color: var(--color-panel2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--color-elevated) 85%, white 15%) 45%,
+    transparent 90%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skelett-sweep 1.6s ease-in-out infinite;
+}
+@keyframes skelett-sweep {
+  0% { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skelett {
+    animation: none;
+    background-image: none;
+  }
 }
 
 /* Zahlen immer tabellarisch */

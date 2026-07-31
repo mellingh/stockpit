@@ -17,6 +17,7 @@ import { getTrials } from './trials.js';
 import { getCalendar } from './calendar.js';
 import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
+import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PORT = process.env.PORT || 3001;
@@ -851,10 +852,14 @@ app.get('/api/xusers', (req, res) => {
   res.json(store.getXAccounts());
 });
 
-app.post('/api/xusers', (req, res) => {
+app.post('/api/xusers', async (req, res) => {
   const handle = String(req.body.handle || '').trim().replace(/^@/, '');
   if (!X_HANDLE_RE.test(handle)) {
     return res.status(400).json({ error: 'Ungültiger X-Nutzername (1–15 Zeichen, nur Buchstaben, Zahlen, _)' });
+  }
+  // Gibt es den Account wirklich? false = sicher nicht, null = nicht prüfbar (dann durchlassen)
+  if ((await xHandleExistiert(handle)) === false) {
+    return res.status(400).json({ error: `@${handle} gibt es auf X nicht — Schreibweise prüfen.` });
   }
   res.json(store.addXAccount(handle));
 });
@@ -870,7 +875,7 @@ app.get('/api/weblinks', (req, res) => {
   res.json(store.getWebLinks());
 });
 
-app.post('/api/weblinks', (req, res) => {
+app.post('/api/weblinks', async (req, res) => {
   let roh = String(req.body.url || '').trim();
   let parsed;
   try {
@@ -899,6 +904,12 @@ app.post('/api/weblinks', (req, res) => {
       });
     }
   }
+
+  // Antwortet die Seite überhaupt? Mit einem echten Ticker statt des Platzhalters
+  // prüfen, damit die getestete Adresse der späteren entspricht.
+  const probe = await urlErreichbar(roh.replaceAll('{TICKER}', 'NVDA'));
+  if (!probe.ok) return res.status(400).json({ error: probe.grund });
+
   res.json(store.addWebLink({ name, url: roh }));
 });
 
