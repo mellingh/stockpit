@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { searchSymbols, useDashboard, useTrending } from '@/lib/queries';
 import type { SearchResult } from '@/lib/api';
 import { fmtPct, signClass } from '@/lib/format';
@@ -11,12 +11,122 @@ interface Vorschlag {
   tagesPct?: number | null;
 }
 
+// ---------- Zuletzt gesucht (lokal im Browser, wie alles hier) ----------
+
+const SPEICHER = 'stockpit.letzteSuchen';
+const MAX_LETZTE = 8;
+
+function letzteLaden(): Vorschlag[] {
+  try {
+    const roh = JSON.parse(localStorage.getItem(SPEICHER) ?? '[]');
+    if (!Array.isArray(roh)) return [];
+    return roh
+      .filter((e) => e && typeof e.symbol === 'string')
+      .slice(0, MAX_LETZTE)
+      .map((e) => ({ symbol: e.symbol, name: typeof e.name === 'string' ? e.name : e.symbol }));
+  } catch {
+    return [];
+  }
+}
+
+/** Zuletzt gesuchtes Symbol vormerken — jüngstes zuerst, ohne Dubletten. */
+export function letzteMerken(v: { symbol: string; name: string }) {
+  try {
+    const liste = [v, ...letzteLaden().filter((e) => e.symbol !== v.symbol)].slice(0, MAX_LETZTE);
+    localStorage.setItem(SPEICHER, JSON.stringify(liste));
+  } catch {
+    /* private-Modus o. Ä. — dann gibt es eben keine Historie */
+  }
+}
+
+// ---------- Bausteine ----------
+
+/** Kleiner Kreis mit Anfangsbuchstabe (Yahoo-Trendticker-Optik) */
+function Marke({ symbol }: { symbol: string }) {
+  return (
+    <span
+      aria-hidden
+      className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-elevated font-mono text-[10px] font-bold text-ink2"
+    >
+      {symbol[0]}
+    </span>
+  );
+}
+
+function TickerPill({
+  v,
+  aktiv,
+  onHover,
+  onClick,
+}: {
+  v: Vorschlag;
+  aktiv: boolean;
+  onHover: () => void;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={aktiv}
+      title={v.name}
+      onMouseEnter={onHover}
+      onClick={onClick}
+      className={cn(
+        'flex h-8 cursor-pointer items-center gap-2 rounded-full border px-2.5 text-left transition-colors duration-150',
+        aktiv ? 'border-accent bg-accent-soft' : 'border-line-strong bg-panel2 hover:border-ink3'
+      )}
+    >
+      <Marke symbol={v.symbol} />
+      <span className="font-mono text-[12.5px] font-semibold text-ink">{v.symbol}</span>
+      {v.tagesPct != null && (
+        <span className={cn('font-mono text-[11.5px] tnum', signClass(v.tagesPct))}>{fmtPct(v.tagesPct)}</span>
+      )}
+    </button>
+  );
+}
+
+/** Treffer-Zeile im TradingView-Stil: Symbol · Name · Typ + Börse rechts */
+function TrefferZeile({
+  t,
+  aktiv,
+  onHover,
+  onClick,
+}: {
+  t: SearchResult;
+  aktiv: boolean;
+  onHover: () => void;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={aktiv}
+      onMouseEnter={onHover}
+      onClick={onClick}
+      className={cn(
+        'flex w-full cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors duration-150',
+        aktiv ? 'bg-accent-soft' : 'hover:bg-panel2'
+      )}
+    >
+      <Marke symbol={t.symbol} />
+      <span className="min-w-[78px] shrink-0 font-mono text-[12.5px] font-semibold text-ink">{t.symbol}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-ink2">{t.name}</span>
+      <span className="shrink-0 text-[11px] uppercase tracking-wider text-ink3">
+        {t.type === 'ETF' ? 'ETF' : 'Aktie'}
+        {t.exchange ? ` · ${t.exchange}` : ''}
+      </span>
+    </button>
+  );
+}
+
 /**
- * Symbolsuche im Modal. Solange nichts eingetippt ist, stehen sinnvolle
- * Vorschläge bereit (eigene Werte + Trend) — ein leeres Fenster mit nur
- * einem Eingabefeld wirkte abgeschnitten. Feste Mindesthöhe, damit das
- * Fenster beim Tippen nicht springt.
- * Bedienung: Pfeiltasten, Enter, Escape; Rollen für Screenreader.
+ * Symbolsuche im Modal.
+ * Ruhezustand = Trend-Ticker-Optik (Yahoo): Pill-Reihen mit „Zuletzt gesucht",
+ * den eigenen Werten und den Trend-Symbolen — passt ohne Scrollen ins Fenster.
+ * Suchmodus = Treffer-Zeilen mit Typ und Börse (TradingView).
+ * Bedienung: ↑/↓/Enter/Escape, Rollen für Screenreader.
  */
 export function SymbolSearch({
   onPick,
@@ -33,41 +143,36 @@ export function SymbolSearch({
   const [treffer, setTreffer] = useState<SearchResult[]>([]);
   const [laedt, setLaedt] = useState(false);
   const [aktiv, setAktiv] = useState(0);
+  const [letzte] = useState<Vorschlag[]>(letzteLaden);
   const timer = useRef<ReturnType<typeof setTimeout>>(null);
   const { data: d } = useDashboard();
   const { data: trending } = useTrending();
 
   const suchModus = query.trim().length >= 2;
 
-  // Vorschlagsgruppen für den Ruhezustand
   const gruppen = useMemo(() => {
     const eigene: Vorschlag[] = [];
     if (zeigeEigene && d) {
       const gesehen = new Set<string>();
-      for (const p of d.positions) {
-        if (!gesehen.has(p.symbol)) {
-          gesehen.add(p.symbol);
-          eigene.push({ symbol: p.symbol, name: p.name, tagesPct: p.tagesPct });
-        }
-      }
-      for (const w of d.watchlist) {
-        if (!gesehen.has(w.symbol)) {
-          gesehen.add(w.symbol);
-          eigene.push({ symbol: w.symbol, name: w.name, tagesPct: w.tagesPct });
-        }
+      for (const w of [...d.positions, ...d.watchlist]) {
+        if (gesehen.has(w.symbol)) continue;
+        gesehen.add(w.symbol);
+        eigene.push({ symbol: w.symbol, name: w.name, tagesPct: w.tagesPct });
       }
     }
-    const trend: Vorschlag[] = (trending ?? []).slice(0, 6);
+    // Keine Dubletten über die Gruppen hinweg — jedes Symbol erscheint einmal,
+    // in der obersten Gruppe, in der es vorkommt.
+    const belegt = new Set<string>();
+    const einmalig = (items: Vorschlag[]) =>
+      items.filter((v) => !belegt.has(v.symbol) && (belegt.add(v.symbol), true));
     return [
-      ...(eigene.length ? [{ titel: 'Deine Werte', icon: null, items: eigene }] : []),
-      ...(trend.length ? [{ titel: 'Gerade im Trend', icon: <TrendingUp size={12} />, items: trend }] : []),
-    ];
-  }, [d, trending, zeigeEigene]);
+      ...(letzte.length ? [{ titel: 'Zuletzt gesucht', items: einmalig(letzte) }] : []),
+      ...(eigene.length ? [{ titel: 'Deine Werte', items: einmalig(eigene) }] : []),
+      { titel: 'Trend-Ticker', items: einmalig(trending ?? []).slice(0, 6) },
+    ].filter((g) => g.items.length > 0);
+  }, [d, trending, zeigeEigene, letzte]);
 
-  // Flache Liste für Tastatur-Navigation
-  const sichtbar: Vorschlag[] = suchModus
-    ? treffer.map((t) => ({ symbol: t.symbol, name: t.name }))
-    : gruppen.flatMap((g) => g.items);
+  const anzahl = suchModus ? treffer.length : gruppen.reduce((n, g) => n + g.items.length, 0);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -93,53 +198,45 @@ export function SymbolSearch({
     };
   }, [query, suchModus]);
 
-  const waehlen = (v: Vorschlag) => {
-    const voll = treffer.find((t) => t.symbol === v.symbol);
-    onPick(voll ?? { symbol: v.symbol, name: v.name, type: 'EQUITY' });
+  const waehlen = (v: Vorschlag | SearchResult) => {
+    const voll: SearchResult =
+      'type' in v ? (v as SearchResult) : treffer.find((t) => t.symbol === v.symbol) ?? { ...v, type: 'EQUITY' };
+    letzteMerken({ symbol: voll.symbol, name: voll.name });
+    onPick(voll);
+  };
+
+  /** Der aktive Index läuft über alle Gruppen hinweg — Reihenfolge = Anzeige */
+  const beiIndex = (i: number): Vorschlag | SearchResult | null => {
+    if (suchModus) return treffer[i] ?? null;
+    let rest = i;
+    for (const g of gruppen) {
+      if (rest < g.items.length) return g.items[rest];
+      rest -= g.items.length;
+    }
+    return null;
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!sichtbar.length) return;
+    if (!anzahl) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setAktiv((i) => (i + 1) % sichtbar.length);
+      setAktiv((i) => (i + 1) % anzahl);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setAktiv((i) => (i - 1 + sichtbar.length) % sichtbar.length);
+      setAktiv((i) => (i - 1 + anzahl) % anzahl);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      waehlen(sichtbar[aktiv] ?? sichtbar[0]);
+      const v = beiIndex(aktiv) ?? beiIndex(0);
+      if (v) waehlen(v);
     }
   };
-
-  const Zeile = ({ v, index }: { v: Vorschlag; index: number }) => (
-    <li role="option" aria-selected={index === aktiv}>
-      <button
-        type="button"
-        onMouseEnter={() => setAktiv(index)}
-        onClick={() => waehlen(v)}
-        className={cn(
-          'flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-left text-[13px] transition-colors',
-          index === aktiv ? 'bg-accent-soft text-ink' : 'text-ink2 hover:bg-panel2'
-        )}
-      >
-        <span className="min-w-[74px] font-mono text-[12.5px] font-semibold text-accent">{v.symbol}</span>
-        <span className="min-w-0 flex-1 truncate">{v.name}</span>
-        {v.tagesPct != null && (
-          <span className={cn('shrink-0 font-mono text-[12px] tnum', signClass(v.tagesPct))}>
-            {fmtPct(v.tagesPct)}
-          </span>
-        )}
-      </button>
-    </li>
-  );
 
   let laufIndex = -1;
 
   return (
     <div className="flex flex-col">
-      {/* Eingabezeile: nur Trennlinie unten, kein eigener Rahmen */}
-      <div className="flex items-center gap-2.5 px-1 pb-3">
+      {/* Eingabezeile: kein eigener Rahmen, nur die Hairline zur Liste darunter */}
+      <div className="flex items-center gap-2.5 px-1.5 pb-3">
         <Search size={16} className="shrink-0 text-ink3" aria-hidden />
         <input
           type="text"
@@ -159,36 +256,51 @@ export function SymbolSearch({
         {laedt && <Loader2 size={15} className="shrink-0 animate-spin text-ink3" aria-hidden />}
       </div>
 
-      <div className="min-h-[260px] max-h-[340px] overflow-y-auto border-t border-line pt-2">
+      {/* Feste Höhe: das Fenster darf zwischen Ruhezustand und Tippen nicht springen */}
+      <div className="scroll-dezent h-[300px] overflow-y-auto border-t border-line pt-2.5">
         {suchModus ? (
-          <ul role="listbox" aria-label="Suchergebnisse">
+          <div role="listbox" aria-label="Suchergebnisse">
             {treffer.length === 0 && !laedt ? (
-              <li className="px-3 py-6 text-center text-[13px] text-ink3">
+              <p className="px-3 py-8 text-center text-[13px] text-ink3" role="status" aria-live="polite">
                 Nichts gefunden — Tippfehler im Ticker?
-              </li>
+              </p>
             ) : (
-              treffer.map((t, i) => <Zeile key={`${t.symbol}-${t.exchange}`} v={{ symbol: t.symbol, name: t.name }} index={i} />)
+              treffer.map((t, i) => (
+                <TrefferZeile
+                  key={`${t.symbol}-${t.exchange ?? ''}`}
+                  t={t}
+                  aktiv={i === aktiv}
+                  onHover={() => setAktiv(i)}
+                  onClick={() => waehlen(t)}
+                />
+              ))
             )}
-          </ul>
+          </div>
         ) : gruppen.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[13px] text-ink3">
-            Name oder Ticker eingeben, um zu suchen.
-          </p>
+          <p className="px-3 py-8 text-center text-[13px] text-ink3">Name oder Ticker eingeben, um zu suchen.</p>
         ) : (
-          gruppen.map((g) => (
-            <div key={g.titel} className="mb-1">
-              <div className="flex items-center gap-1.5 px-3 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3">
-                {g.icon}
-                {g.titel}
+          <div role="listbox" aria-label="Vorschläge" className="grid gap-3.5 px-1.5 pb-1">
+            {gruppen.map((g) => (
+              <div key={g.titel} role="group" aria-label={g.titel}>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-ink3">{g.titel}</div>
+                <div className="flex flex-wrap gap-2">
+                  {g.items.map((v) => {
+                    laufIndex += 1;
+                    const i = laufIndex;
+                    return (
+                      <TickerPill
+                        key={`${g.titel}-${v.symbol}`}
+                        v={v}
+                        aktiv={i === aktiv}
+                        onHover={() => setAktiv(i)}
+                        onClick={() => waehlen(v)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-              <ul role="listbox" aria-label={g.titel}>
-                {g.items.map((v) => {
-                  laufIndex += 1;
-                  return <Zeile key={`${g.titel}-${v.symbol}`} v={v} index={laufIndex} />;
-                })}
-              </ul>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>

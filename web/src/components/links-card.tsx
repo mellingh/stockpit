@@ -125,7 +125,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
             </Button>
           </form>
           {fehler && <p className="mb-3 text-[12.5px] leading-relaxed text-down">{fehler}</p>}
-          <div className="max-h-[300px] overflow-y-auto">
+          <div className="scroll-dezent max-h-[300px] overflow-y-auto pr-1">
             {/* Entfernen als dezentes ✕ (die rote Button-Kolonne wirkte unruhig) */}
             {accounts.map((h) => (
               <div key={h} className="flex items-center gap-2.5 border-b border-line py-2 text-[13px] last:border-b-0">
