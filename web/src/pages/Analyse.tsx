@@ -757,7 +757,7 @@ function Report({ symbol }: { symbol: string }) {
   return (
     <div className="grid gap-5 [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms] [&>*:nth-child(6)]:[animation-delay:250ms]">
       <header>
-        <h1 className="font-display text-[clamp(28px,3.2vw,36px)] font-bold tracking-tight text-balance">{a.name}</h1>
+        <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="chip">{a.symbol}</Badge>
           {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
@@ -772,7 +772,7 @@ function Report({ symbol }: { symbol: string }) {
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
         <Panel className="p-4 pb-2">
           <div className="flex flex-wrap items-baseline gap-3 px-1 pb-2.5">
-            <span className="font-display text-display-md font-bold leading-none tnum">
+            <span className="font-display text-display-sm font-bold leading-none tnum">
               {fmtMoney(a.kurs.preis, a.currency)}
             </span>
             <span className={cn('font-mono text-small tnum', signClass(a.kurs.veraenderungPct))}>
@@ -880,7 +880,7 @@ export default function AnalysePage() {
           Aktien-Analyse
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mb-5 mt-1.5 font-display text-[clamp(28px,3.4vw,36px)] font-bold tracking-tight text-balance">
+        <h1 className="mb-5 mt-1.5 font-display text-display-md font-bold tracking-tight text-balance">
           Ticker rein, <em className="not-italic text-accent">Einschätzung raus.</em>
         </h1>
         <SucheDialog onPick={waehlen} />

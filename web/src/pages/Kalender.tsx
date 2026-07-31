@@ -15,9 +15,8 @@ const IMPACT: Record<string, { n: number; label: string }> = {
 };
 
 /**
- * Marktwirkung als drei Sterne (investing.com-Optik, aber größer — 15 px):
- * drei Sterne = Orangerot, ein/zwei = Gold, ungefüllte dezent grau.
- * Rot bleibt der Marktfarbe (fallende Kurse) vorbehalten.
+ * Marktwirkung als drei Sterne (investing.com-Optik, 16 px):
+ * drei Sterne = Rot (Micha, Runde 10), ein/zwei = Gold, ungefüllte dezent grau.
  */
 function Sterne({ wichtigkeit, klein = false }: { wichtigkeit: string; klein?: boolean }) {
   const { n, label } = IMPACT[wichtigkeit] ?? IMPACT.Low;
@@ -218,7 +217,7 @@ export default function KalenderPage() {
           Wirtschaftskalender
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mt-1.5 font-display text-[clamp(28px,3.4vw,36px)] font-bold tracking-tight text-balance">
+        <h1 className="mt-1.5 font-display text-display-md font-bold tracking-tight text-balance">
           Was den Markt <em className="not-italic text-accent">bewegt.</em>
         </h1>
       </header>

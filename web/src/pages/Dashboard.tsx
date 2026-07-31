@@ -46,7 +46,7 @@ function StatCard({
     >
       <span className="text-micro font-bold uppercase tracking-[0.14em] text-ink3">{label}</span>
       <div>
-        <div className={cn('font-display text-display-md font-bold leading-tight tnum', valueClass)}>{value}</div>
+        <div className={cn('font-display font-bold leading-tight tnum', featured ? 'text-display-lg' : 'text-display-md', valueClass)}>{value}</div>
         {sub ? <div className="mt-1 font-mono text-micro text-ink2 tnum">{sub}</div> : null}
       </div>
     </Panel>
@@ -177,13 +177,9 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
             <div className="flex items-center gap-2 text-small">
               <Badge variant="chip">{gewaehlt.symbol}</Badge>
               <span className="truncate text-ink2">{gewaehlt.name}</span>
-              <button
-                type="button"
-                onClick={() => setGewaehlt(null)}
-                className="ml-auto cursor-pointer text-micro text-ink3 hover:text-ink"
-              >
-                ändern
-              </button>
+              <Button type="button" variant="ghost" size="xs" className="ml-auto" onClick={() => setGewaehlt(null)}>
+                Ändern
+              </Button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
@@ -613,7 +609,7 @@ export default function DashboardPage() {
           {heute}
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mt-1.5 font-display text-[clamp(28px,3.4vw,36px)] font-bold tracking-tight text-balance">
+        <h1 className="mt-1.5 font-display text-display-md font-bold tracking-tight text-balance">
           Dein Depot, <em className="not-italic text-accent">auf einen Blick.</em>
         </h1>
       </header>
@@ -668,14 +664,14 @@ export default function DashboardPage() {
             <StatCard
               label="Gewinn / Verlust"
               value={d.positions.length ? fmtEur(d.gewinnEur) : '—'}
-              valueClass={cn('text-display-md', signClass(d.gewinnEur))}
+              valueClass={signClass(d.gewinnEur)}
               sub={d.gewinnPct != null ? `${fmtPct(d.gewinnPct)} seit Kauf` : undefined}
               delay={60}
             />
             <StatCard
               label="Heute"
               value={d.positions.length ? fmtEur(d.dayChangeEur) : '—'}
-              valueClass={cn('text-display-md', signClass(d.dayChangeEur))}
+              valueClass={signClass(d.dayChangeEur)}
               sub={d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : undefined}
               delay={120}
             />
