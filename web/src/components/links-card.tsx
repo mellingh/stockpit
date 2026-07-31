@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Globe, Plus, X } from 'lucide-react';
+import { ArrowUpRight, Globe, Plus, X } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,8 +47,10 @@ export function LinksCard({ symbol }: { symbol: string }) {
   const suchLink = (h: string) =>
     `https://x.com/search?q=${encodeURIComponent(`from:${h} $${ticker}`)}&src=typed_query&f=live`;
 
+  // Jede Pille ist ein externer Link → sichtbares ↗ (nicht nur Farbe/Tooltip),
+  // dazu aria-label mit Ziel und "neues Fenster" für Screenreader.
   const pillKlasse =
-    'inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-panel2 px-3 py-[5px] text-[12.5px] text-ink2 transition-colors duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink cursor-pointer';
+    'group inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-panel2 pl-3 pr-2.5 py-[5px] text-[12.5px] text-ink2 transition-colors duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50';
 
   return (
     <Panel>
@@ -64,12 +66,14 @@ export function LinksCard({ symbol }: { symbol: string }) {
               target="_blank"
               rel="noopener noreferrer"
               title={`Posts von @${h} zu $${ticker} auf X`}
+              aria-label={`Posts von @${h} zu $${ticker} auf X öffnen (neues Fenster)`}
               className={pillKlasse}
             >
               <span className="text-ink3">
                 <XLogo />
               </span>
               @{h}
+              <ArrowUpRight size={12} aria-hidden className="text-ink3 transition-colors group-hover:text-accent" />
             </a>
           ))}
           {webLinks.map((l) => (
@@ -79,10 +83,12 @@ export function LinksCard({ symbol }: { symbol: string }) {
               target="_blank"
               rel="noopener noreferrer"
               title={`${l.name}: ${ticker} öffnen`}
+              aria-label={`${ticker} bei ${l.name} öffnen (neues Fenster)`}
               className={pillKlasse}
             >
               <Globe size={12} className="text-ink3" />
               {l.name}
+              <ArrowUpRight size={12} aria-hidden className="text-ink3 transition-colors group-hover:text-accent" />
             </a>
           ))}
         </div>
@@ -93,7 +99,8 @@ export function LinksCard({ symbol }: { symbol: string }) {
 
       <Dialog open={verwaltenOffen} onOpenChange={(o) => { setVerwaltenOffen(o); setFehler(null); }}>
         <DialogContent>
-          <DialogTitle>Accounts &amp; Links</DialogTitle>
+          {/* pr-9 + mehr Luft: das ✕ sitzt oben rechts absolut, das Feld darf nicht darunterkleben */}
+          <DialogTitle className="mb-5 pr-9">Accounts &amp; Links</DialogTitle>
           <form
             className="mb-3 flex gap-2.5"
             onSubmit={(e) => {

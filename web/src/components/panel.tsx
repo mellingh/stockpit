@@ -14,14 +14,18 @@ export function Panel({ className, ...props }: React.ComponentProps<'section'>) 
   );
 }
 
-/** Panel-Überschrift mit Hairline rechts (Stockpit-Signatur) */
+/**
+ * Panel-Überschrift mit Hairline rechts (Stockpit-Signatur).
+ * KEINE Unter-Überschriften/Hinweise ("· ein Klick öffnet die Analyse", "· nächste
+ * 14 Tage" …) — die halben Erklärsätze sind auf Michas Wunsch komplett raus.
+ * Nur Titel + Strich. Nicht wieder einbauen.
+ */
 export function PanelTitle({
   className,
   children,
-  hint,
   actions,
   ...props
-}: React.ComponentProps<'h2'> & { hint?: React.ReactNode; actions?: React.ReactNode }) {
+}: React.ComponentProps<'h2'> & { actions?: React.ReactNode }) {
   return (
     <h2
       className={cn(
@@ -31,7 +35,6 @@ export function PanelTitle({
       {...props}
     >
       <span className="shrink-0">{children}</span>
-      {hint ? <span className="shrink-0 font-medium normal-case tracking-normal text-ink3">{hint}</span> : null}
       <span aria-hidden className="h-px flex-1 bg-line" />
       {actions}
     </h2>

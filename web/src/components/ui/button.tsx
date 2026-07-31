@@ -7,8 +7,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // Genau das Hellblau der Filter-Pills (Monate/Jahre) — kein Glow/Schein,
+        // der wirkte neben den ruhigen Pills wie ein Fremdkörper (Micha).
         default:
-          'bg-accent text-[#06101f] font-semibold hover:brightness-115 active:translate-y-px shadow-[0_0_0_1px_rgba(94,158,255,0.4),0_8px_20px_rgba(94,158,255,0.16)]',
+          'border border-accent bg-accent text-[#0b1524] font-semibold hover:brightness-110 active:translate-y-px',
         ghost:
           'border border-line-strong bg-transparent text-ink2 hover:text-ink hover:border-ink3 hover:bg-panel2',
         danger:

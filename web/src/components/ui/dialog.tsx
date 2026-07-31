@@ -10,8 +10,9 @@ const DialogClose = DialogPrimitive.Close;
 function DialogContent({
   className,
   children,
+  ohneSchliessen,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { ohneSchliessen?: boolean }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/65 backdrop-blur-[3px] data-[state=open]:animate-[pop_0.15s_ease]" />
@@ -24,9 +25,13 @@ function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-3.5 top-3.5 rounded-md p-1.5 text-ink3 transition-colors hover:bg-panel2 hover:text-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
-          <X size={15} />
-        </DialogPrimitive.Close>
+        {/* Suchdialoge setzen ohneSchliessen: dort liegt das Eingabefeld ganz oben,
+            das ✕ würde darüber kleben (Escape/Overlay-Klick schließt weiterhin). */}
+        {!ohneSchliessen && (
+          <DialogPrimitive.Close className="absolute right-3.5 top-3.5 rounded-md p-1.5 text-ink3 transition-colors hover:bg-panel2 hover:text-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
+            <X size={15} />
+          </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

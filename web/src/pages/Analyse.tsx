@@ -58,7 +58,7 @@ function SucheDialog({ onPick }: { onPick: (symbol: string) => void }) {
         </kbd>
       </button>
       <Dialog open={offen} onOpenChange={setOffen}>
-        <DialogContent className="max-w-[560px] p-0">
+        <DialogContent ohneSchliessen className="max-w-[560px] px-3 pb-3 pt-3.5">
           <SymbolSearch
             onPick={(r) => {
               setOffen(false);
@@ -112,7 +112,7 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
   return (
     <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2 animate-rise">
       <Panel>
-        <PanelTitle hint="· ein Klick öffnet die Analyse">Deine Werte</PanelTitle>
+        <PanelTitle>Deine Werte</PanelTitle>
         {!d ? (
           <Skeleton className="h-[160px]" />
         ) : eigene.length === 0 ? (
@@ -145,10 +145,18 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
 
 // ---------- Quartalszahlen-Banner (nur am Meldetag) ----------
 
+/** Ganze Kalendertage her — nicht 24-h-Blöcke, sonst gilt ein Report von
+ *  vorgestern 22 Uhr morgens noch als „gestern". */
+function tageHer(ts: number) {
+  const mitternacht = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((mitternacht(new Date()) - mitternacht(new Date(ts))) / 86400000);
+}
+
 function ZahlenBanner({ a }: { a: Analyse }) {
   const z = a.zahlen;
   if (!z?.gemeldet) return null;
-  const tage = Math.floor((Date.now() - z.gemeldet) / 86400000);
+  const tage = tageHer(z.gemeldet);
+  // Ab zwei Tagen ersatzlos weg (kein Platzhalter, keine Lücke — das Chart rückt hoch)
   if (tage > 1) return null;
   const cls = z.ueberraschungPct != null && z.ueberraschungPct > 0 ? 'pos' : z.ueberraschungPct != null && z.ueberraschungPct < 0 ? 'neg' : '';
   return (
@@ -274,7 +282,7 @@ function Uebersicht({ a }: { a: Analyse }) {
 
   return (
     <Panel>
-      <PanelTitle hint={sf ? '· Snowflake: 5 Dimensionen à 0–5 Punkte' : undefined}>
+      <PanelTitle>
         {a.name} — Übersicht
       </PanelTitle>
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_320px]">
@@ -387,7 +395,7 @@ function Analysten({ a }: { a: Analyse }) {
 
   return (
     <Panel>
-      <PanelTitle hint={`· ${an.count ?? '?'} Analysten`}>Analysten</PanelTitle>
+      <PanelTitle>Analysten</PanelTitle>
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="font-display text-[30px] font-bold tnum">{an.mean?.toFixed(1)}</span>
         <span className="text-[12.5px] text-ink3">/ 5 · Konsens (1 = Stark kaufen)</span>
@@ -494,7 +502,7 @@ function Historie({ a }: { a: Analyse }) {
     r.aktion === 'Hochgestuft' ? 'text-up' : r.aktion === 'Abgestuft' ? 'text-down' : '';
   return (
     <Panel>
-      <PanelTitle hint="· einzelne Banken">Analysten-Historie</PanelTitle>
+      <PanelTitle>Analysten-Historie</PanelTitle>
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="text-left text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3">
@@ -549,7 +557,7 @@ function Extra({ a }: { a: Analyse }) {
   if (a.trials?.length) {
     return (
       <Panel>
-        <PanelTitle hint="· klinische Studien">Studien-Pipeline</PanelTitle>
+        <PanelTitle>Studien-Pipeline</PanelTitle>
         {a.trials.slice(0, 8).map((t, i) => (
           <div key={i} className="grid gap-1.5 border-b border-line py-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -739,7 +747,7 @@ function Report({ symbol }: { symbol: string }) {
       </div>
 
       <Panel>
-        <PanelTitle hint="· KI-bewertet, mit Kursreaktion">News zu {a.name}</PanelTitle>
+        <PanelTitle>News zu {a.name}</PanelTitle>
         {!a.news?.length ? (
           <Empty>Keine aktuellen News gefunden.</Empty>
         ) : (

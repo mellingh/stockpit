@@ -155,12 +155,13 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); reset(); } }}>
       <DialogContent className="p-0">
-        <div className="p-5 pb-0">
-          <DialogTitle>Position hinzufügen</DialogTitle>
+        <div className="px-5 pb-4 pt-4">
+          {/* pr-9: rechts sitzt das absolute ✕ des Dialogs */}
+          <DialogTitle className="mb-0 pr-9">Position hinzufügen</DialogTitle>
         </div>
         {!gewaehlt ? (
-          <div className="px-1.5 pb-1.5">
-            <SymbolSearch onPick={setGewaehlt} placeholder="Name oder Ticker …" />
+          <div className="px-3.5 pb-3">
+            <SymbolSearch onPick={setGewaehlt} placeholder="Name oder Ticker …" zeigeEigene={false} />
           </div>
         ) : (
           <form
@@ -296,12 +297,13 @@ function AddWatchDialog({ open, onClose }: { open: boolean; onClose: () => void 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="p-0">
-        <div className="p-5 pb-0">
-          <DialogTitle>Wert beobachten</DialogTitle>
+        <div className="px-5 pb-4 pt-4">
+          <DialogTitle className="mb-0 pr-9">Wert beobachten</DialogTitle>
         </div>
-        <div className="px-1.5 pb-1.5">
+        <div className="px-3.5 pb-3">
           <SymbolSearch
             placeholder="Name oder Ticker suchen …"
+            zeigeEigene={false}
             onPick={(r) => {
               mutation.mutate(r.symbol);
               onClose();
@@ -544,7 +546,7 @@ function NewsLage() {
   const { data, isLoading, error } = useNewsfeed();
   return (
     <Panel className="animate-rise" style={{ animationDelay: '150ms' }}>
-      <PanelTitle hint="· KI-bewertet, deinen Werten zugeordnet">News-Lage</PanelTitle>
+      <PanelTitle>News-Lage</PanelTitle>
       {isLoading && (
         <div className="grid gap-3">
           {[0, 1, 2, 3].map((i) => (
@@ -652,7 +654,7 @@ export default function DashboardPage() {
 
           {d.termine.length > 0 && (
             <Panel className="animate-rise" style={{ animationDelay: '90ms' }}>
-              <PanelTitle hint="· nächste 14 Tage">Wichtige Termine</PanelTitle>
+              <PanelTitle>Wichtige Termine</PanelTitle>
               <div className="grid grid-cols-1 gap-x-10 gap-y-4 lg:grid-cols-2">
                 <div>
                   <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">Deine Werte</div>

@@ -151,7 +151,7 @@ export default function KalenderPage() {
     <div className="grid gap-5">
       <header className="animate-rise">
         <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.15em] text-ink3">
-          Wirtschaftskalender · diese Woche
+          Wirtschaftskalender
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
         <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight text-balance">
