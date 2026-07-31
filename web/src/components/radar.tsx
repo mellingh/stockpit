@@ -9,18 +9,22 @@ export function RadarChart({
   size?: number;
 }) {
   const c = size / 2;
-  const rMax = size / 2 - 34;
+  const rMax = size / 2 - 38;
   const n = scores.length;
   const angle = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
   const pt = (i: number, r: number): [number, number] => [
     c + r * Math.cos(angle(i)),
     c + r * Math.sin(angle(i)),
   ];
-  const rand = 38;
+  // Seitlicher Rand für die längsten Labels (VERGANGENH., DIVIDENDE) bei 12 px
+  // Schriftgröße. Das SVG skaliert mit der Spalte (width 100 %), damit nichts
+  // aus dem Rahmen läuft, wenn die Seitenspalte enger wird.
+  const rand = 62;
   return (
     <svg
       viewBox={`${-rand} 0 ${size + 2 * rand} ${size}`}
-      width={size + 2 * rand}
+      width="100%"
+      style={{ maxWidth: size + 2 * rand }}
       height={size}
     >
       {[1, 2, 3, 4, 5].map((ring) => (
@@ -56,7 +60,7 @@ export function RadarChart({
             textAnchor={cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle'}
             dominantBaseline="middle"
             fill="var(--color-ink3)"
-            fontSize="9"
+            fontSize="12"
             fontWeight="600"
             letterSpacing="0.08em"
           >

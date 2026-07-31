@@ -44,10 +44,10 @@ function StatCard({
           : undefined),
       }}
     >
-      <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">{label}</span>
+      <span className="text-micro font-bold uppercase tracking-[0.14em] text-ink3">{label}</span>
       <div>
-        <div className={cn('font-display text-[30px] font-bold leading-tight tnum', valueClass)}>{value}</div>
-        {sub ? <div className="mt-1 font-mono text-[12px] text-ink2 tnum">{sub}</div> : null}
+        <div className={cn('font-display text-display-md font-bold leading-tight tnum', valueClass)}>{value}</div>
+        {sub ? <div className="mt-1 font-mono text-micro text-ink2 tnum">{sub}</div> : null}
       </div>
     </Panel>
   );
@@ -67,19 +67,19 @@ function TerminWert({ t }: { t: Termin }) {
     <Link
       to={`/analyse?symbol=${encodeURIComponent(t.symbol!)}`}
       title={`${t.name} — ${t.typ}, ${fmtDate(t.date)}`}
-      className="flex items-center gap-3 border-b border-line py-2.5 text-[13px] text-ink transition-colors last:border-b-0 hover:bg-panel2"
+      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
     >
-      <span className="w-[86px] shrink-0 font-mono text-[11.5px] text-ink3">{wannVon(t)}</span>
+      <span className="w-[86px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       <Badge variant="chip">{t.symbol}</Badge>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
         {t.typ === 'Quartalszahlen' ? 'Quartalszahlen' : 'Ex-Dividende'}
         {t.epsErwartet != null && (
-          <span className="font-mono text-[12px] text-ink2 tnum">EPS erw. {fmtEps(t.epsErwartet)}</span>
+          <span className="font-mono text-micro text-ink2 tnum">EPS erw. {fmtEps(t.epsErwartet)}</span>
         )}
         {t.epsTatsaechlich != null && (
           <span
             className={cn(
-              'border-l border-line-strong pl-3 font-mono text-[12px] tnum',
+              'border-l border-line-strong pl-3 font-mono text-micro tnum',
               t.ueberraschungPct != null && t.ueberraschungPct > 0 ? 'text-up' : t.ueberraschungPct != null && t.ueberraschungPct < 0 ? 'text-down' : 'text-ink2'
             )}
           >
@@ -99,17 +99,17 @@ function TerminMarkt({ t }: { t: Termin }) {
     <Link
       to="/kalender"
       title={`${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}`}
-      className="flex items-center gap-3 border-b border-line py-2.5 text-[13px] text-ink transition-colors last:border-b-0 hover:bg-panel2"
+      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
     >
-      <span className="w-[86px] shrink-0 font-mono text-[11.5px] text-ink3">{wannVon(t)}</span>
+      <span className="w-[86px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       <Badge variant="neu" title={t.waehrung ?? ''}>{t.land ?? t.waehrung}</Badge>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
         {kurzTitel}
-        {t.prognose && <span className="font-mono text-[12px] text-ink2 tnum">Prog. {t.prognose}</span>}
+        {t.prognose && <span className="font-mono text-micro text-ink2 tnum">Prog. {t.prognose}</span>}
         {t.aktuell && (
           <span
             className={cn(
-              'border-l border-line-strong pl-3 font-mono text-[12px] tnum',
+              'border-l border-line-strong pl-3 font-mono text-micro tnum',
               t.aktuellTrend === 'gut' ? 'text-up' : t.aktuellTrend === 'schlecht' ? 'text-down' : 'text-ink2'
             )}
           >
@@ -127,7 +127,7 @@ function PrepostMini({ ab }: { ab: Ausserboerslich | null }) {
   if (!ab || ab.pct == null) return null;
   return (
     <span
-      className={cn('block text-[10.5px] opacity-90 tnum', signClass(ab.pct))}
+      className={cn('block text-micro opacity-90 tnum', signClass(ab.pct))}
       title={ab.phase === 'pre' ? 'Vorbörslicher Handel (Pre-Market)' : 'Nachbörslicher Handel (After-Hours)'}
     >
       {ab.phase === 'pre' ? 'Pre' : 'Post'} {fmtPct(ab.pct)}
@@ -174,19 +174,19 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
               );
             }}
           >
-            <div className="flex items-center gap-2 text-[13px]">
+            <div className="flex items-center gap-2 text-small">
               <Badge variant="chip">{gewaehlt.symbol}</Badge>
               <span className="truncate text-ink2">{gewaehlt.name}</span>
               <button
                 type="button"
                 onClick={() => setGewaehlt(null)}
-                className="ml-auto cursor-pointer text-[12px] text-ink3 hover:text-ink"
+                className="ml-auto cursor-pointer text-micro text-ink3 hover:text-ink"
               >
                 ändern
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink3">
+              <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
                 Stück
                 <Input
                   type="number"
@@ -200,7 +200,7 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
                   onChange={(e) => setShares(e.target.value)}
                 />
               </label>
-              <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink3">
+              <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
                 Ø-Kaufkurs
                 <Input
                   type="number"
@@ -214,7 +214,7 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
               </label>
             </div>
             {mutation.isError && (
-              <p className="text-[12.5px] text-down">Fehler: {(mutation.error as Error).message}</p>
+              <p className="text-small text-down">Fehler: {(mutation.error as Error).message}</p>
             )}
             <div className="flex justify-end gap-2.5">
               <Button type="button" variant="ghost" size="sm" onClick={() => { onClose(); reset(); }}>
@@ -264,19 +264,19 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
           }}
         >
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink3">
+            <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
               Stück
               <Input type="number"
                   inputMode="decimal" step="any" min="0" required autoFocus value={shares} onChange={(e) => setShares(e.target.value)} />
             </label>
-            <label className="grid gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink3">
+            <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
               Ø-Kaufkurs
               <Input type="number"
                   inputMode="decimal" step="any" min="0" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} />
             </label>
           </div>
           {mutation.isError && (
-            <p className="text-[12.5px] text-down">Fehler: {(mutation.error as Error).message}</p>
+            <p className="text-small text-down">Fehler: {(mutation.error as Error).message}</p>
           )}
           <div className="flex justify-end gap-2.5">
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
@@ -319,7 +319,7 @@ function AddWatchDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
 const TH = ({ className, ...p }: React.ComponentProps<'th'>) => (
   <th
-    className={cn('pb-2.5 text-left text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3', className)}
+    className={cn('pb-2.5 text-left text-micro font-bold uppercase tracking-[0.14em] text-ink3', className)}
     {...p}
   />
 );
@@ -335,11 +335,11 @@ function Positionen({ d }: { d: Dashboard }) {
       <PanelTitle>Positionen</PanelTitle>
       {d.positions.length === 0 ? (
         <Empty>
-          <b className="mb-1 block text-[14px] text-ink2">Noch keine Positionen.</b>
+          <b className="mb-1 block text-base text-ink2">Noch keine Positionen.</b>
           Über „+ Position hinzufügen" unten legst du deine erste an — die Kurse laufen dann automatisch ein.
         </Empty>
       ) : (
-        <table className="w-full border-collapse text-[13.5px]">
+        <table className="w-full border-collapse text-base">
           <thead>
             <tr>
               <TH>Wert</TH>
@@ -369,20 +369,20 @@ function Positionen({ d }: { d: Dashboard }) {
                   >
                     {p.name}
                   </Link>
-                  <div className="font-mono text-[11px] tracking-wide text-ink3">
+                  <div className="font-mono text-micro tracking-wide text-ink3">
                     {p.symbol} · {p.shares} Stk.
                   </div>
                 </td>
-                <td className="py-3 text-right font-mono text-[13px] tnum">{fmtMoney(p.preis, p.waehrung)}</td>
-                <td className={cn('py-3 text-right font-mono text-[13px] tnum', signClass(p.tagesPct))}>
+                <td className="py-3 text-right font-mono text-small tnum">{fmtMoney(p.preis, p.waehrung)}</td>
+                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.tagesPct))}>
                   {fmtPct(p.tagesPct)}
                   <PrepostMini ab={p.ausserboerslich} />
                 </td>
                 <td className="py-3 pl-2">
                   <Sparkline values={p.sparkline} />
                 </td>
-                <td className="py-3 text-right font-mono text-[13px] tnum">{fmtEur(p.valueEur)}</td>
-                <td className={cn('py-3 text-right font-mono text-[13px] tnum', signClass(p.gewinnEur))}>
+                <td className="py-3 text-right font-mono text-small tnum">{fmtEur(p.valueEur)}</td>
+                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.gewinnEur))}>
                   {fmtEur(p.gewinnEur)} <span className="text-ink3">({fmtPct(p.gewinnPct)})</span>
                 </td>
                 <td className="w-[1%] whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
@@ -426,7 +426,7 @@ function Watchlist({ d }: { d: Dashboard }) {
       {d.watchlist.length === 0 ? (
         <Empty>Keine beobachteten Werte — über „+ Wert beobachten" unten hinzufügen.</Empty>
       ) : (
-        <table className="w-full border-collapse text-[13.5px]">
+        <table className="w-full border-collapse text-base">
           <thead>
             <tr>
               <TH>Wert</TH>
@@ -453,10 +453,10 @@ function Watchlist({ d }: { d: Dashboard }) {
                   >
                     {w.name}
                   </Link>
-                  <div className="font-mono text-[11px] tracking-wide text-ink3">{w.symbol}</div>
+                  <div className="font-mono text-micro tracking-wide text-ink3">{w.symbol}</div>
                 </td>
-                <td className="py-3 text-right font-mono text-[13px] tnum">{fmtMoney(w.preis, w.waehrung)}</td>
-                <td className={cn('py-3 text-right font-mono text-[13px] tnum', signClass(w.tagesPct))}>
+                <td className="py-3 text-right font-mono text-small tnum">{fmtMoney(w.preis, w.waehrung)}</td>
+                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.tagesPct))}>
                   {fmtPct(w.tagesPct)}
                   <PrepostMini ab={w.ausserboerslich} />
                 </td>
@@ -523,10 +523,10 @@ function Allokation({ d }: { d: Dashboard }) {
                 <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: s.color }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="truncate text-[13px] font-medium text-ink">{s.label}</span>
-                    <span className="font-mono text-[13px] font-semibold tnum">{fmtPct(s.pct, false)}</span>
+                    <span className="truncate text-small font-medium text-ink">{s.label}</span>
+                    <span className="font-mono text-small font-semibold tnum">{fmtPct(s.pct, false)}</span>
                   </div>
-                  <div className="flex items-baseline justify-between gap-3 font-mono text-[11px] text-ink3">
+                  <div className="flex items-baseline justify-between gap-3 font-mono text-micro text-ink3">
                     {s.symbole.length ? <span className="truncate">{s.symbole.join(' · ')}</span> : <span />}
                     <span className="tnum">{fmtEur(s.value)}</span>
                   </div>
@@ -569,7 +569,7 @@ function NewsLage() {
         ) : (
           <>
             {(data.feedErrors ?? []).map((f) => (
-              <p key={f} className="mb-2 rounded-md border border-warn/30 bg-warn-soft px-3 py-2 text-[12px] text-ink2">
+              <p key={f} className="mb-2 rounded-md border border-warn/30 bg-warn-soft px-3 py-2 text-micro text-ink2">
                 Feed nicht erreichbar: {f}
               </p>
             ))}
@@ -609,11 +609,11 @@ export default function DashboardPage() {
   return (
     <div className="grid gap-5">
       <header className="animate-rise">
-        <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.15em] text-ink3">
+        <div className="flex items-center gap-3 font-mono text-micro uppercase tracking-[0.14em] text-ink3">
           {heute}
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight text-balance">
+        <h1 className="mt-1.5 font-display text-[clamp(28px,3.4vw,36px)] font-bold tracking-tight text-balance">
           Dein Depot, <em className="not-italic text-accent">auf einen Blick.</em>
         </h1>
       </header>
@@ -635,7 +635,7 @@ export default function DashboardPage() {
               <Panel key={i} className="flex min-h-[128px] flex-col justify-between">
                 <Skeleton className="h-3 w-[110px]" />
                 <div className="grid gap-2">
-                  <Skeleton className="h-7 w-[150px]" />
+                  <Skeleton className="h-control-sm w-[150px]" />
                   <Skeleton className="h-3 w-[96px]" />
                 </div>
               </Panel>
@@ -668,14 +668,14 @@ export default function DashboardPage() {
             <StatCard
               label="Gewinn / Verlust"
               value={d.positions.length ? fmtEur(d.gewinnEur) : '—'}
-              valueClass={cn('text-[26px]', signClass(d.gewinnEur))}
+              valueClass={cn('text-display-md', signClass(d.gewinnEur))}
               sub={d.gewinnPct != null ? `${fmtPct(d.gewinnPct)} seit Kauf` : undefined}
               delay={60}
             />
             <StatCard
               label="Heute"
               value={d.positions.length ? fmtEur(d.dayChangeEur) : '—'}
-              valueClass={cn('text-[26px]', signClass(d.dayChangeEur))}
+              valueClass={cn('text-display-md', signClass(d.dayChangeEur))}
               sub={d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : undefined}
               delay={120}
             />
@@ -686,22 +686,22 @@ export default function DashboardPage() {
               <PanelTitle>Wichtige Termine</PanelTitle>
               <div className="grid grid-cols-1 gap-x-10 gap-y-4 lg:grid-cols-2">
                 <div>
-                  <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">Deine Werte</div>
+                  <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Deine Werte</div>
                   {d.termine.filter((t) => t.typ !== 'Markt').length ? (
                     d.termine.filter((t) => t.typ !== 'Markt').map((t, i) => <TerminWert key={i} t={t} />)
                   ) : (
-                    <p className="py-2 text-[13px] text-ink3">Keine Termine deiner Werte.</p>
+                    <p className="py-2 text-small text-ink3">Keine Termine deiner Werte.</p>
                   )}
                 </div>
                 <div>
-                  <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">Markt-Events</div>
+                  <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Markt-Events</div>
                   {d.termine.filter((t) => t.typ === 'Markt').length ? (
                     d.termine
                       .filter((t) => t.typ === 'Markt')
                       .slice(0, 3)
                       .map((t, i) => <TerminMarkt key={i} t={t} />)
                   ) : (
-                    <p className="py-2 text-[13px] text-ink3">Keine großen Markt-Events.</p>
+                    <p className="py-2 text-small text-ink3">Keine großen Markt-Events.</p>
                   )}
                 </div>
               </div>

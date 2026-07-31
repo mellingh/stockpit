@@ -260,8 +260,8 @@ export function StockChart({
   return (
     <div ref={containerRef} className="relative h-[400px] w-full">
       <div className="pointer-events-none absolute left-2.5 top-2 z-10 rounded-md bg-[rgba(23,29,43,0.82)] px-2.5 py-1.5 backdrop-blur-sm">
-        <div ref={symRef} className="text-[12px] font-semibold text-ink" />
-        <div ref={ohlcRef} className="flex gap-2.5 font-mono text-[11px] text-ink3 tnum" />
+        <div ref={symRef} className="text-micro font-semibold text-ink" />
+        <div ref={ohlcRef} className="flex gap-2.5 font-mono text-micro text-ink3 tnum" />
       </div>
     </div>
   );

@@ -50,7 +50,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
   // Jede Pille ist ein externer Link → sichtbares ↗ (nicht nur Farbe/Tooltip),
   // dazu aria-label mit Ziel und "neues Fenster" für Screenreader.
   const pillKlasse =
-    'group inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-panel2 pl-3 pr-2.5 py-[5px] text-[12.5px] text-ink2 transition-colors duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50';
+    'group inline-flex items-center gap-1.5 h-control-sm rounded-full border border-line-strong bg-panel2 pl-3 pr-2.5 text-small text-ink2 transition-colors duration-150 hover:border-accent hover:bg-accent-soft hover:text-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50';
 
   return (
     <Panel>
@@ -120,7 +120,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
               value={eingabe}
               onChange={(e) => setEingabe(e.target.value)}
             />
-            <Button type="submit" size="sm" className="h-9 shrink-0" disabled={hinzufuegen.isPending}>
+            <Button type="submit" size="sm" className="h-control-md shrink-0" disabled={hinzufuegen.isPending}>
               {/* Der Server prüft kurz, ob Account/Seite existieren — das dauert
                   einen Moment und darf nicht wie ein toter Klick wirken. */}
               {hinzufuegen.isPending ? (
@@ -133,14 +133,14 @@ export function LinksCard({ symbol }: { symbol: string }) {
             </Button>
           </form>
           {fehler && (
-            <p role="status" aria-live="polite" className="mb-3 text-[12.5px] leading-relaxed text-down">
+            <p role="status" aria-live="polite" className="mb-3 text-small leading-relaxed text-down">
               {fehler}
             </p>
           )}
           <div className="scroll-dezent max-h-[300px] overflow-y-auto pr-1">
             {/* Entfernen als dezentes ✕ (die rote Button-Kolonne wirkte unruhig) */}
             {accounts.map((h) => (
-              <div key={h} className="flex items-center gap-2.5 border-b border-line py-2 text-[13px] last:border-b-0">
+              <div key={h} className="flex items-center gap-2.5 border-b border-line py-2.5 text-small last:border-b-0">
                 <span className="shrink-0 text-ink3"><XLogo /></span>
                 <span className="min-w-0 flex-1 truncate">@{h}</span>
                 <button
@@ -155,7 +155,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
               </div>
             ))}
             {webLinks.map((l) => (
-              <div key={l.url} className="flex items-center gap-2.5 border-b border-line py-2 text-[13px] last:border-b-0">
+              <div key={l.url} className="flex items-center gap-2.5 border-b border-line py-2.5 text-small last:border-b-0">
                 <Globe size={12} className="shrink-0 text-ink3" />
                 <span className="min-w-0 flex-1 truncate">{l.name}</span>
                 <button

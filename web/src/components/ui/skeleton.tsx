@@ -58,7 +58,7 @@ function SkeletonPills({ anzahl = 6, className }: { anzahl?: number; className?:
   return (
     <div className={cn('flex flex-wrap gap-2', className)}>
       {Array.from({ length: anzahl }, (_, i) => (
-        <Skeleton key={i} className="h-8 rounded-full" style={{ width: `${86 + ((i * 17) % 46)}px` }} />
+        <Skeleton key={i} className="h-control-sm rounded-full" style={{ width: `${86 + ((i * 17) % 46)}px` }} />
       ))}
     </div>
   );

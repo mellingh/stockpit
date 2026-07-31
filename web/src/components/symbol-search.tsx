@@ -46,7 +46,7 @@ function Marke({ symbol }: { symbol: string }) {
   return (
     <span
       aria-hidden
-      className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-elevated font-mono text-[10px] font-bold text-ink2"
+      className="grid size-5 shrink-0 place-items-center rounded-full bg-elevated font-mono text-micro font-bold text-ink2"
     >
       {symbol[0]}
     </span>
@@ -73,14 +73,14 @@ function TickerPill({
       onMouseEnter={onHover}
       onClick={onClick}
       className={cn(
-        'flex h-8 cursor-pointer items-center gap-2 rounded-full border px-2.5 text-left transition-colors duration-150',
+        'flex h-control-sm cursor-pointer items-center gap-2 rounded-full border px-2.5 text-left transition-colors duration-150',
         aktiv ? 'border-accent bg-accent-soft' : 'border-line-strong bg-panel2 hover:border-ink3'
       )}
     >
       <Marke symbol={v.symbol} />
-      <span className="font-mono text-[12.5px] font-semibold text-ink">{v.symbol}</span>
+      <span className="font-mono text-small font-semibold text-ink">{v.symbol}</span>
       {v.tagesPct != null && (
-        <span className={cn('font-mono text-[11.5px] tnum', signClass(v.tagesPct))}>{fmtPct(v.tagesPct)}</span>
+        <span className={cn('font-mono text-micro tnum', signClass(v.tagesPct))}>{fmtPct(v.tagesPct)}</span>
       )}
     </button>
   );
@@ -111,9 +111,9 @@ function TrefferZeile({
       )}
     >
       <Marke symbol={t.symbol} />
-      <span className="min-w-[78px] shrink-0 font-mono text-[12.5px] font-semibold text-ink">{t.symbol}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-ink2">{t.name}</span>
-      <span className="shrink-0 text-[11px] uppercase tracking-wider text-ink3">
+      <span className="min-w-[78px] shrink-0 font-mono text-small font-semibold text-ink">{t.symbol}</span>
+      <span className="min-w-0 flex-1 truncate text-small text-ink2">{t.name}</span>
+      <span className="shrink-0 text-micro uppercase tracking-wider text-ink3">
         {t.type === 'ETF' ? 'ETF' : 'Aktie'}
         {t.exchange ? ` · ${t.exchange}` : ''}
       </span>
@@ -142,7 +142,10 @@ export function SymbolSearch({
   const [query, setQuery] = useState('');
   const [treffer, setTreffer] = useState<SearchResult[]>([]);
   const [laedt, setLaedt] = useState(false);
-  const [aktiv, setAktiv] = useState(0);
+  // -1 = noch nichts hervorgehoben. Beim Öffnen soll KEIN Vorschlag ausgewählt
+  // aussehen — die Markierung erscheint erst, wenn man mit ↑/↓ navigiert
+  // (oder mit der Maus über einen Vorschlag fährt).
+  const [aktiv, setAktiv] = useState(-1);
   const [letzte] = useState<Vorschlag[]>(letzteLaden);
   const timer = useRef<ReturnType<typeof setTimeout>>(null);
   const { data: d } = useDashboard();
@@ -179,14 +182,14 @@ export function SymbolSearch({
     if (!suchModus) {
       setTreffer([]);
       setLaedt(false);
-      setAktiv(0);
+      setAktiv(-1);
       return;
     }
     setLaedt(true);
     timer.current = setTimeout(async () => {
       try {
         setTreffer(await searchSymbols(query.trim()));
-        setAktiv(0);
+        setAktiv(-1);
       } catch {
         setTreffer([]);
       } finally {
@@ -207,6 +210,7 @@ export function SymbolSearch({
 
   /** Der aktive Index läuft über alle Gruppen hinweg — Reihenfolge = Anzeige */
   const beiIndex = (i: number): Vorschlag | SearchResult | null => {
+    if (i < 0) return null;
     if (suchModus) return treffer[i] ?? null;
     let rest = i;
     for (const g of gruppen) {
@@ -220,10 +224,10 @@ export function SymbolSearch({
     if (!anzahl) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setAktiv((i) => (i + 1) % anzahl);
+      setAktiv((i) => (i + 1 + anzahl) % anzahl);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setAktiv((i) => (i - 1 + anzahl) % anzahl);
+      setAktiv((i) => (i <= 0 ? anzahl - 1 : i - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const v = beiIndex(aktiv) ?? beiIndex(0);
@@ -251,7 +255,7 @@ export function SymbolSearch({
           placeholder={placeholder}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          className="w-full border-0 bg-transparent p-0 text-[14.5px] text-ink outline-none placeholder:text-ink3"
+          className="w-full border-0 bg-transparent p-0 text-lg text-ink outline-none placeholder:text-ink3"
         />
         {laedt && <Loader2 size={15} className="shrink-0 animate-spin text-ink3" aria-hidden />}
       </div>
@@ -261,7 +265,7 @@ export function SymbolSearch({
         {suchModus ? (
           <div role="listbox" aria-label="Suchergebnisse">
             {treffer.length === 0 && !laedt ? (
-              <p className="px-3 py-8 text-center text-[13px] text-ink3" role="status" aria-live="polite">
+              <p className="px-3 py-8 text-center text-small text-ink3" role="status" aria-live="polite">
                 Nichts gefunden — Tippfehler im Ticker?
               </p>
             ) : (
@@ -277,12 +281,12 @@ export function SymbolSearch({
             )}
           </div>
         ) : gruppen.length === 0 ? (
-          <p className="px-3 py-8 text-center text-[13px] text-ink3">Name oder Ticker eingeben, um zu suchen.</p>
+          <p className="px-3 py-8 text-center text-small text-ink3">Name oder Ticker eingeben, um zu suchen.</p>
         ) : (
           <div role="listbox" aria-label="Vorschläge" className="grid gap-3.5 px-1.5 pb-1">
             {gruppen.map((g) => (
               <div key={g.titel} role="group" aria-label={g.titel}>
-                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-ink3">{g.titel}</div>
+                <div className="mb-2 text-micro font-bold uppercase tracking-[0.14em] text-ink3">{g.titel}</div>
                 <div className="flex flex-wrap gap-2">
                   {g.items.map((v) => {
                     laufIndex += 1;

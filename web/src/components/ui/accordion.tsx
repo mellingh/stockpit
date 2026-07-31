@@ -16,7 +16,7 @@ function AccordionTrigger({
     <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
         className={cn(
-          'group flex cursor-pointer items-center gap-1.5 py-2 text-[12.5px] font-semibold text-accent outline-none transition-colors hover:underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-accent/50 rounded-sm',
+          'group flex h-control-md cursor-pointer items-center gap-1.5 text-small font-semibold text-accent outline-none transition-colors hover:underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-accent/50 rounded-sm',
           className
         )}
         {...props}

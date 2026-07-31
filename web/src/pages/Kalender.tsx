@@ -26,7 +26,7 @@ function Sterne({ wichtigkeit, klein = false }: { wichtigkeit: string; klein?: b
     <span
       title={label}
       aria-label={label}
-      className={cn('inline-flex gap-px leading-none', klein ? 'text-[13px]' : 'text-[15px]')}
+      className={cn('inline-flex gap-px leading-none', klein ? 'text-small' : 'text-lg')}
     >
       {[0, 1, 2].map((i) => (
         <span key={i} aria-hidden className={i < n ? `stern ${farbe}` : 'stern-leer text-line-strong'}>
@@ -66,7 +66,7 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        'flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 font-mono text-[11.5px] transition-colors',
+        'flex h-control-sm cursor-pointer items-center gap-1.5 rounded-md border px-3 font-mono text-micro transition-colors',
         aktiv
           // Sterne im aktiven Pill mitfärben, sonst leuchten sie auf dem Hellblau
           ? 'border-accent bg-accent font-semibold text-[#0b1524] [&_.stern]:text-[#0b1524] [&_.stern-leer]:text-[#0b1524]/35'
@@ -115,23 +115,23 @@ function EventZeile({ e }: { e: KalenderEvent }) {
         title="Klick: Was bedeutet dieser Termin?"
         className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
       >
-        <td className="w-[56px] py-2.5 font-mono text-[12px] text-ink3 tnum">{zeit}</td>
-        <td className="w-[86px] whitespace-nowrap py-2.5 text-[13px]" title={e.waehrung ?? ''}>
-          <span className="mr-1.5 text-[15px] leading-none">{flagge(e.land)}</span>
+        <td className="w-[56px] py-2.5 font-mono text-micro text-ink3 tnum">{zeit}</td>
+        <td className="w-[86px] whitespace-nowrap py-2.5 text-small" title={e.waehrung ?? ''}>
+          <span className="mr-1.5 text-base leading-none">{flagge(e.land)}</span>
           {e.land ?? e.waehrung ?? '–'}
         </td>
         <td className="w-[66px] py-2.5">
           <Sterne wichtigkeit={e.wichtigkeit} />
         </td>
-        <td className="py-2.5 pr-3 text-[13.5px] font-medium text-ink">{e.titel}</td>
+        <td className="py-2.5 pr-3 text-base font-medium text-ink">{e.titel}</td>
         <td
-          className={cn('py-2.5 text-right font-mono text-[12.5px] tnum', aktuellCls)}
+          className={cn('py-2.5 text-right font-mono text-small tnum', aktuellCls)}
           title={e.aktuellTrend ? `${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als Prognose` : ''}
         >
           {e.aktuell ?? '–'}
         </td>
-        <td className="py-2.5 text-right font-mono text-[12.5px] text-ink2 tnum">{e.prognose ?? '–'}</td>
-        <td className="py-2.5 text-right font-mono text-[12.5px] text-ink3 tnum">{e.vorher ?? '–'}</td>
+        <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.prognose ?? '–'}</td>
+        <td className="py-2.5 text-right font-mono text-small text-ink3 tnum">{e.vorher ?? '–'}</td>
       </tr>
       {offen && (
         <tr className="border-b border-line last:border-b-0">
@@ -160,7 +160,7 @@ function JetztLinie({ jetzt }: { jetzt: Date }) {
     <tr aria-hidden>
       <td colSpan={7} className="p-0">
         <div className="relative flex items-center gap-2 py-1.5">
-          <span className="rounded border border-accent px-1.5 py-px font-mono text-[11px] font-semibold text-accent tnum">
+          <span className="rounded border border-accent px-1.5 py-px font-mono text-micro font-semibold text-accent tnum">
             {jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
           </span>
           <span className="h-px flex-1 bg-accent/55" />
@@ -204,11 +204,11 @@ export default function KalenderPage() {
   return (
     <div className="grid gap-5">
       <header className="animate-rise">
-        <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.15em] text-ink3">
+        <div className="flex items-center gap-3 font-mono text-micro uppercase tracking-[0.14em] text-ink3">
           Wirtschaftskalender
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight text-balance">
+        <h1 className="mt-1.5 font-display text-[clamp(28px,3.4vw,36px)] font-bold tracking-tight text-balance">
           Was den Markt <em className="not-italic text-accent">bewegt.</em>
         </h1>
       </header>
@@ -240,13 +240,13 @@ export default function KalenderPage() {
         {data &&
           (events.length === 0 ? (
             <Empty>
-              <b className="mb-1 block text-[14px] text-ink2">Keine Termine mit diesen Filtern.</b>
+              <b className="mb-1 block text-base text-ink2">Keine Termine mit diesen Filtern.</b>
               Tipp: „Diese Woche" wählen oder die Wichtigkeit auf „Alle" stellen.
             </Empty>
           ) : (
             <table className="lange-liste w-full border-collapse">
               <thead>
-                <tr className="text-left text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3">
+                <tr className="text-left text-micro font-bold uppercase tracking-[0.14em] text-ink3">
                   <th className="pb-2.5">Zeit</th>
                   <th className="pb-2.5">Land</th>
                   <th className="pb-2.5">Relev.</th>
@@ -262,7 +262,7 @@ export default function KalenderPage() {
                   const separator =
                     tag === 'woche' && key !== letzterTag ? (
                       <tr key={`sep-${key}`} className="border-b border-line">
-                        <td colSpan={7} className="pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-[0.13em] text-accent">
+                        <td colSpan={7} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-accent">
                           {new Date(e.zeit).toLocaleDateString('de-DE', {
                             weekday: 'long',
                             day: 'numeric',
@@ -286,7 +286,7 @@ export default function KalenderPage() {
           ))}
       </Panel>
 
-      <p className="text-center text-[12px] text-ink3">
+      <p className="text-center text-micro text-ink3">
         Zeiten in deiner lokalen Zeitzone · „Aktuell" grün/rot = besser/schlechter als Prognose · Alle Angaben ohne
         Gewähr — keine Anlageberatung.
       </p>

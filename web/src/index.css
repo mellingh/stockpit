@@ -54,6 +54,43 @@
   --color-hoch: #ff8348;
   --color-warn-soft: rgba(237, 185, 92, 0.12);
 
+  /* ---------- Größen-Skala — VERBINDLICH ----------
+     Es gibt GENAU diese Stufen. Keine Zwischenwerte, keine Halbpixel,
+     keine `text-[13.5px]`-Sonderfälle. Wer eine neue Größe braucht,
+     nimmt die nächstliegende Stufe — oder die Skala wird hier geändert.
+
+     Schrift:
+       text-micro      12px  Uppercase-Labels, Badges, Spaltenköpfe, Meta-Zeilen
+       text-small      13px  Mono-Kursdaten, Hilfstexte, Tabellen-Nebenwerte
+       text-base       14px  Standardtext, Tabellenzellen, Formularfelder
+       text-lg         16px  News-Titel, Sucheingabe, Sterne
+       display-sm/md/lg 22/28/36px  Kennzahlen, Panel-Zahlen, Seitentitel
+     Kontrollhöhen (alles Klickbare):
+       h-control-xs    24px  statische Chips/Badges
+       h-control-sm    28px  Filter-Pills, kleine Buttons, Icon-Buttons
+       h-control-md    36px  Standard-Buttons, Eingabefelder
+       h-control-lg    44px  große Suche
+     Zeilenhöhe in Tabellen/Listen: py-2.5 (= 10px oben/unten). */
+  --text-micro: 12px;
+  --text-micro--line-height: 1.35;
+  --text-small: 13px;
+  --text-small--line-height: 1.45;
+  --text-base: 14px;
+  --text-base--line-height: 1.5;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.4;
+  --text-display-sm: 22px;
+  --text-display-sm--line-height: 1.2;
+  --text-display-md: 28px;
+  --text-display-md--line-height: 1.15;
+  --text-display-lg: 36px;
+  --text-display-lg--line-height: 1.1;
+
+  --spacing-control-xs: 24px;
+  --spacing-control-sm: 28px;
+  --spacing-control-md: 36px;
+  --spacing-control-lg: 44px;
+
   --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
   --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
   --font-mono: 'Red Hat Mono', ui-monospace, monospace;

@@ -27,7 +27,7 @@ function KiStatus() {
     : state === 'error' ? 'bg-down'
     : 'bg-accent animate-pulse';
   return (
-    <div className="flex items-center gap-2 font-mono text-[11px] tracking-wide text-ink3">
+    <div className="flex items-center gap-2 font-mono text-micro tracking-wide text-ink3">
       <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
       {text}
     </div>
@@ -58,13 +58,13 @@ export default function App() {
       {/* Sprungmarke für Tastatur-Nutzer (nur bei Fokus sichtbar) */}
       <a
         href="#inhalt"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-sm focus:bg-accent focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-[#0b1524]"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-sm focus:bg-accent focus:px-4 focus:py-2 focus:text-small focus:font-semibold focus:text-[#0b1524]"
       >
         Zum Inhalt springen
       </a>
       <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
         <div className="mx-auto flex h-[54px] w-full max-w-[1460px] items-center gap-7 px-5">
-          <Link to="/" className="font-display text-[19px] font-bold tracking-tight text-ink">
+          <Link to="/" className="font-display text-display-sm font-bold tracking-tight text-ink">
             Stock<span className="text-accent">pit</span>
           </Link>
           <nav className="flex items-center gap-1">
@@ -73,7 +73,7 @@ export default function App() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  'rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors',
+                  'rounded-md px-3.5 py-1.5 text-small font-medium transition-colors',
                   istAktiv(n.to)
                     ? 'bg-accent-soft text-accent'
                     : 'text-ink2 hover:bg-panel2 hover:text-ink'
@@ -102,7 +102,7 @@ export default function App() {
         <Seite />
       </main>
 
-      <footer className="border-t border-line py-5 text-center text-[12px] text-ink3">
+      <footer className="border-t border-line py-5 text-center text-micro text-ink3">
         <b className="font-semibold text-ink2">Stockpit</b> läuft komplett lokal · Alle Angaben
         ohne Gewähr — keine Anlageberatung.
       </footer>

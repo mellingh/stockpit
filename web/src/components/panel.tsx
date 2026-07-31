@@ -29,7 +29,7 @@ export function PanelTitle({
   return (
     <h2
       className={cn(
-        'mb-4 flex items-center gap-2.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-ink2',
+        'mb-4 flex items-center gap-2.5 text-micro font-bold uppercase tracking-[0.14em] text-ink2',
         className
       )}
       {...props}
@@ -45,7 +45,7 @@ export function PanelTitle({
 export function Empty({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn('py-6 text-center text-[13px] leading-relaxed text-ink3', className)}
+      className={cn('py-6 text-center text-small leading-relaxed text-ink3', className)}
       {...props}
     />
   );

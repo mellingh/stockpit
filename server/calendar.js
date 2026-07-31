@@ -161,7 +161,13 @@ function titelDeutsch(titel, periode) {
   for (const [muster, wort] of ZUSATZ_DE) {
     if (muster.test(rest)) {
       zusaetze.push(wort);
-      rest = rest.replace(muster, '').replace(/\s{2,}/g, ' ').trim();
+      // Manche Originaltitel klammern den Zusatz („Industrial Profits (YTD) YoY") —
+      // nach dem Entfernen bleibt sonst eine leere Klammer stehen.
+      rest = rest
+        .replace(muster, '')
+        .replace(/\(\s*\)/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
     }
   }
   let basis = rest;
