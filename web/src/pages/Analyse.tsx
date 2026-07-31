@@ -170,7 +170,7 @@ function ReportSkelett() {
           </div>
           <div className="mb-3 flex flex-wrap gap-1.5 px-1">
             {RANGES.map(([r]) => (
-              <Skeleton key={r} className="h-control-sm w-[46px]" />
+              <Skeleton key={r} className="h-control-xs w-[42px]" />
             ))}
           </div>
           <Skeleton className="h-[380px] w-full" />
@@ -757,7 +757,7 @@ function Report({ symbol }: { symbol: string }) {
   return (
     <div className="grid gap-5 [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms] [&>*:nth-child(6)]:[animation-delay:250ms]">
       <header>
-        <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
+        <h1 className="font-display text-display-sm font-bold tracking-tight text-balance">{a.name}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="chip">{a.symbol}</Badge>
           {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
@@ -772,7 +772,7 @@ function Report({ symbol }: { symbol: string }) {
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
         <Panel className="p-4 pb-2">
           <div className="flex flex-wrap items-baseline gap-3 px-1 pb-2.5">
-            <span className="font-display text-display-sm font-bold leading-none tnum">
+            <span className="font-display text-display-md font-bold leading-none tnum">
               {fmtMoney(a.kurs.preis, a.currency)}
             </span>
             <span className={cn('font-mono text-small tnum', signClass(a.kurs.veraenderungPct))}>
@@ -795,7 +795,7 @@ function Report({ symbol }: { symbol: string }) {
                 key={r}
                 onClick={() => setRange(r)}
                 className={cn(
-                  'h-control-sm cursor-pointer rounded-md border px-3 font-mono text-micro transition-colors',
+                  'h-control-xs cursor-pointer rounded-md border px-2.5 font-mono text-micro transition-colors',
                   range === r
                     ? 'border-accent bg-accent font-semibold text-[#0b1524]'
                     : 'border-line-strong text-ink2 hover:border-ink3 hover:bg-panel2 hover:text-ink'

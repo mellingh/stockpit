@@ -15,6 +15,7 @@ import { NewsItem } from '@/components/news';
 import { api, type Dashboard, type Position, type SearchResult, type Termin, type Ausserboerslich } from '@/lib/api';
 import { useDashboard, useNewsfeed, usePortfolioMutation } from '@/lib/queries';
 import { fmtEur, fmtEps, fmtMoney, fmtPct, fmtDate, signClass } from '@/lib/format';
+import { flagge } from '@/lib/event-lexikon';
 import { cn } from '@/lib/utils';
 
 // ---------- Hero-KPIs ----------
@@ -97,12 +98,12 @@ function TerminMarkt({ t }: { t: Termin }) {
   const kurzTitel = t.name.replace(/\s*\((Monat|Jahr|Quartal)\)/g, '');
   return (
     <Link
-      to="/kalender"
+      to={`/kalender?${t.days === 0 ? '' : 'tag=woche&'}event=${encodeURIComponent(`${t.date}~${t.name}`)}`}
       title={`${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}`}
       className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
     >
       <span className="w-[86px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
-      <Badge variant="neu" title={t.waehrung ?? ''}>{t.land ?? t.waehrung}</Badge>
+      <span className="w-[56px] shrink-0 whitespace-nowrap" title={t.waehrung ?? ''}><span className="mr-1.5 text-lg leading-none">{flagge(t.land)}</span>{t.land ?? t.waehrung}</span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
         {kurzTitel}
         {t.prognose && <span className="font-mono text-micro text-ink2 tnum">Prog. {t.prognose}</span>}
@@ -291,18 +292,24 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
 function AddWatchDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const mutation = usePortfolioMutation((symbol: string) => api.post('/api/watchlist', { symbol }));
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); mutation.reset(); } }}>
       <DialogContent className="p-0">
         <div className="px-5 pb-4 pt-4">
           <DialogTitle className="mb-0 pr-9">Wert beobachten</DialogTitle>
         </div>
+        {/* Ablehnung des Servers (z. B. "liegt bereits in deinen Positionen")
+            anzeigen statt still zu schließen */}
+        {mutation.isError && (
+          <p role="status" aria-live="polite" className="mx-5 mb-2 text-small leading-relaxed text-down">
+            {(mutation.error as Error).message}
+          </p>
+        )}
         <div className="px-3.5 pb-3">
           <SymbolSearch
             placeholder="Name oder Ticker suchen …"
             zeigeEigene={false}
             onPick={(r) => {
-              mutation.mutate(r.symbol);
-              onClose();
+              mutation.mutate(r.symbol, { onSuccess: () => { onClose(); mutation.reset(); } });
             }}
           />
         </div>
@@ -342,7 +349,7 @@ function Positionen({ d }: { d: Dashboard }) {
               <TH className="text-right">Kurs</TH>
               <TH className="text-right">Heute</TH>
               <TH>
-                Trend <span className="font-medium normal-case tracking-normal">30 T.</span>
+                Verlauf <span className="font-medium normal-case tracking-normal">30 T.</span>
               </TH>
               <TH className="text-right">Wert (EUR)</TH>
               <TH className="text-right">G/V</TH>
@@ -429,7 +436,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               <TH className="text-right">Kurs</TH>
               <TH className="text-right">Heute</TH>
               <TH>
-                Trend <span className="font-medium normal-case tracking-normal">30 T.</span>
+                Verlauf <span className="font-medium normal-case tracking-normal">30 T.</span>
               </TH>
               <TH />
             </tr>

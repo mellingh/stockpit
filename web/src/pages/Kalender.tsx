@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
@@ -77,8 +77,13 @@ function FilterPill({
   );
 }
 
-function EventZeile({ e }: { e: KalenderEvent }) {
-  const [offen, setOffen] = useState(false);
+function EventZeile({ e, autoOffen = false }: { e: KalenderEvent; autoOffen?: boolean }) {
+  const [offen, setOffen] = useState(autoOffen);
+  const zeileRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    // Deep-Link vom Dashboard: Zeile schon aufgeklappt ins Bild holen
+    if (autoOffen) zeileRef.current?.scrollIntoView({ block: 'center' });
+  }, [autoOffen]);
   const zeit = new Date(e.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   const aktuellCls =
     e.aktuellTrend === 'gut' ? 'text-up' : e.aktuellTrend === 'schlecht' ? 'text-down' : '';
@@ -110,6 +115,7 @@ function EventZeile({ e }: { e: KalenderEvent }) {
   return (
     <Fragment>
       <tr
+        ref={zeileRef}
         onClick={() => setOffen(!offen)}
         // Guideline: klickbare Zeilen müssen auch per Tastatur bedienbar sein
         tabIndex={0}
@@ -185,6 +191,8 @@ export default function KalenderPage() {
   const params = useSearchParams();
   const setParam = useSetParam();
   const tag = params.get('tag') ?? 'heute';
+  // Deep-Link vom Dashboard: ?event=<zeit>~<titel> klappt den Termin auf
+  const eventKey = params.get('event');
   const imp = params.get('relevanz') ?? 'all';
   const setTag = (v: string) => setParam('tag', v === 'heute' ? null : v);
   const setImp = (v: string) => setParam('relevanz', v === 'all' ? null : v);
@@ -286,7 +294,7 @@ export default function KalenderPage() {
                     <Fragment key={`${e.titel}-${e.zeit}-${i}`}>
                       {separator}
                       {i === jetztVor && <JetztLinie jetzt={jetzt} />}
-                      <EventZeile e={e} />
+                      <EventZeile e={e} autoOffen={eventKey === `${e.zeit}~${e.titel}`} />
                     </Fragment>
                   );
                 })}

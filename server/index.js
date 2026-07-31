@@ -834,6 +834,9 @@ app.post(
       currency: quote.currency,
       buyDate: buyDate || null,
     });
+    // Besitzen und beobachten zugleich ist doppelt — beim Kauf fliegt der Wert
+    // automatisch aus der Watchlist (Micha, Runde 12).
+    store.removeWatch(symbol);
     res.json(entry);
   })
 );
@@ -854,6 +857,15 @@ app.post(
   wrap(async (req, res) => {
     const { symbol } = req.body;
     if (!symbol) return res.status(400).json({ error: 'symbol ist Pflicht' });
+    // Was schon im Depot liegt, muss man nicht extra beobachten
+    const imDepot = store
+      .getData()
+      .positions.some((p) => p.symbol.toUpperCase() === String(symbol).toUpperCase());
+    if (imDepot) {
+      return res
+        .status(400)
+        .json({ error: `${symbol} liegt bereits in deinen Positionen — du siehst den Wert schon auf dem Dashboard.` });
+    }
     const quote = await yahoo.getQuote(symbol);
     res.json(store.addWatch({ symbol, name: displayName(quote, symbol) }));
   })
