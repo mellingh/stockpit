@@ -757,7 +757,7 @@ function Report({ symbol }: { symbol: string }) {
   return (
     <div className="grid gap-5 [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms] [&>*:nth-child(6)]:[animation-delay:250ms]">
       <header>
-        <h1 className="font-display text-display-sm font-bold tracking-tight text-balance">{a.name}</h1>
+        <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="chip">{a.symbol}</Badge>
           {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}

@@ -348,8 +348,9 @@ function Positionen({ d }: { d: Dashboard }) {
               <TH>Wert</TH>
               <TH className="text-right">Kurs</TH>
               <TH className="text-right">Heute</TH>
-              <TH>
-                Verlauf <span className="font-medium normal-case tracking-normal">30 T.</span>
+              {/* pl-5: sonst klebt der Kopf optisch an "HEUTE" und liest sich als ein Wort */}
+              <TH className="pl-5" title="Kursverlauf der letzten 30 Tage">
+                Verlauf
               </TH>
               <TH className="text-right">Wert (EUR)</TH>
               <TH className="text-right">G/V</TH>
@@ -435,8 +436,9 @@ function Watchlist({ d }: { d: Dashboard }) {
               <TH>Wert</TH>
               <TH className="text-right">Kurs</TH>
               <TH className="text-right">Heute</TH>
-              <TH>
-                Verlauf <span className="font-medium normal-case tracking-normal">30 T.</span>
+              {/* pl-5: sonst klebt der Kopf optisch an "HEUTE" und liest sich als ein Wort */}
+              <TH className="pl-5" title="Kursverlauf der letzten 30 Tage">
+                Verlauf
               </TH>
               <TH />
             </tr>

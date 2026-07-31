@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
@@ -65,7 +66,7 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        'flex h-control-sm cursor-pointer items-center gap-1.5 rounded-md border px-3 font-mono text-micro transition-colors',
+        'flex h-control-xs cursor-pointer items-center gap-1.5 rounded-md border px-2.5 font-mono text-micro transition-colors',
         aktiv
           // Sterne im aktiven Pill mitfärben, sonst leuchten sie auf dem Hellblau
           ? 'border-accent bg-accent font-semibold text-[#0b1524] [&_.stern]:text-[#0b1524] [&_.stern-leer]:text-[#0b1524]/35'
@@ -138,7 +139,15 @@ function EventZeile({ e, autoOffen = false }: { e: KalenderEvent; autoOffen?: bo
         <td className="w-[66px] py-2.5">
           <Sterne wichtigkeit={e.wichtigkeit} />
         </td>
-        <td className="py-2.5 pr-3 text-small font-medium text-ink">{e.titel}</td>
+        <td className="py-2.5 pr-3 text-small font-medium text-ink">
+          {e.titel}
+          {/* Aufklapp-Indikator: ohne ihn sieht man der Zeile nicht an, dass sie klickbar ist */}
+          {offen ? (
+            <ChevronUp size={13} aria-hidden className="ml-1.5 inline-block shrink-0 text-ink3" />
+          ) : (
+            <ChevronDown size={13} aria-hidden className="ml-1.5 inline-block shrink-0 text-ink3" />
+          )}
+        </td>
         <td
           className={cn('py-2.5 text-right font-mono text-small tnum', aktuellCls)}
           title={e.aktuellTrend ? `${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als Prognose` : ''}

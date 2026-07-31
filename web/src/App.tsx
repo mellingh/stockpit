@@ -63,7 +63,7 @@ export default function App() {
         Zum Inhalt springen
       </a>
       <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
-        <div className="mx-auto flex h-[54px] w-full max-w-[1460px] items-center gap-7 px-5">
+        <div className="mx-auto flex h-16 w-full max-w-[1460px] items-center gap-7 px-5">
           <Link to="/" className="font-display text-display-sm font-bold tracking-tight text-ink">
             Stock<span className="text-accent">pit</span>
           </Link>
@@ -73,7 +73,7 @@ export default function App() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  'rounded-md px-3.5 py-1.5 text-small font-medium transition-colors',
+                  'flex h-control-sm items-center rounded-md px-3.5 text-base font-medium transition-colors',
                   istAktiv(n.to)
                     ? 'bg-accent-soft text-accent'
                     : 'text-ink2 hover:bg-panel2 hover:text-ink'
