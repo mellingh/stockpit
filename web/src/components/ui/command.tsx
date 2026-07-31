@@ -23,7 +23,7 @@ function CommandInput({
       <Search size={16} className="shrink-0 text-ink3" />
       <CommandPrimitive.Input
         className={cn(
-          'h-12 w-full bg-transparent font-mono text-base text-ink outline-none placeholder:text-ink3 placeholder:font-sans',
+          'h-12 w-full bg-transparent font-mono text-[14px] text-ink outline-none placeholder:text-ink3 placeholder:font-sans',
           className
         )}
         {...props}
@@ -43,7 +43,7 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
 
 function CommandEmpty(props: React.ComponentProps<typeof CommandPrimitive.Empty>) {
   return (
-    <CommandPrimitive.Empty className="py-7 text-center text-base text-ink3" {...props} />
+    <CommandPrimitive.Empty className="py-7 text-center text-[13px] text-ink3" {...props} />
   );
 }
 
@@ -54,7 +54,7 @@ function CommandGroup({
   return (
     <CommandPrimitive.Group
       className={cn(
-        'overflow-hidden [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-micro [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.13em] [&_[cmdk-group-heading]]:text-ink3',
+        'overflow-hidden [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10.5px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.13em] [&_[cmdk-group-heading]]:text-ink3',
         className
       )}
       {...props}
@@ -66,7 +66,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
   return (
     <CommandPrimitive.Item
       className={cn(
-        'flex cursor-pointer select-none items-center gap-2.5 rounded-md px-2.5 py-2 text-base outline-none',
+        'flex cursor-pointer select-none items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] outline-none',
         'data-[selected=true]:bg-accent-soft data-[selected=true]:text-ink',
         className
       )}

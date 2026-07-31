@@ -46,7 +46,7 @@ function einordnungPunkte(n: NewsItemT): string[] {
 
 export function BulletListe({ punkte }: { punkte: React.ReactNode[] }) {
   return (
-    <ul className="grid gap-2.5 rounded-md border border-line bg-panel2 px-4 py-3.5 text-base leading-relaxed text-ink2">
+    <ul className="grid gap-2 rounded-md border border-line bg-panel2 px-4 py-3 text-[12.5px] leading-relaxed text-ink2">
       {punkte.map((p, i) => (
         <li key={i} className="relative pl-4 before:absolute before:left-0 before:text-accent before:content-['–']">
           {p}
@@ -59,8 +59,8 @@ export function BulletListe({ punkte }: { punkte: React.ReactNode[] }) {
 export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?: boolean }) {
   const punkte = einordnungPunkte(n);
   return (
-    <article className="grid gap-2.5 border-b border-line py-5 last:border-b-0">
-      <div className="flex flex-wrap items-center gap-2.5 font-mono text-micro uppercase tracking-wider text-ink3">
+    <article className="grid gap-2 border-b border-line py-4 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-2.5 font-mono text-[10.5px] uppercase tracking-wider text-ink3">
         {zeigeChips &&
           (n.betroffen ?? []).slice(0, 4).map((b) => (
             <Link key={b.symbol} to={`/analyse?symbol=${encodeURIComponent(b.symbol)}`}>
@@ -77,7 +77,7 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
         <span>{n.source ?? '—'}</span>
         <span>{fmtAgo(n.pubDate)}</span>
       </div>
-      <h3 className="text-lg font-semibold leading-snug">
+      <h3 className="text-[15px] font-semibold leading-snug">
         <a
           href={n.link}
           target="_blank"

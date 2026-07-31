@@ -2,12 +2,8 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-/**
- * Statische Kennzeichnung (Ticker, Kategorie, Land) — 20px hoch.
- * Bewusst kleiner als Bedienelemente: Tags sind keine Klickziele.
- */
 const badgeVariants = cva(
-  'inline-flex h-5 items-center gap-1.5 rounded-full border px-2.5 font-mono text-micro font-medium leading-none tracking-wide whitespace-nowrap',
+  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-[3px] font-mono text-[10.5px] font-medium tracking-wide whitespace-nowrap',
   {
     variants: {
       variant: {
