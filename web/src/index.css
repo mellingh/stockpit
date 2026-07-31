@@ -1,10 +1,19 @@
 @import 'tailwindcss';
 
 /* ============================================================
-   Stockpit v2 — „Terminal Luxe"
-   Tiefes, blaustichiges Schwarz; Panels als Glas-Schichten mit
-   Hairline-Border + Innen-Highlight; ein elektrisches Signalblau;
-   Grün/Rot ausschließlich für Markt-Semantik.
+   Stockpit v2 — Design-System „Terminal Luxe"
+
+   REGELN (bitte einhalten, sonst franst die UI wieder aus):
+   1. HÖHEN nur aus der Skala: 24 / 32 / 40 / 48 px (8px-Raster).
+      → h-control-xs  24px  Badges, statische Chips
+      → h-control-sm  32px  Pills, kleine Buttons, Icon-Buttons
+      → h-control-md  40px  Standard-Buttons, Eingabefelder
+      → h-control-lg  48px  große Suche
+   2. SCHRIFTEN nur aus der Skala: 12 / 13 / 15 / 16 px + Display.
+      12px = Mikro-Label (Uppercase), 13px = Sekundär/Mono,
+      15px = Basis, 16px = hervorgehoben. NICHTS unter 12px.
+   3. ABSTÄNDE in 4er-Schritten (Tailwind-Default), Panels 20/24px.
+   4. Grün/Rot ausschließlich für Markt-Semantik.
    ============================================================ */
 
 /* ---------- Fonts (lokal gebundelt, Variable Fonts) ---------- */
@@ -31,38 +40,55 @@
 /* ---------- Design-Tokens ---------- */
 
 @theme {
-  --color-bg: #07090e;
-  --color-panel: #0c0f16;
-  --color-panel2: #11151e;
-  --color-elevated: #161b26;
-  --color-line: #1a202e;
-  --color-line-strong: #252d3f;
-  --color-ink: #e9edf5;
-  --color-ink2: #98a2b6;
-  --color-ink3: #5f6a80;
-  --color-accent: #5e9eff;
-  --color-accent-soft: rgba(94, 158, 255, 0.12);
-  --color-up: #2fd18d;
-  --color-up-soft: rgba(47, 209, 141, 0.11);
-  --color-down: #ff5d6c;
-  --color-down-soft: rgba(255, 93, 108, 0.11);
-  --color-warn: #e8b04c;
-  --color-warn-soft: rgba(232, 176, 76, 0.1);
+  /* Palette: aufgehellt — kein Pechschwarz, blaustichiges Anthrazit.
+     Alle Textfarben erreichen auf --color-panel mind. 4.5:1 Kontrast. */
+  --color-bg: #101420;
+  --color-panel: #171d2b;
+  --color-panel2: #1e2536;
+  --color-elevated: #252d41;
+  --color-line: #2a3346;
+  --color-line-strong: #3a4560;
+  --color-ink: #eef1f8;
+  --color-ink2: #b3bccd;
+  --color-ink3: #8592a8;
+  --color-accent: #6ba5ff;
+  --color-accent-soft: rgba(107, 165, 255, 0.14);
+  --color-up: #35d99a;
+  --color-up-soft: rgba(53, 217, 154, 0.13);
+  --color-down: #ff6b78;
+  --color-down-soft: rgba(255, 107, 120, 0.13);
+  --color-warn: #edb95c;
+  --color-warn-soft: rgba(237, 185, 92, 0.12);
 
   --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
   --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
   --font-mono: 'Red Hat Mono', ui-monospace, monospace;
 
-  --radius-sm: 7px;
+  /* Schrift-Skala — nur diese fünf Stufen im UI verwenden */
+  --text-micro: 0.75rem;      /* 12px — Uppercase-Labels, Badges, Spaltenköpfe */
+  --text-micro--line-height: 1.35;
+  --text-small: 0.8125rem;    /* 13px — Mono-Werte, Hilfstexte */
+  --text-small--line-height: 1.45;
+  --text-base: 0.9375rem;     /* 15px — Basis: Tabellen, Fließtext */
+  --text-base--line-height: 1.55;
+  --text-lg: 1rem;            /* 16px — News-Titel, hervorgehoben */
+  --text-lg--line-height: 1.45;
+
+  /* Höhen-Skala — 8px-Raster, gilt für ALLE Bedienelemente */
+  --spacing-control-xs: 1.5rem;   /* 24px */
+  --spacing-control-sm: 2rem;     /* 32px */
+  --spacing-control-md: 2.5rem;   /* 40px */
+  --spacing-control-lg: 3rem;     /* 48px */
+
+  --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
 
-  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 64px rgba(0, 0, 0, 0.65);
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 10px 28px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 60px rgba(0, 0, 0, 0.55);
 
   --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-pop: pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-pulse-sweep: pulse-sweep 6s linear infinite;
 }
 
 @keyframes rise {
@@ -72,10 +98,6 @@
 @keyframes pop {
   from { opacity: 0; transform: translateY(4px) scale(0.985); }
   to { opacity: 1; transform: none; }
-}
-@keyframes pulse-sweep {
-  0% { background-position: -60% 0; }
-  100% { background-position: 160% 0; }
 }
 @keyframes accordion-down {
   from { height: 0; }
@@ -94,29 +116,37 @@ html {
 
 body {
   background:
-    radial-gradient(1100px 500px at 18% -12%, rgba(94, 158, 255, 0.07), transparent 62%),
-    radial-gradient(900px 420px at 85% -18%, rgba(47, 209, 141, 0.035), transparent 60%),
+    radial-gradient(1100px 520px at 18% -12%, rgba(107, 165, 255, 0.06), transparent 62%),
+    radial-gradient(900px 440px at 85% -18%, rgba(53, 217, 154, 0.03), transparent 60%),
     var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 0.9375rem; /* 15px Basis */
+  line-height: 1.55;
   letter-spacing: 0.004em;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: rgba(94, 158, 255, 0.28);
+  background: rgba(107, 165, 255, 0.3);
 }
 
-/* Feines Korn für Tiefe (2 % Opazität, data-URI, keine externe Ressource) */
+/* Sichtbarer Fokus-Ring für Tastatur-Bedienung (Barrierefreiheit) */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Feines Korn für Tiefe (data-URI, keine externe Ressource) */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.35;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 #root {
@@ -124,7 +154,6 @@ body::before {
   z-index: 1;
 }
 
-/* Scrollbars im Terminal-Stil */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;

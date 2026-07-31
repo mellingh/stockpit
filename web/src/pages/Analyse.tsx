@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from '@/lib/router';
-import { Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -28,45 +26,7 @@ const RANGES: [string, string][] = [
   ['max', 'Max'],
 ];
 
-// ---------- Suche ----------
-
-function SucheDialog({ onPick }: { onPick: (symbol: string) => void }) {
-  const [offen, setOffen] = useState(false);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setOffen(true);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-  return (
-    <>
-      <button
-        onClick={() => setOffen(true)}
-        className="flex h-11 w-full max-w-[560px] cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel px-4 text-[13.5px] text-ink3 transition-all hover:border-ink3 focus-visible:ring-2 focus-visible:ring-accent/40 outline-none"
-      >
-        <Search size={16} />
-        Aktie oder ETF suchen …
-        <kbd className="ml-auto rounded border border-line-strong bg-panel2 px-1.5 py-0.5 font-mono text-[10px] text-ink3">
-          Strg K
-        </kbd>
-      </button>
-      <Dialog open={offen} onOpenChange={setOffen}>
-        <DialogContent className="max-w-[560px] p-0">
-          <SymbolSearch
-            onPick={(r) => {
-              setOffen(false);
-              onPick(r.symbol);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
+// ---------- Suche (inline, kein Modal) ----------
 
 // ---------- Startansicht ----------
 
@@ -84,11 +44,11 @@ function StartChip({
   return (
     <button
       onClick={() => onPick(symbol)}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 py-2.5 text-left text-[13.5px] transition-all duration-150 hover:border-accent hover:bg-accent-soft"
+      className="flex h-control-md w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 text-left text-base transition-all duration-150 hover:border-accent hover:bg-accent-soft"
     >
-      <b className="min-w-[56px] font-mono text-[12.5px]">{symbol}</b>
+      <b className="min-w-[56px] font-mono text-small">{symbol}</b>
       <span className="flex-1 truncate text-ink2">{name}</span>
-      <span className={cn('shrink-0 font-mono text-[12.5px] tnum', signClass(tagesPct))}>{fmtPct(tagesPct)}</span>
+      <span className={cn('shrink-0 font-mono text-small tnum', signClass(tagesPct))}>{fmtPct(tagesPct)}</span>
     </button>
   );
 }
@@ -151,24 +111,24 @@ function ZahlenBanner({ a }: { a: Analyse }) {
   return (
     <div
       className={cn(
-        'flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-lg border px-4 py-3 text-[13px]',
-        cls === 'pos' && 'border-up/40 [background:linear-gradient(90deg,rgba(47,209,141,0.09),transparent_55%),var(--color-panel)]',
-        cls === 'neg' && 'border-down/40 [background:linear-gradient(90deg,rgba(255,93,108,0.09),transparent_55%),var(--color-panel)]',
+        'flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-lg border px-4 py-3 text-base',
+        cls === 'pos' && 'border-up/40 [background:linear-gradient(90deg,rgba(53,217,154,0.1),transparent_55%),var(--color-panel)]',
+        cls === 'neg' && 'border-down/40 [background:linear-gradient(90deg,rgba(255,107,120,0.1),transparent_55%),var(--color-panel)]',
         cls === '' && 'border-line-strong bg-panel'
       )}
     >
       <span className="font-semibold">Quartalszahlen {tage <= 0 ? 'heute' : 'gestern'}</span>
       {z.epsErwartet != null && (
-        <span className="font-mono text-[12.5px] text-ink2 tnum">EPS erw. {fmtEps(z.epsErwartet)}</span>
+        <span className="font-mono text-small text-ink2 tnum">EPS erw. {fmtEps(z.epsErwartet)}</span>
       )}
       {z.epsTatsaechlich != null ? (
-        <span className={cn('font-mono text-[12.5px] tnum', cls === 'pos' ? 'text-up' : cls === 'neg' ? 'text-down' : 'text-ink2')}>
+        <span className={cn('font-mono text-small tnum', cls === 'pos' ? 'text-up' : cls === 'neg' ? 'text-down' : 'text-ink2')}>
           Ist {fmtEps(z.epsTatsaechlich)}
           {z.ueberraschungPct != null &&
             ` (${z.ueberraschungPct > 0 ? '+' : ''}${String(z.ueberraschungPct).replace('.', ',')} %)`}
         </span>
       ) : (
-        <span className="font-mono text-[12.5px] text-ink3">Ergebnis folgt</span>
+        <span className="font-mono text-small text-ink3">Ergebnis folgt</span>
       )}
     </div>
   );
@@ -207,9 +167,9 @@ function QuoteStrip({ a }: { a: Analyse }) {
     <Panel>
       <div className="grid grid-cols-2 gap-x-8 sm:grid-cols-3 lg:grid-cols-4">
         {zellen.map(([label, wert, cls]) => (
-          <div key={label} className="flex items-baseline justify-between gap-4 border-b border-dashed border-line py-2 text-[13px]">
+          <div key={label} className="flex items-baseline justify-between gap-4 border-b border-dashed border-line py-2 text-base">
             <span className="text-ink3">{label}</span>
-            <span className={cn('text-right font-mono text-[12.5px] font-medium tnum', cls)}>{wert}</span>
+            <span className={cn('text-right font-mono text-small font-medium tnum', cls)}>{wert}</span>
           </div>
         ))}
       </div>
@@ -227,19 +187,35 @@ function punktInfo(p: SnowflakePunkt | string) {
 }
 
 function OvPunkt({ p, art }: { p: SnowflakePunkt | string; art: 'pos' | 'neg' }) {
-  const inhalt = (
-    <div className={cn('py-1 text-[13px]', art === 'pos' ? 'text-up' : 'text-down')}>
-      {art === 'pos' ? '▲ ' : '▼ '}
-      {punktText(p)}
-    </div>
-  );
   const info = punktInfo(p);
-  if (!info) return inhalt;
+  const text = punktText(p);
+  const farbe = art === 'pos' ? 'text-up' : 'text-down';
+  if (!info) {
+    return (
+      <div className={cn('py-1 text-base', farbe)}>
+        {art === 'pos' ? '▲ ' : '▼ '}
+        {text}
+      </div>
+    );
+  }
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{inhalt}</TooltipTrigger>
-      <TooltipContent>{info}</TooltipContent>
-    </Tooltip>
+    <div className={cn('py-1 text-base', farbe)}>
+      {art === 'pos' ? '▲ ' : '▼ '}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={`${text} — Erklärung anzeigen`}
+            className="cursor-help text-left underline decoration-dotted decoration-current/40 underline-offset-4 transition-colors hover:decoration-current"
+          >
+            {text}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start" className="max-w-[380px]">
+          {info}
+        </TooltipContent>
+      </Tooltip>
+    </div>
   );
 }
 
@@ -266,10 +242,10 @@ function Uebersicht({ a }: { a: Analyse }) {
       </PanelTitle>
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_320px]">
         <div>
-          {kurz && <p className="mb-2 text-[13.5px] leading-relaxed text-ink2">{kurz}</p>}
+          {kurz && <p className="mb-2 text-base leading-relaxed text-ink2">{kurz}</p>}
           {sf && sf.staerken.length > 0 && (
             <>
-              <div className="mb-1 mt-3 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">Stärken</div>
+              <div className="mb-1 mt-3 text-micro font-bold uppercase tracking-[0.16em] text-ink3">Stärken</div>
               {sf.staerken.map((p, i) => (
                 <OvPunkt key={i} p={p} art="pos" />
               ))}
@@ -277,7 +253,7 @@ function Uebersicht({ a }: { a: Analyse }) {
           )}
           {sf && sf.risiken.length > 0 && (
             <>
-              <div className="mb-1 mt-3 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">Risiken</div>
+              <div className="mb-1 mt-3 text-micro font-bold uppercase tracking-[0.16em] text-ink3">Risiken</div>
               {sf.risiken.map((p, i) => (
                 <OvPunkt key={i} p={p} art="neg" />
               ))}
@@ -303,9 +279,9 @@ function Uebersicht({ a }: { a: Analyse }) {
           <AccordionTrigger>Mehr zur Firma</AccordionTrigger>
           <AccordionContent>
             <div className="grid gap-3 pt-1">
-              {u?.beschreibung && <p className="text-[13.5px] leading-relaxed text-ink2">{u.beschreibung}</p>}
+              {u?.beschreibung && <p className="text-base leading-relaxed text-ink2">{u.beschreibung}</p>}
               {u?.website && (
-                <a href={u.website} target="_blank" rel="noopener" className="text-[13px] text-accent hover:underline">
+                <a href={u.website} target="_blank" rel="noopener" className="text-base text-accent hover:underline">
                   {u.website.replace(/^https?:\/\/(www\.)?/, '')}
                 </a>
               )}
@@ -313,8 +289,8 @@ function Uebersicht({ a }: { a: Analyse }) {
                 <div className="flex flex-wrap gap-x-10 gap-y-3">
                   {fakten.map(([wert, label]) => (
                     <div key={label}>
-                      <div className="text-[14px] font-semibold">{wert}</div>
-                      <div className="text-[11px] uppercase tracking-wider text-ink3">{label}</div>
+                      <div className="text-base font-semibold">{wert}</div>
+                      <div className="text-micro uppercase tracking-wider text-ink3">{label}</div>
                     </div>
                   ))}
                 </div>
@@ -377,7 +353,7 @@ function Analysten({ a }: { a: Analyse }) {
       <PanelTitle hint={`· ${an.count ?? '?'} Analysten`}>Analysten</PanelTitle>
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="font-display text-[30px] font-bold tnum">{an.mean?.toFixed(1)}</span>
-        <span className="text-[12.5px] text-ink3">/ 5 · Konsens (1 = Stark kaufen)</span>
+        <span className="text-small text-ink3">/ 5 · Konsens (1 = Stark kaufen)</span>
         <Badge variant={an.mean <= 2 ? 'pos' : an.mean >= 3.5 ? 'neg' : 'neu'}>
           {KEY_LABELS[an.key ?? ''] ??
             (an.key ?? '').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
@@ -391,7 +367,7 @@ function Analysten({ a }: { a: Analyse }) {
               <span key={k} style={{ flex: b[k], background: RECO_COLORS[k] }} title={`${RECO_LABELS[k]}: ${b[k]}`} />
             ))}
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-[11.5px] text-ink2">
+          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-micro text-ink2">
             {RECO_KEYS.map((k) => (
               <span key={k} className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-[2px]" style={{ background: RECO_COLORS[k] }} />
@@ -404,7 +380,7 @@ function Analysten({ a }: { a: Analyse }) {
 
       {an.trend.length > 1 && (
         <>
-          <div className="mb-2 mt-5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">
+          <div className="mb-2 mt-5 text-micro font-bold uppercase tracking-[0.16em] text-ink3">
             Empfehlungen im Monatsverlauf
           </div>
           <div className="flex items-end gap-5">
@@ -414,7 +390,7 @@ function Analysten({ a }: { a: Analyse }) {
               monat.setMonth(monat.getMonth() + (parseInt(row.period, 10) || 0));
               return (
                 <div key={row.period} className="flex w-12 flex-col items-center gap-1">
-                  <span className="font-mono text-[11px] text-ink2 tnum">{total}</span>
+                  <span className="font-mono text-micro text-ink2 tnum">{total}</span>
                   <div className="flex h-[110px] w-6 items-end">
                     {/* Stapel: Strong Buy OBEN (wie Yahoo) */}
                     <div
@@ -426,7 +402,7 @@ function Analysten({ a }: { a: Analyse }) {
                       ))}
                     </div>
                   </div>
-                  <span className="text-[10.5px] text-ink3">
+                  <span className="text-micro text-ink3">
                     {monat.toLocaleDateString('de-DE', { month: 'short' })}
                   </span>
                 </div>
@@ -438,7 +414,7 @@ function Analysten({ a }: { a: Analyse }) {
 
       {t.low != null && t.high != null && t.high > t.low && (
         <div className="mt-5">
-          <div className="mb-3 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">
+          <div className="mb-3 text-micro font-bold uppercase tracking-[0.16em] text-ink3">
             Kursziele der Analysten
           </div>
           <div className="relative h-1.5 rounded-full bg-gradient-to-r from-down/60 via-warn/60 to-up/60">
@@ -457,7 +433,7 @@ function Analysten({ a }: { a: Analyse }) {
               />
             )}
           </div>
-          <div className="mt-2 flex justify-between font-mono text-[11.5px] text-ink3 tnum">
+          <div className="mt-2 flex justify-between font-mono text-micro text-ink3 tnum">
             <span>Tief {fmtNum(t.low)}</span>
             <span className="text-accent">
               Ø {fmtNum(t.mean)} ({fmtPct(t.upsidePct)})
@@ -482,9 +458,9 @@ function Historie({ a }: { a: Analyse }) {
   return (
     <Panel>
       <PanelTitle hint="· einzelne Banken">Analysten-Historie</PanelTitle>
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-base">
         <thead>
-          <tr className="text-left text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3">
+          <tr className="text-left text-micro font-bold uppercase tracking-[0.13em] text-ink3">
             <th className="pb-2">Datum</th>
             <th className="pb-2">Analyst</th>
             <th className="pb-2">Aktion</th>
@@ -495,7 +471,7 @@ function Historie({ a }: { a: Analyse }) {
         <tbody>
           {liste.map((r, i) => (
             <tr key={i} className="border-b border-line last:border-b-0">
-              <td className="py-2 pr-3 font-mono text-[12px] text-ink3 tnum">{fmtDate(r.datum)}</td>
+              <td className="py-2 pr-3 font-mono text-small text-ink3 tnum">{fmtDate(r.datum)}</td>
               <td className="py-2 pr-3">
                 {r.link ? (
                   <a href={r.link} target="_blank" rel="noopener" className="text-ink transition-colors hover:text-accent" title="Einschätzung beim Analysten nachlesen">
@@ -508,7 +484,7 @@ function Historie({ a }: { a: Analyse }) {
               <td className={cn('py-2 pr-3', aktionCls(r))}>{r.aktion}</td>
               <td className="py-2 pr-3 text-ink2">{r.von && r.von !== r.zu ? `${r.von} → ${r.zu}` : r.zu || '–'}</td>
               {hatKursziele && (
-                <td className="py-2 text-right font-mono text-[12.5px] tnum">
+                <td className="py-2 text-right font-mono text-small tnum">
                   {r.kursziel != null ? fmtMoney(r.kursziel, a.currency) : '–'}
                 </td>
               )}
@@ -522,7 +498,7 @@ function Historie({ a }: { a: Analyse }) {
         </Button>
       )}
       {!hatKursziele && (
-        <p className="mt-3 rounded-md border border-line bg-panel2 px-3 py-2 text-[12px] text-ink3">
+        <p className="mt-3 rounded-md border border-line bg-panel2 px-3 py-2 text-small text-ink3">
           Für diesen Wert sind keine Kursziele je Bank frei verfügbar — die Konsens-Spanne steht im Analysten-Panel.
         </p>
       )}
@@ -542,13 +518,13 @@ function Extra({ a }: { a: Analyse }) {
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="cat">{(t.phases ?? []).join(' / ') || 'Phase –'}</Badge>
               <Badge>{t.status ?? ''}</Badge>
-              {t.completion && <span className="text-[11.5px] text-ink3">Abschluss ~ {t.completion}</span>}
+              {t.completion && <span className="text-micro text-ink3">Abschluss ~ {t.completion}</span>}
             </div>
-            <a href={t.link} target="_blank" rel="noopener" className="text-[13.5px] text-ink transition-colors hover:text-accent">
+            <a href={t.link} target="_blank" rel="noopener" className="text-base text-ink transition-colors hover:text-accent">
               {t.title}
             </a>
             {t.conditions?.length ? (
-              <div className="font-mono text-[11px] text-ink3">{t.conditions.join(' · ')}</div>
+              <div className="font-mono text-micro text-ink3">{t.conditions.join(' · ')}</div>
             ) : null}
           </div>
         ))}
@@ -563,20 +539,20 @@ function Extra({ a }: { a: Analyse }) {
           {a.etf.topHoldings?.length ? (
             <div>
               {a.etf.topHoldings.map((h) => (
-                <div key={h.symbol} className="flex items-baseline justify-between border-b border-dashed border-line py-1.5 text-[13px] last:border-b-0">
+                <div key={h.symbol} className="flex items-baseline justify-between border-b border-dashed border-line py-1.5 text-base last:border-b-0">
                   <span className="truncate text-ink2">{h.name || h.symbol}</span>
-                  <span className="font-mono text-[12.5px] tnum">{fmtPctFrac(h.anteil)}</span>
+                  <span className="font-mono text-small tnum">{fmtPctFrac(h.anteil)}</span>
                 </div>
               ))}
             </div>
           ) : null}
           {a.etf.sektoren?.length ? (
             <div>
-              <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink3">Sektorgewichtung</div>
+              <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.16em] text-ink3">Sektorgewichtung</div>
               {a.etf.sektoren.slice(0, 8).map((s) => (
-                <div key={s.sektor} className="flex items-baseline justify-between border-b border-dashed border-line py-1.5 text-[13px] last:border-b-0">
+                <div key={s.sektor} className="flex items-baseline justify-between border-b border-dashed border-line py-1.5 text-base last:border-b-0">
                   <span className="text-ink2">{s.sektor}</span>
-                  <span className="font-mono text-[12.5px] tnum">{fmtPctFrac(s.anteil)}</span>
+                  <span className="font-mono text-small tnum">{fmtPctFrac(s.anteil)}</span>
                 </div>
               ))}
             </div>
@@ -599,7 +575,7 @@ function EtfProfil({ a }: { a: Analyse }) {
     <Panel>
       <PanelTitle>ETF-Profil</PanelTitle>
       {rows.map(([k, v]) => (
-        <div key={k} className="flex items-baseline justify-between border-b border-dashed border-line py-2 text-[13px] last:border-b-0">
+        <div key={k} className="flex items-baseline justify-between border-b border-dashed border-line py-2 text-base last:border-b-0">
           <span className="text-ink3">{k}</span>
           <span className="font-medium">{v}</span>
         </div>
@@ -659,11 +635,11 @@ function Report({ symbol }: { symbol: string }) {
             <span className="font-display text-[26px] font-bold leading-none tnum">
               {fmtMoney(a.kurs.preis, a.currency)}
             </span>
-            <span className={cn('font-mono text-[13px] tnum', signClass(a.kurs.veraenderungPct))}>
+            <span className={cn('font-mono text-base tnum', signClass(a.kurs.veraenderungPct))}>
               {fmtPct(a.kurs.veraenderungPct)} heute
             </span>
             {a.kurs.ausserboerslich?.preis != null && (
-              <span className="border-l border-line pl-3 font-mono text-[12px] tnum">
+              <span className="border-l border-line pl-3 font-mono text-small tnum">
                 <span className="text-ink3">
                   {a.kurs.ausserboerslich.phase === 'pre' ? 'Pre-Market ' : 'Nachbörslich '}
                 </span>
@@ -679,16 +655,16 @@ function Report({ symbol }: { symbol: string }) {
                 key={r}
                 onClick={() => setRange(r)}
                 className={cn(
-                  'h-7 cursor-pointer rounded-md border px-3 font-mono text-[11.5px] transition-colors',
+                  'h-control-sm cursor-pointer rounded-md border px-3.5 font-mono text-small transition-colors',
                   range === r
-                    ? 'border-accent bg-accent font-semibold text-[#06101f]'
+                    ? 'border-accent bg-accent font-semibold text-[#0b1524]'
                     : 'border-line-strong text-ink2 hover:border-ink3 hover:bg-panel2 hover:text-ink'
                 )}
               >
                 {label}
               </button>
             ))}
-            <span className="ml-auto hidden items-center gap-4 font-mono text-[10.5px] text-ink3 sm:flex">
+            <span className="ml-auto hidden items-center gap-4 font-mono text-micro text-ink3 sm:flex">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-0.5 w-3.5" style={{ background: '#e5a83b' }} /> SMA 50
               </span>
@@ -758,14 +734,18 @@ export default function AnalysePage() {
   return (
     <div className="grid gap-6">
       <header className="animate-rise">
-        <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.15em] text-ink3">
+        <div className="flex items-center gap-3 font-mono text-micro uppercase tracking-[0.15em] text-ink3">
           Aktien-Analyse
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
         <h1 className="mb-5 mt-1.5 font-display text-[clamp(26px,3.4vw,38px)] font-bold tracking-tight">
           Ticker rein, <em className="not-italic text-accent">Einschätzung raus.</em>
         </h1>
-        <SucheDialog onPick={waehlen} />
+        <SymbolSearch
+          groß
+          className="max-w-[560px]"
+          onPick={(r) => waehlen(r.symbol)}
+        />
       </header>
       {symbol ? <Report symbol={symbol} /> : <Startansicht onPick={waehlen} />}
     </div>

@@ -2,8 +2,9 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+/** Statische Kennzeichnung — feste Höhe 24px aus der Skala */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-[3px] font-mono text-[10.5px] font-medium tracking-wide whitespace-nowrap',
+  'inline-flex h-control-xs items-center gap-1.5 rounded-full border px-3 font-mono text-micro font-medium tracking-wide whitespace-nowrap',
   {
     variants: {
       variant: {

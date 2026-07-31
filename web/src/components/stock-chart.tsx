@@ -86,17 +86,17 @@ export function StockChart({
     const chart = createChart(container, {
       layout: {
         background: { color: 'transparent' },
-        textColor: '#5f6a80',
+        textColor: '#8592a8',
         fontFamily: "'Red Hat Mono', monospace",
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: 'rgba(26, 32, 46, 0.65)' },
-        horzLines: { color: 'rgba(26, 32, 46, 0.65)' },
+        vertLines: { color: 'rgba(42, 51, 70, 0.6)' },
+        horzLines: { color: 'rgba(42, 51, 70, 0.6)' },
       },
       crosshair: { mode: 0 },
-      rightPriceScale: { borderColor: '#1a202e' },
-      timeScale: { borderColor: '#1a202e' },
+      rightPriceScale: { borderColor: '#2a3346' },
+      timeScale: { borderColor: '#2a3346' },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
       handleScale: {
         mouseWheel: true,
@@ -109,10 +109,10 @@ export function StockChart({
     });
 
     const candle = chart.addCandlestickSeries({
-      upColor: '#2fd18d',
-      downColor: '#ff5d6c',
-      wickUpColor: '#2fd18d',
-      wickDownColor: '#ff5d6c',
+      upColor: '#35d99a',
+      downColor: '#ff6b78',
+      wickUpColor: '#35d99a',
+      wickDownColor: '#ff6b78',
       borderVisible: false,
     });
     const volume = chart.addHistogramSeries({
@@ -208,7 +208,7 @@ export function StockChart({
       data.candles.map((c) => ({
         time: c.time as unknown as UTCTimestamp,
         value: c.volume ?? 0,
-        color: c.close >= c.open ? 'rgba(47, 209, 141, 0.32)' : 'rgba(255, 93, 108, 0.32)',
+        color: c.close >= c.open ? 'rgba(53, 217, 154, 0.3)' : 'rgba(255, 107, 120, 0.3)',
       }))
     );
     sma50Ref.current?.setData(data.sma50.map((p) => ({ ...p, time: p.time as unknown as UTCTimestamp })));
@@ -235,7 +235,7 @@ export function StockChart({
       linesRef.current.push(
         candle.createPriceLine({
           price: vortag,
-          color: '#5f6a80',
+          color: '#8592a8',
           lineWidth: 1,
           lineStyle: LineStyle.Dotted,
           axisLabelVisible: true,
@@ -259,9 +259,9 @@ export function StockChart({
 
   return (
     <div ref={containerRef} className="relative h-[400px] w-full">
-      <div className="pointer-events-none absolute left-2.5 top-2 z-10 rounded-md bg-[rgba(12,15,22,0.75)] px-2.5 py-1.5 backdrop-blur-sm">
-        <div ref={symRef} className="text-[12px] font-semibold text-ink" />
-        <div ref={ohlcRef} className="flex gap-2.5 font-mono text-[11px] text-ink3 tnum" />
+      <div className="pointer-events-none absolute left-2.5 top-2 z-10 rounded-md bg-[rgba(23,29,43,0.82)] px-2.5 py-1.5 backdrop-blur-sm">
+        <div ref={symRef} className="text-small font-semibold text-ink" />
+        <div ref={ohlcRef} className="flex gap-2.5 font-mono text-micro text-ink3 tnum" />
       </div>
     </div>
   );

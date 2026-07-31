@@ -41,9 +41,9 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        'h-7 cursor-pointer rounded-md border px-3 font-mono text-[11.5px] transition-colors',
+        'h-control-sm cursor-pointer rounded-md border px-3.5 font-mono text-small transition-colors',
         aktiv
-          ? 'border-accent bg-accent font-semibold text-[#06101f]'
+          ? 'border-accent bg-accent font-semibold text-[#0b1524]'
           : 'border-line-strong text-ink2 hover:border-ink3 hover:bg-panel2 hover:text-ink'
       )}
     >
@@ -90,24 +90,24 @@ function EventZeile({ e }: { e: KalenderEvent }) {
         title="Klick: Was bedeutet dieser Termin?"
         className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
       >
-        <td className="w-[56px] py-2.5 font-mono text-[12px] text-ink3 tnum">{zeit}</td>
-        <td className="w-[86px] whitespace-nowrap py-2.5 text-[13px]" title={e.waehrung ?? ''}>
+        <td className="w-[56px] py-2.5 font-mono text-small text-ink3 tnum">{zeit}</td>
+        <td className="w-[86px] whitespace-nowrap py-2.5 text-base" title={e.waehrung ?? ''}>
           {flagge(e.land)} {e.land ?? e.waehrung ?? '–'}
         </td>
         <td className="w-[62px] py-2.5">
-          <span className={cn('text-[11px] tracking-widest', imp.cls)} title={imp.label}>
+          <span className={cn('text-micro tracking-widest', imp.cls)} title={imp.label}>
             {imp.stars}
           </span>
         </td>
-        <td className="py-2.5 pr-3 text-[13.5px] font-medium text-ink">{e.titel}</td>
+        <td className="py-2.5 pr-3 text-base font-medium text-ink">{e.titel}</td>
         <td
-          className={cn('py-2.5 text-right font-mono text-[12.5px] tnum', aktuellCls)}
+          className={cn('py-2.5 text-right font-mono text-small tnum', aktuellCls)}
           title={e.aktuellTrend ? `${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als Prognose` : ''}
         >
           {e.aktuell ?? '–'}
         </td>
-        <td className="py-2.5 text-right font-mono text-[12.5px] text-ink2 tnum">{e.prognose ?? '–'}</td>
-        <td className="py-2.5 text-right font-mono text-[12.5px] text-ink3 tnum">{e.vorher ?? '–'}</td>
+        <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.prognose ?? '–'}</td>
+        <td className="py-2.5 text-right font-mono text-small text-ink3 tnum">{e.vorher ?? '–'}</td>
       </tr>
       {offen && (
         <tr className="border-b border-line last:border-b-0">
@@ -142,7 +142,7 @@ export default function KalenderPage() {
   return (
     <div className="grid gap-5">
       <header className="animate-rise">
-        <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.15em] text-ink3">
+        <div className="flex items-center gap-3 font-mono text-micro uppercase tracking-[0.15em] text-ink3">
           Wirtschaftskalender · diese Woche
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
@@ -171,13 +171,13 @@ export default function KalenderPage() {
         {data &&
           (events.length === 0 ? (
             <Empty>
-              <b className="mb-1 block text-[14px] text-ink2">Keine Termine mit diesen Filtern.</b>
+              <b className="mb-1 block text-base text-ink2">Keine Termine mit diesen Filtern.</b>
               Tipp: „Diese Woche" wählen oder die Wichtigkeit auf „Alle" stellen.
             </Empty>
           ) : (
             <table className="w-full border-collapse">
               <thead>
-                <tr className="text-left text-[10.5px] font-bold uppercase tracking-[0.13em] text-ink3">
+                <tr className="text-left text-micro font-bold uppercase tracking-[0.13em] text-ink3">
                   <th className="pb-2.5">Zeit</th>
                   <th className="pb-2.5">Land</th>
                   <th className="pb-2.5">Relev.</th>
@@ -193,7 +193,7 @@ export default function KalenderPage() {
                   const separator =
                     tag === 'woche' && key !== letzterTag ? (
                       <tr key={`sep-${key}`} className="border-b border-line">
-                        <td colSpan={7} className="pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-[0.13em] text-accent">
+                        <td colSpan={7} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.13em] text-accent">
                           {new Date(e.zeit).toLocaleDateString('de-DE', {
                             weekday: 'long',
                             day: 'numeric',
@@ -216,7 +216,7 @@ export default function KalenderPage() {
           ))}
       </Panel>
 
-      <p className="text-center text-[12px] text-ink3">
+      <p className="text-center text-small text-ink3">
         Zeiten in deiner lokalen Zeitzone · „Aktuell" grün/rot = besser/schlechter als Prognose · Alle Angaben ohne
         Gewähr — keine Anlageberatung.
       </p>

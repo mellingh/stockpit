@@ -36,7 +36,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   return (
     <DialogPrimitive.Title
       className={cn(
-        'mb-3 text-[11.5px] font-bold uppercase tracking-[0.13em] text-ink2',
+        'mb-3 text-micro font-bold uppercase tracking-[0.13em] text-ink2',
         className
       )}
       {...props}
@@ -50,7 +50,7 @@ function DialogDescription({
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn('mb-3 text-[12.5px] leading-relaxed text-ink3', className)}
+      className={cn('mb-3 text-small leading-relaxed text-ink3', className)}
       {...props}
     />
   );
