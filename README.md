@@ -57,7 +57,7 @@ Alternativ per Terminal: `npm install` und dann `npm start`.
 | Makro-News | RSS: CNBC, MarketWatch, tagesschau Wirtschaft |
 | Artikel-Teaser („Worum es geht") | og:description der Artikelseiten |
 | Rating-Historie mit Kurszielen je Bank | stockanalysis.com (US-Werte) |
-| Wirtschaftskalender | investing.com-Widget, Fallback: ForexFactory-Wochenfeed |
+| Wirtschaftskalender | TradingView-Kalender (mit Ist-Werten), Fallback: investing.com-Widget → ForexFactory-Wochenfeed |
 | Klinische Studien | clinicaltrials.gov (offizielle API v2) |
 | News-Bewertung | **FinBERT** — KI-Modell, läuft lokal auf deinem Rechner (Transformers.js) |
 | Technische Signale | selbst berechnet aus der Kurshistorie (gleiche Werte wie Finviz/TradingView) |
@@ -88,7 +88,12 @@ Der Empfänger startet mit leerem Portfolio und kann eigene X-Accounts für die 
 
 ## Technik (für Neugierige)
 
-Bewusst minimaler Stack: ein Express-Server (Node.js) + drei statische HTML-Seiten mit
-Vanilla-JavaScript — kein Build-Schritt, kein Framework. Servercode in `server/`,
-Oberfläche in `public/`. Sentiment-Modell austauschbar über die Umgebungsvariablen
-`SENTIMENT_MODEL_EN` / `SENTIMENT_MODEL_MULTI`.
+Express-Server (Node.js, `server/`) + moderne React-Oberfläche (`web/`:
+Vite, React 19, TypeScript, Tailwind CSS v4, Komponenten im shadcn-Stil,
+TradingView Lightweight Charts). Die Oberfläche wird beim ersten Start
+einmalig gebaut (macht `start.bat` automatisch, ~30 Sekunden) und danach
+als statische Dateien ausgeliefert — weiterhin kein Server-Framework,
+keine Cloud, keine Telemetrie. Sentiment-Modell austauschbar über die
+Umgebungsvariablen `SENTIMENT_MODEL_EN` / `SENTIMENT_MODEL_MULTI`.
+Für Entwicklung: `npm run dev --prefix web` (Vite-Dev-Server mit
+API-Proxy auf :3001).

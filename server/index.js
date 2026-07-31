@@ -17,14 +17,17 @@ import { getTrials } from './trials.js';
 import { getCalendar } from './calendar.js';
 import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
+import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(ROOT, 'public')));
-app.use('/vendor', express.static(path.join(ROOT, 'node_modules/lightweight-charts/dist')));
+// v2-Frontend: gebaute Vite-App (web/dist). Der SPA-Fallback steht ganz
+// unten NACH allen /api-Routen — API-Fehler liefern JSON, nie die App-Shell.
+const DIST = path.join(ROOT, 'web', 'dist');
+app.use(express.static(DIST));
 
 // Sentiment einer Schlagzeile — pro Titel einen Tag gecacht,
 // damit dieselbe News nicht mehrfach durch das Modell läuft.
@@ -108,7 +111,24 @@ function frischeZahlen(summary, quote) {
     const q = new Date(r.quarter).getTime();
     if (!best || q > best.q) best = { q, r };
   }
-  const reihe = best && Date.now() - best.q <= 60 * DAY ? best.r : null;
+  let reihe = best && Date.now() - best.q <= 60 * DAY ? best.r : null;
+
+  // Zweite Quelle: earningsChart.quarterly wird nach einem Report oft Stunden
+  // früher befüllt als earningsHistory (dort hing z. B. AMZN am Tag danach noch
+  // auf dem Vorquartal). Nur nutzen, wenn das jüngste Quartal dort neuer ist.
+  if (!reihe?.epsActual) {
+    const qs = summary?.earnings?.earningsChart?.quarterly ?? [];
+    const letzte = qs[qs.length - 1];
+    // date-Format "2Q2026" → Quartalsende; wie oben nur akzeptieren, wenn das
+    // Quartal frisch ist (sonst stünde ein altes Ist als gestriges Ergebnis da)
+    const m = /^([1-4])Q(\d{4})$/.exec(letzte?.date ?? '');
+    if (m && letzte?.actual != null && letzte?.estimate != null) {
+      const quartalsEnde = new Date(Number(m[2]), Number(m[1]) * 3, 0).getTime();
+      if (Date.now() - quartalsEnde <= 60 * DAY) {
+        reihe = { epsActual: letzte.actual, epsEstimate: letzte.estimate };
+      }
+    }
+  }
 
   // Meldezeitpunkt aus der Quote — direkt nach dem Report aktuell, während
   // die earningsHistory das Ist-EPS oft erst Stunden später nachträgt
@@ -718,7 +738,11 @@ app.get(
             reaction,
             holdings.find((h) => h.symbol === direct.symbol)?.name ?? direct.symbol
           );
-        } catch {}
+        } catch (err) {
+          // Nicht still schlucken: ohne Historie fehlen alle Einordnungs-Sätze
+          // (nur der "Worum es geht"-Teaser bleibt) — das soll im Log auffallen.
+          console.warn(`[newsfeed] Kursreaktion für ${direct.symbol} fehlgeschlagen:`, err.message);
+        }
       }
       out.push(enriched);
     }
@@ -810,6 +834,9 @@ app.post(
       currency: quote.currency,
       buyDate: buyDate || null,
     });
+    // Besitzen und beobachten zugleich ist doppelt — beim Kauf fliegt der Wert
+    // automatisch aus der Watchlist (Micha, Runde 12).
+    store.removeWatch(symbol);
     res.json(entry);
   })
 );
@@ -830,6 +857,15 @@ app.post(
   wrap(async (req, res) => {
     const { symbol } = req.body;
     if (!symbol) return res.status(400).json({ error: 'symbol ist Pflicht' });
+    // Was schon im Depot liegt, muss man nicht extra beobachten
+    const imDepot = store
+      .getData()
+      .positions.some((p) => p.symbol.toUpperCase() === String(symbol).toUpperCase());
+    if (imDepot) {
+      return res
+        .status(400)
+        .json({ error: `${symbol} liegt bereits in deinen Positionen — du siehst den Wert schon auf dem Dashboard.` });
+    }
     const quote = await yahoo.getQuote(symbol);
     res.json(store.addWatch({ symbol, name: displayName(quote, symbol) }));
   })
@@ -849,10 +885,14 @@ app.get('/api/xusers', (req, res) => {
   res.json(store.getXAccounts());
 });
 
-app.post('/api/xusers', (req, res) => {
+app.post('/api/xusers', async (req, res) => {
   const handle = String(req.body.handle || '').trim().replace(/^@/, '');
   if (!X_HANDLE_RE.test(handle)) {
     return res.status(400).json({ error: 'Ungültiger X-Nutzername (1–15 Zeichen, nur Buchstaben, Zahlen, _)' });
+  }
+  // Gibt es den Account wirklich? false = sicher nicht, null = nicht prüfbar (dann durchlassen)
+  if ((await xHandleExistiert(handle)) === false) {
+    return res.status(400).json({ error: `@${handle} gibt es auf X nicht — Schreibweise prüfen.` });
   }
   res.json(store.addXAccount(handle));
 });
@@ -868,7 +908,7 @@ app.get('/api/weblinks', (req, res) => {
   res.json(store.getWebLinks());
 });
 
-app.post('/api/weblinks', (req, res) => {
+app.post('/api/weblinks', async (req, res) => {
   let roh = String(req.body.url || '').trim();
   let parsed;
   try {
@@ -897,6 +937,12 @@ app.post('/api/weblinks', (req, res) => {
       });
     }
   }
+
+  // Antwortet die Seite überhaupt? Mit einem echten Ticker statt des Platzhalters
+  // prüfen, damit die getestete Adresse der späteren entspricht.
+  const probe = await urlErreichbar(roh.replaceAll('{TICKER}', 'NVDA'));
+  if (!probe.ok) return res.status(400).json({ error: probe.grund });
+
   res.json(store.addWebLink({ name, url: roh }));
 });
 
@@ -904,6 +950,12 @@ app.delete('/api/weblinks', (req, res) => {
   const url = String(req.query.url || '');
   if (!url) return res.status(400).json({ error: 'url fehlt' });
   res.json(store.removeWebLink(url));
+});
+
+// ---------- SPA-Fallback (nach allen API-Routen) ----------
+
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  res.sendFile(path.join(DIST, 'index.html'));
 });
 
 // ---------- Start ----------

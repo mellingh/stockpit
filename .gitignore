@@ -1,6 +1,9 @@
 # Abhängigkeiten
 node_modules/
 
+# Gebaute Oberfläche (entsteht lokal via start.bat / npm run build)
+web/dist/
+
 # Persönliche Daten — bleiben lokal, landen NIE auf GitHub
 data/portfolio.json
 
@@ -13,3 +16,4 @@ Thumbs.db
 
 # Logs
 *.log
+web/tsconfig.tsbuildinfo

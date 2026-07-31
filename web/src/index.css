@@ -1,0 +1,245 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Stockpit v2 — „Terminal Luxe"
+   Tiefes, blaustichiges Schwarz; Panels als Glas-Schichten mit
+   Hairline-Border + Innen-Highlight; ein elektrisches Signalblau;
+   Grün/Rot ausschließlich für Markt-Semantik.
+   ============================================================ */
+
+/* ---------- Fonts (lokal gebundelt, Variable Fonts) ---------- */
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('./assets/fonts/bricolage-var.woff2') format('woff2');
+  font-weight: 300 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  src: url('./assets/fonts/schibsted-var.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Red Hat Mono';
+  src: url('./assets/fonts/redhatmono-var.woff2') format('woff2');
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+/* ---------- Design-Tokens ---------- */
+
+@theme {
+  /* Aufgehellte Palette: kein Pechschwarz, blaustichiges Anthrazit.
+     Größen und Abstände bleiben bewusst wie im bewährten Stand. */
+  --color-bg: #101420;
+  --color-panel: #171d2b;
+  --color-panel2: #1e2536;
+  --color-elevated: #252d41;
+  --color-line: #2a3346;
+  --color-line-strong: #3a4560;
+  --color-ink: #eef1f8;
+  --color-ink2: #b3bccd;
+  --color-ink3: #8592a8;
+  --color-accent: #6ba5ff;
+  --color-accent-soft: rgba(107, 165, 255, 0.14);
+  --color-up: #35d99a;
+  --color-up-soft: rgba(53, 217, 154, 0.13);
+  --color-down: #ff6b78;
+  --color-down-soft: rgba(255, 107, 120, 0.13);
+  --color-warn: #edb95c;
+  /* Marktwirkung im Kalender: Gold für 1–2 Sterne, ROT für 3 (Micha, Runde 10 —
+     das Orangerot hob sich zu wenig vom Gold ab; die Verwechslungsgefahr mit
+     der Markt-Farbe nimmt er bewusst in Kauf). */
+  --color-hoch: #ff6b78;
+  --color-warn-soft: rgba(237, 185, 92, 0.12);
+
+  /* ---------- Größen-Skala — VERBINDLICH ----------
+     Es gibt GENAU diese Stufen. Keine Zwischenwerte, keine Halbpixel,
+     keine `text-[13.5px]`-Sonderfälle. Wer eine neue Größe braucht,
+     nimmt die nächstliegende Stufe — oder die Skala wird hier geändert.
+
+     Schrift — DATEN sind klein, PROSA ist Basis:
+       text-micro      12px  Uppercase-Labels, Badges, Spaltenköpfe, Meta-Zeilen
+       text-small      13px  ALLE Mono-/Kurs-/Tabellendaten, Listenzeilen, Hilfstexte
+       text-base       15px  Fließtext, Teaser, Formularfelder, Sucheingabe
+       text-lg         16px  News-Titel, Sterne
+       display-sm/md/lg 22/28/36px  Logo, Kennzahlen/Panel-Zahlen, Seitentitel
+     Kontrollhöhen (8px-Raster, alles Klickbare):
+       h-control-xs    24px  statische Chips/Badges
+       h-control-sm    32px  Filter-Pills, kleine Buttons, Icon-Buttons, Nav
+       h-control-md    40px  Standard-Buttons, Eingabefelder
+       h-control-lg    48px  große Suche
+     Zeilenhöhe in Tabellen/Listen: py-2.5 (= 10px oben/unten).
+     Radius: Bedienelemente rounded-md, runde Pills rounded-full — sonst nichts. */
+  --text-micro: 12px;
+  --text-micro--line-height: 1.35;
+  --text-small: 13px;
+  --text-small--line-height: 1.45;
+  --text-base: 15px;
+  --text-base--line-height: 1.5;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.4;
+  --text-display-sm: 22px;
+  --text-display-sm--line-height: 1.25;
+  --text-display-md: 28px;
+  --text-display-md--line-height: 1.15;
+  --text-display-lg: 36px;
+  --text-display-lg--line-height: 1.1;
+
+  --spacing-control-xs: 24px;
+  --spacing-control-sm: 32px;
+  --spacing-control-md: 40px;
+  --spacing-control-lg: 48px;
+
+  --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
+  --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
+  --font-mono: 'Red Hat Mono', ui-monospace, monospace;
+
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 64px rgba(0, 0, 0, 0.65);
+
+  --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
+/* ---------- Basis ---------- */
+
+html {
+  color-scheme: dark;
+  /* kein 300-ms-Verzug beim Tippen auf Touchscreens */
+  touch-action: manipulation;
+}
+
+body {
+  background:
+    radial-gradient(1100px 500px at 18% -12%, rgba(107, 165, 255, 0.06), transparent 62%),
+    radial-gradient(900px 420px at 85% -18%, rgba(53, 217, 154, 0.03), transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  letter-spacing: 0.004em;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(107, 165, 255, 0.3);
+}
+
+/* Feines Korn für Tiefe (2 % Opazität, data-URI, keine externe Ressource) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Scrollbars im Terminal-Stil */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* Scroll-Bereiche in Panels/Dialogen: schmaler Balken, der den Inhalt nicht
+   anschneidet (stabile Rinne) und im Ruhezustand kaum auffällt. */
+.scroll-dezent {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.scroll-dezent:hover {
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+/* Tastatur-Fokus sichtbar machen — Mausklicks bleiben ohne Ring */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Textfelder NIE mit Ring: autoFocus gilt dem Browser als Tastatur-Fokus, dadurch
+   sprang beim Öffnen jedes Dialogs ein blauer Rahmen ums Eingabefeld (Micha).
+   Fokus zeigen die Felder über ihren eigenen, dezent aufgehellten Rand. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/* Lange Tabellen: Zeilen außerhalb des Sichtfelds nicht rendern
+   (Kalender-Wochenansicht hat >300 Zeilen) */
+.lange-liste tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 44px;
+}
+
+/* Ladeplatzhalter: ruhiger Schimmer von links nach rechts über dem Panelton.
+   Bei prefers-reduced-motion bleibt die Fläche einfach still stehen. */
+.skelett {
+  background-color: var(--color-panel2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--color-elevated) 85%, white 15%) 45%,
+    transparent 90%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skelett-sweep 1.6s ease-in-out infinite;
+}
+@keyframes skelett-sweep {
+  0% { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skelett {
+    animation: none;
+    background-image: none;
+  }
+}
+
+/* Zahlen immer tabellarisch */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
