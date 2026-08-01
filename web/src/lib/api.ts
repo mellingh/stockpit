@@ -99,7 +99,7 @@ export interface NewsItem {
   sentiment?: Sentiment;
   category?: { id: string; label: string };
   betroffen?: { symbol: string; why: string }[];
-  reaction?: { dayChangePct: number | null } | null;
+  reaction?: { dayChangePct: number | null; typischPct?: number | null } | null;
   erklaerung?: string[] | string | null;
 }
 
@@ -268,6 +268,51 @@ export interface KalenderEvent {
 export interface Kalender {
   quelle: string;
   events: KalenderEvent[];
+}
+
+export interface EarningsEvent {
+  ticker: string;
+  name: string;
+  zeit: string;
+  epsIst: number | null;
+  epsErwartet: number | null;
+  ueberraschungPct: number | null;
+  marketCap: number | null;
+  boerse: string | null;
+  land: string | null;
+  yahooSymbol: string;
+}
+
+export interface EarningsKalender {
+  quelle: string;
+  events: EarningsEvent[];
+}
+
+export interface Feiertag {
+  land: string | null;
+  zeit: string;
+  titel: string;
+}
+
+export interface FeiertagsKalender {
+  quelle: string;
+  horizontTage: number;
+  events: Feiertag[];
+}
+
+export interface IpoEvent {
+  status: 'erwartet' | 'gepreist';
+  symbol: string | null;
+  firma: string | null;
+  boerse: string | null;
+  preis: string | null;
+  volumenUsd: number | null;
+  zeit: string | null;
+}
+
+export interface IpoKalender {
+  quelle: string;
+  events: IpoEvent[];
 }
 
 export interface TrendingItem {

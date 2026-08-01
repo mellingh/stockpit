@@ -82,8 +82,13 @@ function cleanSummary(raw) {
       .trim()
   );
   if (text.length < 40) return null; // zu kurz, um etwas zu erklären
-  if (text.length <= 280) return text;
-  const cut = text.slice(0, 280);
+  if (text.length <= 320) return text;
+  // Am Satzende kürzen, nicht mitten im Wort — ein "… hatte, nachdem ..." liest
+  // sich abgebrochen (Micha, Runde 19). Erst wenn im Fenster kein Satzende
+  // liegt, an der Wortgrenze schneiden.
+  const cut = text.slice(0, 320);
+  const satzEnde = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  if (satzEnde > 120) return cut.slice(0, satzEnde + 1);
   return `${cut.slice(0, cut.lastIndexOf(' '))} …`;
 }
 

@@ -7,6 +7,9 @@ import {
   type Analyse,
   type ChartData,
   type Dashboard,
+  type EarningsKalender,
+  type FeiertagsKalender,
+  type IpoKalender,
   type Kalender,
   type NewsFeed,
   type SearchResult,
@@ -46,6 +49,30 @@ export const useKalender = () =>
     queryKey: ['kalender'],
     queryFn: () => api.get<Kalender>('/api/calendar'),
     staleTime: 10 * 60_000,
+  });
+
+export const useEarnings = (markt: string, von: string, bis: string) =>
+  useQuery({
+    queryKey: ['earnings', markt, von, bis],
+    queryFn: () =>
+      api.get<EarningsKalender>(
+        `/api/earnings?markt=${markt}&von=${encodeURIComponent(von)}&bis=${encodeURIComponent(bis)}`
+      ),
+    staleTime: 30 * 60_000,
+  });
+
+export const useFeiertage = () =>
+  useQuery({
+    queryKey: ['feiertage'],
+    queryFn: () => api.get<FeiertagsKalender>('/api/feiertage'),
+    staleTime: 60 * 60_000,
+  });
+
+export const useIpos = () =>
+  useQuery({
+    queryKey: ['ipos'],
+    queryFn: () => api.get<IpoKalender>('/api/ipos'),
+    staleTime: 60 * 60_000,
   });
 
 export const useTrending = () =>

@@ -1,13 +1,17 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from '@/lib/router';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
 import { useSearchParams, useSetParam } from '@/lib/router';
-import { useKalender } from '@/lib/queries';
+import { useEarnings, useFeiertage, useIpos, useKalender } from '@/lib/queries';
 import { erklaerungFuer, flagge } from '@/lib/event-lexikon';
 import type { KalenderEvent } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { fmtCompact, fmtNum } from '@/lib/format';
 
 const IMPACT: Record<string, { n: number; label: string }> = {
   High: { n: 3, label: 'hohe Marktwirkung' },
@@ -199,11 +203,283 @@ function JetztLinie({ jetzt }: { jetzt: Date }) {
   );
 }
 
+// ---------- Tabs (Aufbau wie der Wirtschaftskalender, nur andere Daten) ----------
+
+const TABS = [
+  ['wk', 'Wirtschaftskalender'],
+  ['earnings', 'Earnings'],
+  ['feiertage', 'Börsenfeiertage'],
+  ['ipos', 'IPOs'],
+] as const;
+
+// Die fünf wichtigsten Aktienmärkte (gleiche Auswahl wie der Server)
+const MAERKTE = [
+  ['us', 'USA'],
+  ['de', 'Deutschland'],
+  ['uk', 'UK'],
+  ['jp', 'Japan'],
+  ['ca', 'Kanada'],
+] as const;
+
+const isoTag = (offset: number, endeDesTages = false) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  if (endeDesTages) d.setHours(23, 59, 59, 0);
+  else d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+/** Zeitfenster je Tages-Pill (gleiche Pills wie der Wirtschaftskalender) */
+function zeitfenster(tag: string): [string, string] {
+  if (tag === 'gestern') return [isoTag(-1), isoTag(-1, true)];
+  if (tag === 'morgen') return [isoTag(1), isoTag(1, true)];
+  if (tag === 'woche') return [isoTag(0), isoTag(7, true)];
+  return [isoTag(0), isoTag(0, true)];
+}
+
+const THKopf = ({ className, ...p }: React.ComponentProps<'th'>) => (
+  <th className={cn('pb-2.5 text-left text-micro font-bold uppercase tracking-[0.14em] text-ink3', className)} {...p} />
+);
+
+function TagesPills({ tag, setTag }: { tag: string; setTag: (v: string) => void }) {
+  return (
+    <>
+      {TAGE.map(([key, label]) => (
+        <FilterPill key={key} aktiv={tag === key} onClick={() => setTag(key)}>
+          {label}
+        </FilterPill>
+      ))}
+    </>
+  );
+}
+
+function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void }) {
+  const params = useSearchParams();
+  const setParam = useSetParam();
+  const navigate = useNavigate();
+  const markt = params.get('markt') ?? 'us';
+  const setMarkt = (v: string) => setParam('markt', v === 'us' ? null : v);
+  const [suche, setSuche] = useState('');
+  const [von, bis] = zeitfenster(tag);
+  const { data, isLoading, error } = useEarnings(markt, von, bis);
+
+  const events = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    const alle = data?.events ?? [];
+    if (!q) return alle;
+    return alle.filter((e) => e.ticker.toLowerCase().includes(q) || e.name.toLowerCase().includes(q));
+  }, [data, suche]);
+
+  const heuteKey = dayKey(new Date());
+  let letzterTag: string | null = null;
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        <TagesPills tag={tag} setTag={setTag} />
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {MAERKTE.map(([key, label]) => (
+            <FilterPill key={key} aktiv={markt === key} onClick={() => setMarkt(key)}>
+              {label}
+            </FilterPill>
+          ))}
+        </div>
+      </div>
+      <Input
+        className="mb-4 h-control-sm max-w-[280px]"
+        placeholder="Nach Symbol oder Name filtern …"
+        autoComplete="off"
+        spellCheck={false}
+        value={suche}
+        onChange={(e) => setSuche(e.target.value)}
+      />
+      {isLoading && (
+        <div role="status" aria-label="Earnings werden geladen">
+          <SkeletonRows zeilen={8} />
+        </div>
+      )}
+      {error && <Empty role="status" aria-live="polite">Earnings nicht erreichbar: {(error as Error).message}</Empty>}
+      {data &&
+        (events.length === 0 ? (
+          <Empty>Keine Quartalszahlen-Termine in diesem Zeitraum{suche ? ' mit diesem Filter' : ''}.</Empty>
+        ) : (
+          <table className="lange-liste w-full border-collapse">
+            <thead>
+              <tr>
+                <THKopf className="w-[96px]">Datum</THKopf>
+                <THKopf>Wert</THKopf>
+                <THKopf className="text-right">EPS erw.</THKopf>
+                <THKopf className="text-right">Ist</THKopf>
+                <THKopf className="text-right">Überr.</THKopf>
+                <THKopf className="text-right">Market Cap</THKopf>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((e, i) => {
+                const key = dayKey(e.zeit);
+                const separator =
+                  tag === 'woche' && key !== letzterTag ? (
+                    <tr key={`sep-${key}`} className="border-b border-line">
+                      <td colSpan={6} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-accent">
+                        {new Date(e.zeit).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {key === heuteKey ? ' — heute' : ''}
+                      </td>
+                    </tr>
+                  ) : null;
+                letzterTag = key;
+                const ueb = e.ueberraschungPct;
+                return (
+                  <Fragment key={`${e.ticker}-${e.zeit}-${i}`}>
+                    {separator}
+                    <tr
+                      onClick={() => navigate(`/analyse?symbol=${encodeURIComponent(e.yahooSymbol)}`)}
+                      className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
+                    >
+                      <td className="py-2.5 font-mono text-micro text-ink3 tnum">
+                        {new Date(e.zeit).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <span className="text-small font-medium text-ink">{e.name}</span>
+                        <span className="ml-2 font-mono text-micro text-ink3">{e.ticker}</span>
+                      </td>
+                      <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
+                        {e.epsErwartet != null ? fmtNum(e.epsErwartet) : '–'}
+                      </td>
+                      <td
+                        className={cn(
+                          'py-2.5 text-right font-mono text-small tnum',
+                          ueb != null && ueb > 0 ? 'text-up' : ueb != null && ueb < 0 ? 'text-down' : 'text-ink2'
+                        )}
+                      >
+                        {e.epsIst != null ? fmtNum(e.epsIst) : '–'}
+                      </td>
+                      <td
+                        className={cn(
+                          'py-2.5 text-right font-mono text-small tnum',
+                          ueb != null && ueb > 0 ? 'text-up' : ueb != null && ueb < 0 ? 'text-down' : 'text-ink3'
+                        )}
+                      >
+                        {ueb != null ? `${ueb > 0 ? '+' : ''}${fmtNum(ueb)} %` : '–'}
+                      </td>
+                      <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
+                        {e.marketCap != null ? fmtCompact(e.marketCap) : '–'}
+                      </td>
+                    </tr>
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        ))}
+    </>
+  );
+}
+
+function FeiertageTab() {
+  const { data, isLoading, error } = useFeiertage();
+  return (
+    <>
+      {isLoading && (
+        <div role="status" aria-label="Feiertage werden geladen">
+          <SkeletonRows zeilen={5} />
+        </div>
+      )}
+      {error && <Empty role="status" aria-live="polite">Feiertage nicht erreichbar: {(error as Error).message}</Empty>}
+      {data &&
+        (data.events.length === 0 ? (
+          <Empty>Keine Börsenfeiertage in den nächsten {data.horizontTage} Tagen (so weit reicht die Quelle).</Empty>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <THKopf className="w-[140px]">Datum</THKopf>
+                <THKopf className="w-[120px]">Land</THKopf>
+                <THKopf>Feiertag</THKopf>
+              </tr>
+            </thead>
+            <tbody>
+              {data.events.map((f, i) => (
+                <tr key={`${f.land}-${f.zeit}-${i}`} className="border-b border-line last:border-b-0">
+                  <td className="py-2.5 font-mono text-small text-ink2 tnum">
+                    {new Date(f.zeit).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                  </td>
+                  <td className="whitespace-nowrap py-2.5 text-small">
+                    <span className="mr-1.5 text-lg leading-none">{flagge(f.land)}</span>
+                    {f.land ?? '–'}
+                  </td>
+                  <td className="py-2.5 text-small font-medium text-ink">{f.titel}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+      <p className="mt-4 text-micro text-ink3">
+        Handel an der jeweiligen Heimatbörse ruht · Quelle reicht ca. 4–5 Wochen voraus.
+      </p>
+    </>
+  );
+}
+
+function IposTab() {
+  const { data, isLoading, error } = useIpos();
+  return (
+    <>
+      {isLoading && (
+        <div role="status" aria-label="IPOs werden geladen">
+          <SkeletonRows zeilen={5} />
+        </div>
+      )}
+      {error && <Empty role="status" aria-live="polite">IPOs nicht erreichbar: {(error as Error).message}</Empty>}
+      {data &&
+        (data.events.length === 0 ? (
+          <Empty>Keine Börsengänge im laufenden und nächsten Monat gelistet.</Empty>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <THKopf className="w-[96px]">Datum</THKopf>
+                <THKopf>Firma</THKopf>
+                <THKopf>Börse</THKopf>
+                <THKopf className="text-right">Preisspanne ($)</THKopf>
+                <THKopf className="text-right">Volumen</THKopf>
+                <THKopf className="text-right">Status</THKopf>
+              </tr>
+            </thead>
+            <tbody>
+              {data.events.map((e, i) => (
+                <tr key={`${e.symbol}-${i}`} className="border-b border-line last:border-b-0">
+                  <td className="py-2.5 font-mono text-micro text-ink3 tnum">
+                    {e.zeit ? new Date(e.zeit).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
+                  </td>
+                  <td className="py-2.5 pr-3">
+                    <span className="text-small font-medium text-ink">{e.firma ?? '–'}</span>
+                    {e.symbol && <span className="ml-2 font-mono text-micro text-ink3">{e.symbol}</span>}
+                  </td>
+                  <td className="py-2.5 text-small text-ink2">{e.boerse ?? '–'}</td>
+                  <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.preis ?? '–'}</td>
+                  <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
+                    {e.volumenUsd != null ? `${fmtCompact(e.volumenUsd)} $` : '–'}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <Badge variant={e.status === 'gepreist' ? 'pos' : 'neu'}>{e.status}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+      <p className="mt-4 text-micro text-ink3">Deckt US-Börsengänge ab (Nasdaq und NYSE) — mehr gibt es kostenlos nicht zuverlässig.</p>
+    </>
+  );
+}
+
 export default function KalenderPage() {
   const { data, isLoading, error } = useKalender();
   // Filter stehen in der URL: teilbar, überlebt F5, Zurück-Button funktioniert
   const params = useSearchParams();
   const setParam = useSetParam();
+  const tab = params.get('tab') ?? 'wk';
+  const setTab = (v: string) => setParam('tab', v === 'wk' ? null : v);
   const tag = params.get('tag') ?? 'heute';
   // Deep-Link vom Dashboard: ?event=<zeit>~<titel> klappt den Termin auf
   const eventKey = params.get('event');
@@ -244,7 +520,30 @@ export default function KalenderPage() {
         </h1>
       </header>
 
+      {/* Tab-Leiste: Unterstrich-Stil wie die Topbar-Navigation (Konstanz) */}
+      <div className="flex items-center gap-1 border-b border-line animate-rise" style={{ animationDelay: '40ms' }}>
+        {TABS.map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              'relative flex h-control-md cursor-pointer items-center px-3.5 text-base font-medium transition-colors',
+              tab === key
+                ? 'text-ink after:absolute after:inset-x-3.5 after:bottom-[-1px] after:h-[2px] after:bg-accent'
+                : 'text-ink2 hover:text-ink'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <Panel className="animate-rise" style={{ animationDelay: '70ms' }}>
+        {tab === 'earnings' && <EarningsTab tag={tag} setTag={setTag} />}
+        {tab === 'feiertage' && <FeiertageTab />}
+        {tab === 'ipos' && <IposTab />}
+        {tab === 'wk' && (
+          <>
         {/* Zeitraum links, Relevanz rechtsbündig — kein Trennstrich (Micha) */}
         <div className="mb-4 flex flex-wrap items-center gap-1.5">
           {TAGE.map(([key, label]) => (
@@ -315,11 +614,13 @@ export default function KalenderPage() {
               </tbody>
             </table>
           ))}
+          </>
+        )}
       </Panel>
 
       <p className="text-center text-micro text-ink3">
-        Zeiten in deiner lokalen Zeitzone · „Aktuell" grün/rot = besser/schlechter als Prognose · Alle Angaben ohne
-        Gewähr — keine Anlageberatung.
+        Zeiten in deiner lokalen Zeitzone · „Aktuell"/„Ist" grün/rot = besser/schlechter als Prognose · Alle Angaben
+        ohne Gewähr — keine Anlageberatung.
       </p>
     </div>
   );

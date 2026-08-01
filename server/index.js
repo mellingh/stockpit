@@ -15,6 +15,7 @@ import { classify, sentimentStatus, preload } from './sentiment.js';
 import { categorize, mapAffected, priceReaction, explain, overallAssessment, isRelevant } from './analysis.js';
 import { getTrials } from './trials.js';
 import { getCalendar } from './calendar.js';
+import { getEarnings, getFeiertage, getIpos, EARNINGS_MAERKTE } from './kalender-extra.js';
 import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
 import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
@@ -834,6 +835,36 @@ app.get(
   '/api/calendar',
   wrap(async (req, res) => {
     res.json(await getCalendar());
+  })
+);
+
+// Earnings-Kalender je Markt (?markt=us|de|uk|jp|ca, ?von/?bis als ISO-Datum)
+app.get(
+  '/api/earnings',
+  wrap(async (req, res) => {
+    const markt = String(req.query.markt || 'us');
+    if (!EARNINGS_MAERKTE[markt]) return res.status(400).json({ error: 'Unbekannter Markt' });
+    const von = Date.parse(String(req.query.von || ''));
+    const bis = Date.parse(String(req.query.bis || ''));
+    if (!Number.isFinite(von) || !Number.isFinite(bis) || bis < von) {
+      return res.status(400).json({ error: 'von/bis als gültige Daten angeben' });
+    }
+    if (bis - von > 15 * 86400000) return res.status(400).json({ error: 'Zeitraum max. 14 Tage' });
+    res.json(await getEarnings(markt, von, bis));
+  })
+);
+
+app.get(
+  '/api/feiertage',
+  wrap(async (req, res) => {
+    res.json(await getFeiertage());
+  })
+);
+
+app.get(
+  '/api/ipos',
+  wrap(async (req, res) => {
+    res.json(await getIpos());
   })
 );
 

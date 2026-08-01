@@ -39,19 +39,33 @@ function einordnungPunkte(n: NewsItemT): { punkte: string[]; fazit: string | nul
     punkte.push('Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
   }
 
-  // Fazit: ein Satz zum Mitnehmen — Tonlage + wer wie betroffen ist.
-  // (Gleiches Muster wie die Devisen-Faustregel im Kalender: fetter Schlusssatz.)
+  // Fazit = was aus der Meldung FOLGT, nicht die Tonlage (die steht schon im
+  // Badge): Wie stark hat der Markt reagiert — gemessen am üblichen
+  // Tagesausschlag — und wer hängt nur indirekt mit drin? Ohne belastbares
+  // Signal lieber KEIN Fazit als eine Floskel.
   const direkte = (n.betroffen ?? []).filter((b) => b.why === 'direkt').map((b) => b.symbol);
   const indirekte = (n.betroffen ?? []).filter((b) => b.why !== 'direkt');
-  const ton =
-    n.sentiment?.label === 'positive'
-      ? 'eine positive'
-      : n.sentiment?.label === 'negative'
-        ? 'eine negative'
-        : 'eine neutrale';
   const teile: string[] = [];
-  if (direkte.length) teile.push(`Für ${direkte.join(' und ')} ${ton} Meldung`);
-  else teile.push(`${ton.charAt(0).toUpperCase() + ton.slice(1)} Markt-Meldung ohne direkten Bezug zu deinen Werten`);
+  const r = n.reaction;
+  if (r?.dayChangePct != null && direkte.length) {
+    const staerke =
+      r.typischPct != null && Math.abs(r.dayChangePct) >= 2 * r.typischPct
+        ? 'weit über dem üblichen Tagesausschlag'
+        : r.typischPct != null && Math.abs(r.dayChangePct) >= r.typischPct
+          ? 'etwa im Rahmen des üblichen Tagesausschlags'
+          : 'kaum spürbar';
+    teile.push(
+      `Der Markt hat die Nachricht bei ${direkte.join(' und ')} mit ${fmtPct(r.dayChangePct)} am Tag ${
+        r.dayChangePct >= 0 ? 'belohnt' : 'abgestraft'
+      } — ${staerke}`
+    );
+  } else if (direkte.length && n.sentiment?.label && n.sentiment.label !== 'neutral') {
+    teile.push(
+      `Die Meldung liest sich für ${direkte.join(' und ')} ${
+        n.sentiment.label === 'positive' ? 'unterstützend' : 'belastend'
+      }, eine messbare Kursreaktion steht noch aus`
+    );
+  }
   for (const b of indirekte) {
     teile.push(
       `${b.symbol} wird nicht direkt genannt, gehört aber zur selben Branche (${b.why.replace(/^Sektor /, '')}) und kann mitreagieren`

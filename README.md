@@ -58,6 +58,9 @@ Alternativ per Terminal: `npm install` und dann `npm start`.
 | Artikel-Teaser („Worum es geht") | og:description der Artikelseiten |
 | Rating-Historie mit Kurszielen je Bank | stockanalysis.com (US-Werte) |
 | Wirtschaftskalender | TradingView-Kalender (mit Ist-Werten), Fallback: investing.com-Widget → ForexFactory-Wochenfeed |
+| Earnings-Kalender (US/DE/UK/JP/CA) | TradingView-Scanner |
+| Börsenfeiertage | TradingView-Kalender (Horizont ~4 Wochen) |
+| IPO-Kalender | Nasdaq-API (nur US-Börsengänge) |
 | Klinische Studien | clinicaltrials.gov (offizielle API v2) |
 | News-Bewertung | **FinBERT** — KI-Modell, läuft lokal auf deinem Rechner (Transformers.js) |
 | Technische Signale | selbst berechnet aus der Kurshistorie (gleiche Werte wie Finviz/TradingView) |
