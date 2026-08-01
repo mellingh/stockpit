@@ -190,8 +190,53 @@ const nasdaqZahl = (s) => {
 const nasdaqDatum = (s) => {
   // "8/06/2026" → ISO; ungültiges bleibt null
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s ?? ''));
-  return m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2])).toISOString() : null;
+  return m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]), 12).toISOString() : null;
 };
+
+// Zweite IPO-Quelle: stockanalysis.com/ipos/calendar (serverseitig gerendert,
+// wie schon bei den Analysten-Ratings). Listet gelegentlich Deals, die bei
+// Nasdaq noch fehlen — wird per Symbol dazugemischt.
+const saZahl = (s) => {
+  const m = /^([\d.,]+)\s*([KMB])?$/.exec(String(s ?? '').trim());
+  if (!m) return null;
+  const basis = Number(m[1].replace(/,/g, ''));
+  const faktor = { K: 1e3, M: 1e6, B: 1e9 }[m[2]] ?? 1;
+  return Number.isFinite(basis) ? basis * faktor : null;
+};
+
+async function iposVonStockanalysis() {
+  try {
+    const res = await fetch('https://stockanalysis.com/ipos/calendar/', {
+      headers: { 'user-agent': UA },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const tabelle = html.match(/<table[\s\S]*?<\/table>/)?.[0] ?? '';
+    const zeilen = [...tabelle.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].slice(1); // Kopfzeile weg
+    return zeilen
+      .map(([, inhalt]) => {
+        const zellen = [...inhalt.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(([, z]) =>
+          z.replace(/<[^>]+>/g, '').trim()
+        );
+        // IPO Date | Symbol | Company | Exchange | Price Range | Shares | Deal Size | …
+        if (zellen.length < 7) return null;
+        const datum = Date.parse(zellen[0]) + 12 * 3600 * 1000;
+        return {
+          status: 'erwartet',
+          symbol: zellen[1] || null,
+          firma: zellen[2] || null,
+          boerse: zellen[3] || null,
+          preis: zellen[4]?.replace(/\$/g, '') || null,
+          volumenUsd: saZahl(zellen[6]),
+          zeit: Number.isFinite(datum) ? new Date(datum).toISOString() : null,
+        };
+      })
+      .filter((e) => e && e.symbol);
+  } catch {
+    return []; // zweite Quelle darf still ausfallen
+  }
+}
 
 /** US-Börsengänge von heute bis Jahresende (erwartet und bereits gepreist). */
 export function getIpos() {
@@ -232,6 +277,14 @@ export function getIpos() {
           volumenUsd: nasdaqZahl(r.dollarValueOfSharesOffered),
           zeit: nasdaqDatum(r.pricedDate),
         });
+      }
+    }
+    // Zweite Quelle dazumischen (nur Symbole, die Nasdaq nicht schon listet)
+    const bekannt = new Set(events.map((e) => e.symbol).filter(Boolean));
+    for (const e of await iposVonStockanalysis()) {
+      if (!bekannt.has(e.symbol)) {
+        bekannt.add(e.symbol);
+        events.push(e);
       }
     }
     events.sort((a, b) => new Date(a.zeit ?? 0) - new Date(b.zeit ?? 0));

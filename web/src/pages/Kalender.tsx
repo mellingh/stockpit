@@ -402,8 +402,9 @@ function FeiertageTab() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <THKopf className="w-[140px]">Datum</THKopf>
-                <THKopf className="w-[120px]">Land</THKopf>
+                <THKopf className="w-[120px]">Datum</THKopf>
+                <THKopf className="w-[90px]">Land</THKopf>
+                <THKopf>Börse</THKopf>
                 <THKopf>Feiertag</THKopf>
               </tr>
             </thead>
