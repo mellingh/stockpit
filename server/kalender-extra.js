@@ -126,28 +126,61 @@ export function getEarnings(marktKey, vonMs, bisMs) {
   });
 }
 
-/** Börsenfeiertage der wichtigsten Märkte — so weit die Quelle reicht (~4 Wochen). */
+// Börsenfeiertage: fest hinterlegter Handelskalender der wichtigsten Börsen.
+// Feiertage stehen Jahre im Voraus fest — eine gepflegte Tabelle ist die
+// einzige kostenlose Quelle, die bis Jahresende reicht (TradingView liefert
+// nur ~4 Wochen, investing.com ist hinter Cloudflare).
+// PFLEGE: Zum Jahreswechsel das Folgejahr ergänzen.
+const BOERSEN_NAME = {
+  US: 'New York Stock Exchange / Nasdaq',
+  DE: 'Deutsche Börse (Xetra)',
+  GB: 'London Stock Exchange',
+  JP: 'Japan Exchange (Tokio)',
+  CN: 'Shanghai / Shenzhen Stock Exchange',
+  CA: 'Toronto Stock Exchange',
+};
+
+const FEIERTAGE_2026 = [
+  ['CA', '2026-08-03', 'Civic Holiday'],
+  ['JP', '2026-08-11', 'Mountain Day (Tag des Berges)'],
+  ['GB', '2026-08-31', 'Summer Bank Holiday'],
+  ['US', '2026-09-07', 'Labor Day'],
+  ['CA', '2026-09-07', 'Labour Day'],
+  ['JP', '2026-09-21', 'Respect for the Aged Day'],
+  ['JP', '2026-09-22', 'Brückenfeiertag (Kokumin no Kyūjitsu)'],
+  ['JP', '2026-09-23', 'Herbst-Tagundnachtgleiche'],
+  ['CN', '2026-09-25', 'Mittherbstfest'],
+  ['CN', '2026-10-01', 'Nationalfeiertag — Goldene Woche (bis 7.10. geschlossen)'],
+  ['CA', '2026-10-12', 'Thanksgiving (Kanada)'],
+  ['JP', '2026-10-12', 'Sports Day'],
+  ['JP', '2026-11-03', 'Culture Day'],
+  ['JP', '2026-11-23', 'Labour Thanksgiving Day'],
+  ['US', '2026-11-26', 'Thanksgiving'],
+  ['DE', '2026-12-24', 'Heiligabend'],
+  ['US', '2026-12-25', '1. Weihnachtstag'],
+  ['DE', '2026-12-25', '1. Weihnachtstag'],
+  ['GB', '2026-12-25', '1. Weihnachtstag'],
+  ['CA', '2026-12-25', '1. Weihnachtstag'],
+  ['GB', '2026-12-28', 'Boxing Day (nachgeholt)'],
+  ['CA', '2026-12-28', 'Boxing Day (nachgeholt)'],
+  ['DE', '2026-12-31', 'Silvester'],
+  ['JP', '2026-12-31', 'Jahresschluss (JPX geschlossen)'],
+];
+
+/** Börsenfeiertage der wichtigsten Märkte ab heute bis Jahresende. */
 export function getFeiertage() {
-  return cached('feiertage', 12 * HOUR, async () => {
-    const von = new Date();
-    von.setHours(0, 0, 0, 0);
-    const bis = new Date(von);
-    bis.setDate(bis.getDate() + 35);
-    const url =
-      `https://economic-calendar.tradingview.com/events?from=${von.toISOString()}` +
-      `&to=${bis.toISOString()}&countries=US,DE,GB,JP,CN,CA`;
-    const res = await fetch(url, {
-      headers: { origin: 'https://www.tradingview.com', 'user-agent': UA },
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!res.ok) throw new Error(`Feiertags-Kalender: HTTP ${res.status}`);
-    const daten = await res.json();
-    const events = (daten.result ?? [])
-      .filter((e) => e.indicator === 'Holidays')
-      .map((e) => ({ land: e.country ?? null, zeit: e.date, titel: e.title }))
-      .sort((a, b) => new Date(a.zeit) - new Date(b.zeit));
-    return { quelle: 'TradingView-Kalender', horizontTage: 35, events };
-  });
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  const events = FEIERTAGE_2026
+    .map(([land, datum, titel]) => ({
+      land,
+      boerse: BOERSEN_NAME[land] ?? null,
+      zeit: new Date(`${datum}T12:00:00`).toISOString(),
+      titel,
+    }))
+    .filter((e) => new Date(e.zeit) >= heute)
+    .sort((a, b) => new Date(a.zeit) - new Date(b.zeit));
+  return Promise.resolve({ quelle: 'Handelskalender 2026 (fest hinterlegt)', events });
 }
 
 const nasdaqZahl = (s) => {
@@ -160,11 +193,15 @@ const nasdaqDatum = (s) => {
   return m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2])).toISOString() : null;
 };
 
-/** US-Börsengänge des laufenden + nächsten Monats (erwartet und bereits gepreist). */
+/** US-Börsengänge von heute bis Jahresende (erwartet und bereits gepreist). */
 export function getIpos() {
   return cached('ipos', 12 * HOUR, async () => {
-    const monate = [new Date(), new Date()];
-    monate[1].setMonth(monate[1].getMonth() + 1);
+    // Nasdaq liefert monatsweise — alle Monate bis Dezember abfragen
+    const monate = [];
+    const jetzt = new Date();
+    for (let m = jetzt.getMonth(); m <= 11; m++) {
+      monate.push(new Date(jetzt.getFullYear(), m, 1));
+    }
     const events = [];
     for (const m of monate) {
       const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;

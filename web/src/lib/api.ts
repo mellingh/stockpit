@@ -290,13 +290,13 @@ export interface EarningsKalender {
 
 export interface Feiertag {
   land: string | null;
+  boerse: string | null;
   zeit: string;
   titel: string;
 }
 
 export interface FeiertagsKalender {
   quelle: string;
-  horizontTage: number;
   events: Feiertag[];
 }
 

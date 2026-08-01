@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@/lib/router';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
@@ -285,14 +285,24 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
           ))}
         </div>
       </div>
-      <Input
-        className="mb-4 h-control-sm max-w-[280px]"
-        placeholder="Nach Symbol oder Name filtern …"
-        autoComplete="off"
-        spellCheck={false}
-        value={suche}
-        onChange={(e) => setSuche(e.target.value)}
-      />
+      {/* gleiche Optik wie die anderen Suchfelder: Lupe links, 32er-Reihe, Basis-Schrift.
+          Die Liste filtert live beim Tippen — das sind die "Vorschläge". */}
+      <div className="relative mb-4 max-w-[300px]">
+        <Search
+          size={15}
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink3"
+        />
+        <Input
+          className="h-control-sm pl-9"
+          placeholder="Symbol oder Name suchen …"
+          aria-label="Earnings nach Symbol oder Name filtern"
+          autoComplete="off"
+          spellCheck={false}
+          value={suche}
+          onChange={(e) => setSuche(e.target.value)}
+        />
+      </div>
       {isLoading && (
         <div role="status" aria-label="Earnings werden geladen">
           <SkeletonRows zeilen={8} />
@@ -308,10 +318,10 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
               <tr>
                 <THKopf className="w-[96px]">Datum</THKopf>
                 <THKopf>Wert</THKopf>
-                <THKopf className="text-right">EPS erw.</THKopf>
-                <THKopf className="text-right">Ist</THKopf>
-                <THKopf className="text-right">Überr.</THKopf>
-                <THKopf className="text-right">Market Cap</THKopf>
+                <THKopf className="cursor-help text-right" title="Erwarteter Gewinn je Aktie (in der Landeswährung der Börse)">EPS erw.</THKopf>
+                <THKopf className="cursor-help text-right" title="Gemeldeter Gewinn je Aktie">Ist</THKopf>
+                <THKopf className="cursor-help text-right" title="Überraschung: Abweichung des Ist vom erwarteten EPS in Prozent">Überr.</THKopf>
+                <THKopf className="cursor-help text-right" title="Marktkapitalisierung — Börsenwert aller Aktien">Market Cap</THKopf>
               </tr>
             </thead>
             <tbody>
@@ -387,7 +397,7 @@ function FeiertageTab() {
       {error && <Empty role="status" aria-live="polite">Feiertage nicht erreichbar: {(error as Error).message}</Empty>}
       {data &&
         (data.events.length === 0 ? (
-          <Empty>Keine Börsenfeiertage in den nächsten {data.horizontTage} Tagen (so weit reicht die Quelle).</Empty>
+          <Empty>Keine Börsenfeiertage mehr bis Jahresende.</Empty>
         ) : (
           <table className="w-full border-collapse">
             <thead>
@@ -407,6 +417,7 @@ function FeiertageTab() {
                     <span className="mr-1.5 text-lg leading-none">{flagge(f.land)}</span>
                     {f.land ?? '–'}
                   </td>
+                  <td className="py-2.5 pr-3 text-small text-ink2">{f.boerse ?? '–'}</td>
                   <td className="py-2.5 text-small font-medium text-ink">{f.titel}</td>
                 </tr>
               ))}
@@ -414,7 +425,7 @@ function FeiertageTab() {
           </table>
         ))}
       <p className="mt-4 text-micro text-ink3">
-        Handel an der jeweiligen Heimatbörse ruht · Quelle reicht ca. 4–5 Wochen voraus.
+        Handel an der jeweiligen Börse ruht · Liste bis Jahresende (fest hinterlegter Handelskalender).
       </p>
     </>
   );
@@ -438,10 +449,13 @@ function IposTab() {
             <thead>
               <tr>
                 <THKopf className="w-[96px]">Datum</THKopf>
+                {/* Spalten wie beim investing.com-IPO-Kalender: Firma | Börse | IPO-Wert | Preis */}
                 <THKopf>Firma</THKopf>
                 <THKopf>Börse</THKopf>
-                <THKopf className="text-right">Preisspanne ($)</THKopf>
-                <THKopf className="text-right">Volumen</THKopf>
+                <THKopf className="cursor-help text-right" title="Gesamtwert der angebotenen Aktien (Emissionsvolumen)">
+                  IPO-Wert
+                </THKopf>
+                <THKopf className="text-right">Preis ($)</THKopf>
                 <THKopf className="text-right">Status</THKopf>
               </tr>
             </thead>
@@ -452,14 +466,16 @@ function IposTab() {
                     {e.zeit ? new Date(e.zeit).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
                   </td>
                   <td className="py-2.5 pr-3">
+                    {/* Flagge vor der Firma wie bei investing — Quelle ist US-only */}
+                    <span className="mr-1.5 text-lg leading-none">{flagge('US')}</span>
                     <span className="text-small font-medium text-ink">{e.firma ?? '–'}</span>
                     {e.symbol && <span className="ml-2 font-mono text-micro text-ink3">{e.symbol}</span>}
                   </td>
                   <td className="py-2.5 text-small text-ink2">{e.boerse ?? '–'}</td>
-                  <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.preis ?? '–'}</td>
                   <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
                     {e.volumenUsd != null ? `${fmtCompact(e.volumenUsd)} $` : '–'}
                   </td>
+                  <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.preis ?? '–'}</td>
                   <td className="py-2.5 text-right">
                     <Badge variant={e.status === 'gepreist' ? 'pos' : 'neu'}>{e.status}</Badge>
                   </td>

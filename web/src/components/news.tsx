@@ -39,10 +39,15 @@ function einordnungPunkte(n: NewsItemT): { punkte: string[]; fazit: string | nul
     punkte.push('Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
   }
 
+  // Ohne Teaser wirkt die Einordnung leer — dann wenigstens ehrlich sagen, warum
+  if (punkte.length === 0) {
+    punkte.push('Zu dieser Meldung liefert die Quelle keinen Teaser — Details stehen im verlinkten Artikel.');
+  }
+
   // Fazit = was aus der Meldung FOLGT, nicht die Tonlage (die steht schon im
   // Badge): Wie stark hat der Markt reagiert — gemessen am üblichen
-  // Tagesausschlag — und wer hängt nur indirekt mit drin? Ohne belastbares
-  // Signal lieber KEIN Fazit als eine Floskel.
+  // Tagesausschlag — und wer hängt nur indirekt mit drin? Es gibt IMMER ein
+  // Fazit (Micha, Runde 20: das Schema Text + Fazit muss konstant sein).
   const direkte = (n.betroffen ?? []).filter((b) => b.why === 'direkt').map((b) => b.symbol);
   const indirekte = (n.betroffen ?? []).filter((b) => b.why !== 'direkt');
   const teile: string[] = [];
@@ -65,6 +70,13 @@ function einordnungPunkte(n: NewsItemT): { punkte: string[]; fazit: string | nul
         n.sentiment.label === 'positive' ? 'unterstützend' : 'belastend'
       }, eine messbare Kursreaktion steht noch aus`
     );
+  } else if (direkte.length) {
+    // neutral + keine Reaktion: ehrlich einordnen statt Fazit weglassen
+    teile.push(
+      `Für ${direkte.join(' und ')} ohne klaren Kurstreiber — weder Tonlage noch Kursreaktion geben einen Ausschlag`
+    );
+  } else if (!indirekte.length) {
+    teile.push('Markt-Meldung ohne direkten Bezug zu deinen Werten — Hintergrund, kein Handelssignal');
   }
   for (const b of indirekte) {
     teile.push(
@@ -115,7 +127,8 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
             </Link>
           ))}
         <span>{n.source ?? '—'}</span>
-        <span>{fmtAgo(n.pubDate)}</span>
+        {/* Zeit immer rechtsbündig — links stehen nur Chips + Quelle (Micha, Runde 20) */}
+        <span className="ml-auto shrink-0">{fmtAgo(n.pubDate)}</span>
       </div>
       <h3 className="text-lg font-semibold leading-snug">
         <a
