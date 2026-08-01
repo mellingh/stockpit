@@ -141,18 +141,48 @@ function PrepostMini({ ab }: { ab: Ausserboerslich | null }) {
 
 // ---------- Position hinzufügen / bearbeiten ----------
 
+/** Kaufwährung: je nach Broker EUR (z. B. ING) oder direkt USD/GBP an der Heimatbörse */
+const KAUF_WAEHRUNGEN = ['EUR', 'USD', 'GBP', 'CHF'] as const;
+
+function WaehrungSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      // dunkler Hintergrund explizit — native Selects fallen sonst aus dem Dark Mode
+      className="h-control-md w-full cursor-pointer rounded-md border border-line-strong bg-bg px-2.5 text-base text-ink outline-none transition-colors hover:border-ink3 focus:border-accent"
+    >
+      <option value="">Währung der Aktie</option>
+      {KAUF_WAEHRUNGEN.map((w) => (
+        <option key={w} value={w}>
+          {w}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [gewaehlt, setGewaehlt] = useState<SearchResult | null>(null);
   const [shares, setShares] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
-  const mutation = usePortfolioMutation((input: { symbol: string; shares: string; buyPrice: string | null }) =>
-    api.post('/api/positions', input)
+  const [buyCurrency, setBuyCurrency] = useState('');
+  const mutation = usePortfolioMutation(
+    (input: { symbol: string; shares: string; buyPrice: string | null; buyCurrency: string | null }) =>
+      api.post('/api/positions', input)
   );
 
   const reset = () => {
     setGewaehlt(null);
     setShares('');
     setBuyPrice('');
+    setBuyCurrency('');
     mutation.reset();
   };
 
@@ -173,7 +203,7 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
             onSubmit={(e) => {
               e.preventDefault();
               mutation.mutate(
-                { symbol: gewaehlt.symbol, shares, buyPrice: buyPrice || null },
+                { symbol: gewaehlt.symbol, shares, buyPrice: buyPrice || null, buyCurrency: buyCurrency || null },
                 { onSuccess: () => { onClose(); reset(); } }
               );
             }}
@@ -213,6 +243,14 @@ function AddPositionDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 />
               </label>
             </div>
+            <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
+              Bezahlt in
+              <WaehrungSelect value={buyCurrency} onChange={setBuyCurrency} />
+            </label>
+            <p className="text-micro leading-relaxed text-ink3">
+              Je nach Broker zahlst du in EUR (z.&nbsp;B. ING) oder direkt in der Börsenwährung — davon
+              hängt die Gewinn-Berechnung ab.
+            </p>
             {mutation.isError && (
               <p className="text-small text-down">Fehler: {(mutation.error as Error).message}</p>
             )}
@@ -242,8 +280,14 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
   const [buyPrice, setBuyPrice] = useState(
     position?.buyPrice != null ? String(position.buyPrice) : ''
   );
-  const mutation = usePortfolioMutation((input: { id: string; shares: number; buyPrice: number | null }) =>
-    api.patch(`/api/positions/${input.id}`, { shares: input.shares, buyPrice: input.buyPrice })
+  const [buyCurrency, setBuyCurrency] = useState(position?.buyCurrency ?? '');
+  const mutation = usePortfolioMutation(
+    (input: { id: string; shares: number; buyPrice: number | null; buyCurrency: string | null }) =>
+      api.patch(`/api/positions/${input.id}`, {
+        shares: input.shares,
+        buyPrice: input.buyPrice,
+        buyCurrency: input.buyCurrency,
+      })
   );
 
   return (
@@ -258,7 +302,12 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
             e.preventDefault();
             if (!position) return;
             mutation.mutate(
-              { id: position.id, shares: Number(shares), buyPrice: buyPrice === '' ? null : Number(buyPrice) },
+              {
+                id: position.id,
+                shares: Number(shares),
+                buyPrice: buyPrice === '' ? null : Number(buyPrice),
+                buyCurrency: buyCurrency || null,
+              },
               { onSuccess: onClose }
             );
           }}
@@ -275,6 +324,10 @@ function EditPositionDialog({ position, onClose }: { position: Position | null; 
                   inputMode="decimal" step="any" min="0" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} />
             </label>
           </div>
+          <label className="grid gap-1.5 text-micro font-semibold uppercase tracking-wider text-ink3">
+            Bezahlt in
+            <WaehrungSelect value={buyCurrency} onChange={setBuyCurrency} />
+          </label>
           {mutation.isError && (
             <p className="text-small text-down">Fehler: {(mutation.error as Error).message}</p>
           )}
@@ -351,13 +404,13 @@ function Positionen({ d }: { d: Dashboard }) {
               {/* Feste Breiten: Positionen und Watchlist teilen sich dasselbe
                   Spaltenraster — Kurs steht unter Kurs, Verlauf unter Verlauf. */}
               <TH>Wert</TH>
-              <TH className="w-[80px] text-right">Kurs</TH>
-              <TH className="w-[88px] text-right">Heute</TH>
-              <TH className="w-[116px] pl-5" title="Kursverlauf der letzten 30 Tage">
+              <TH className="w-[96px] text-right">Kurs</TH>
+              <TH className="w-[104px] text-right">Heute</TH>
+              <TH className="w-[140px] pl-5" title="Kursverlauf der letzten 30 Tage">
                 Verlauf
               </TH>
-              <TH className="w-[90px] text-right">Wert (EUR)</TH>
-              <TH className="w-[168px] text-right">G/V</TH>
+              <TH className="w-[108px] text-right">Wert (EUR)</TH>
+              <TH className="w-[190px] text-right">G/V</TH>
               <TH className="w-[44px]" />
             </tr>
           </thead>
@@ -441,12 +494,12 @@ function Watchlist({ d }: { d: Dashboard }) {
                   ersetzt Wert (EUR) + G/V, damit Kurs/Heute/Verlauf exakt
                   untereinander stehen. */}
               <TH>Wert</TH>
-              <TH className="w-[80px] text-right">Kurs</TH>
-              <TH className="w-[88px] text-right">Heute</TH>
-              <TH className="w-[116px] pl-5" title="Kursverlauf der letzten 30 Tage">
+              <TH className="w-[96px] text-right">Kurs</TH>
+              <TH className="w-[104px] text-right">Heute</TH>
+              <TH className="w-[140px] pl-5" title="Kursverlauf der letzten 30 Tage">
                 Verlauf
               </TH>
-              <TH className="w-[258px]" />
+              <TH className="w-[298px]" />
               <TH className="w-[44px]" />
             </tr>
           </thead>
@@ -721,7 +774,7 @@ export default function DashboardPage() {
             </Panel>
           )}
 
-          <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.55fr_1fr]">
+          <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[2fr_1fr]">
             <div className="grid gap-5">
               <Positionen d={d} />
               <Watchlist d={d} />

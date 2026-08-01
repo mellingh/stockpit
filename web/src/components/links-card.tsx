@@ -98,7 +98,7 @@ export function LinksCard({ symbol, name }: { symbol: string; name?: string }) {
         + Hinzufügen
       </Button>
 
-      <Dialog open={verwaltenOffen} onOpenChange={(o) => { setVerwaltenOffen(o); setFehler(null); }}>
+      <Dialog open={verwaltenOffen} onOpenChange={(o) => { setVerwaltenOffen(o); setFehler(null); if (!o) setEingabe(''); }}>
         <DialogContent>
           {/* pr-9 + mehr Luft: das ✕ sitzt oben rechts absolut, das Feld darf nicht darunterkleben */}
           <DialogTitle className="mb-5 pr-9">Accounts &amp; Links</DialogTitle>

@@ -504,7 +504,13 @@ app.get(
     const quotes = await yahoo.getQuotes(symbols);
 
     // Wechselkurse aller vorkommenden Währungen → EUR
-    const currencies = [...new Set(Object.values(quotes).map((q) => q.currency).filter(Boolean))];
+    // (Aktienwährungen UND abweichende Kaufwährungen der Positionen)
+    const currencies = [
+      ...new Set([
+        ...Object.values(quotes).map((q) => q.currency),
+        ...data.positions.map((p) => p.buyCurrency),
+      ].filter(Boolean)),
+    ];
     const fx = {};
     for (const c of currencies) {
       fx[c] = c === 'EUR' ? 1 : await yahoo.getFxRate(c, 'EUR').catch(() => null);
@@ -517,7 +523,10 @@ app.get(
         const rate = quote ? fx[quote.currency] ?? null : null;
         const price = quote?.regularMarketPrice ?? null;
         const valueEur = price != null && rate != null ? price * pos.shares * rate : null;
-        const costEur = pos.buyPrice != null && rate != null ? pos.buyPrice * pos.shares * rate : null;
+        // Einstand in der Währung, in der wirklich bezahlt wurde (ING: EUR,
+        // US-Broker: USD) — sonst gilt die Währung der Aktie
+        const buyRate = pos.buyCurrency ? fx[pos.buyCurrency] ?? null : rate;
+        const costEur = pos.buyPrice != null && buyRate != null ? pos.buyPrice * pos.shares * buyRate : null;
 
         let sparkline = [];
         let ampel = null;
@@ -833,8 +842,14 @@ app.get(
 app.post(
   '/api/positions',
   wrap(async (req, res) => {
-    const { symbol, shares, buyPrice, buyDate } = req.body;
+    const { symbol, shares, buyPrice, buyDate, buyCurrency } = req.body;
     if (!symbol || !shares) return res.status(400).json({ error: 'symbol und shares sind Pflicht' });
+    // Kaufwährung: je nach Broker in EUR (z. B. ING) oder direkt in USD/GBP
+    // an der Heimatbörse — ohne Angabe gilt die Währung der Aktie.
+    const KAUF_WAEHRUNGEN = ['EUR', 'USD', 'GBP', 'CHF'];
+    if (buyCurrency && !KAUF_WAEHRUNGEN.includes(buyCurrency)) {
+      return res.status(400).json({ error: `Kaufwährung muss eine von ${KAUF_WAEHRUNGEN.join(', ')} sein` });
+    }
     const quote = await yahoo.getQuote(symbol); // validiert das Symbol
     const entry = store.addPosition({
       symbol,
@@ -842,6 +857,7 @@ app.post(
       shares: Number(shares),
       buyPrice: buyPrice != null ? Number(buyPrice) : null,
       currency: quote.currency,
+      buyCurrency: buyCurrency || null,
       buyDate: buyDate || null,
     });
     // Besitzen und beobachten zugleich ist doppelt — beim Kauf fliegt der Wert

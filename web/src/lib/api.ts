@@ -22,6 +22,7 @@ export interface Position {
   name: string;
   shares: number;
   buyPrice: number | null;
+  buyCurrency?: string | null;
   currency?: string | null;
   sektor?: string;
   preis: number | null;

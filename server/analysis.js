@@ -29,7 +29,9 @@ const CATEGORIES = [
   {
     id: 'pharma',
     label: 'FDA/Studien',
-    words: /\b(fda|ema\b|phase (1|2|3|i{1,3})|clinical trial|studie(n)?ergebnis|zulassung|approval|drug|breakthrough)\b/i,
+    // "approval"/"zulassung" allein sind zu breit — eine Robotaxi-Genehmigung
+    // ("Wins First US Approval") landete sonst als FDA-News im Healthcare-Topf
+    words: /\b(fda|ema\b|phase (1|2|3|i{1,3})|clinical trial|studie(n)?ergebnis|drug approval|marktzulassung|arzneimittel|medikament|breakthrough therapy|drug)\b/i,
   },
 ];
 

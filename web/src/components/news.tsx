@@ -30,18 +30,35 @@ function SentimentBadge({ s }: { s: NewsItemT['sentiment'] }) {
  * Einordnung als knappe Bullet-Liste: "Worum es geht"-Teaser + Analyse-Sätze
  * vom Server + indirekte Betroffenheit. Keine generischen Floskeln (v1-Regel).
  */
-function einordnungPunkte(n: NewsItemT): string[] {
-  const parts: string[] = [];
-  if (n.summary) parts.push(`Worum es geht: ${n.summary}`);
-  if (Array.isArray(n.erklaerung)) parts.push(...n.erklaerung);
-  else if (n.erklaerung) parts.push(n.erklaerung);
+function einordnungPunkte(n: NewsItemT): { punkte: string[]; fazit: string | null } {
+  const punkte: string[] = [];
+  if (n.summary) punkte.push(`Worum es geht: ${n.summary}`);
+  if (Array.isArray(n.erklaerung)) punkte.push(...n.erklaerung);
+  else if (n.erklaerung) punkte.push(n.erklaerung);
   if (n.sentiment?.unavailable) {
-    parts.push('Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
+    punkte.push('Das KI-Modell war noch nicht geladen — Einstufung vorläufig neutral.');
   }
-  for (const b of n.betroffen ?? []) {
-    if (b.why !== 'direkt') parts.push(`${b.symbol}: indirekt betroffen über ${b.why}.`);
+
+  // Fazit: ein Satz zum Mitnehmen — Tonlage + wer wie betroffen ist.
+  // (Gleiches Muster wie die Devisen-Faustregel im Kalender: fetter Schlusssatz.)
+  const direkte = (n.betroffen ?? []).filter((b) => b.why === 'direkt').map((b) => b.symbol);
+  const indirekte = (n.betroffen ?? []).filter((b) => b.why !== 'direkt');
+  const ton =
+    n.sentiment?.label === 'positive'
+      ? 'eine positive'
+      : n.sentiment?.label === 'negative'
+        ? 'eine negative'
+        : 'eine neutrale';
+  const teile: string[] = [];
+  if (direkte.length) teile.push(`Für ${direkte.join(' und ')} ${ton} Meldung`);
+  else teile.push(`${ton.charAt(0).toUpperCase() + ton.slice(1)} Markt-Meldung ohne direkten Bezug zu deinen Werten`);
+  for (const b of indirekte) {
+    teile.push(
+      `${b.symbol} wird nicht direkt genannt, gehört aber zur selben Branche (${b.why.replace(/^Sektor /, '')}) und kann mitreagieren`
+    );
   }
-  return parts;
+  const fazit = teile.length ? teile.join('; ') + '.' : null;
+  return { punkte, fazit };
 }
 
 export function BulletListe({
@@ -67,7 +84,7 @@ export function BulletListe({
 }
 
 export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?: boolean }) {
-  const punkte = einordnungPunkte(n);
+  const { punkte, fazit } = einordnungPunkte(n);
   return (
     <article className="grid gap-2 border-b border-line py-4 last:border-b-0">
       <div className="flex flex-wrap items-center gap-2.5 font-mono text-micro uppercase tracking-wider text-ink3">
@@ -105,12 +122,19 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
           </Badge>
         )}
       </div>
-      {punkte.length > 0 && (
+      {(punkte.length > 0 || fazit) && (
         <Accordion type="single" collapsible>
           <AccordionItem value="einordnung" className="border-0">
             <AccordionTrigger>Einordnung</AccordionTrigger>
             <AccordionContent>
-              <BulletListe punkte={punkte} />
+              <BulletListe
+                punkte={punkte}
+                schluss={fazit && (
+                  <p>
+                    <b className="text-ink">Fazit:</b> {fazit}
+                  </p>
+                )}
+              />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
