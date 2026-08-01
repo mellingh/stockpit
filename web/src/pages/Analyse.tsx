@@ -318,7 +318,15 @@ function QuoteStrip({ a }: { a: Analyse }) {
       <div className="grid grid-cols-2 gap-x-8 sm:grid-cols-3 lg:grid-cols-4">
         {zellen.map(([label, wert, cls]) => (
           <div key={label} className="flex items-baseline justify-between gap-4 border-b border-dashed border-line py-2 text-small">
-            <span className="text-ink3">{label}</span>
+            {/* Labels bewusst englisch (Yahoo-/Finviz-Begriffe), die deutsche
+                Erklärung hängt als Tooltip am Begriff — so findet man z. B.
+                das KGV unter "PE Ratio" wieder. */}
+            <span
+              className={cn('text-ink3', KENNZAHL_INFO[label] && 'cursor-help')}
+              title={KENNZAHL_INFO[label]}
+            >
+              {label}
+            </span>
             <span className={cn('text-right font-mono text-small font-medium tnum', cls)}>{wert}</span>
           </div>
         ))}
@@ -326,6 +334,30 @@ function QuoteStrip({ a }: { a: Analyse }) {
     </Panel>
   );
 }
+
+/** Deutsche Erklärungen zu den englischen Kennzahlen-Labels (Hover-Tooltip) */
+const KENNZAHL_INFO: Record<string, string> = {
+  'Previous Close': 'Schlusskurs des Vortags',
+  Open: 'Eröffnungskurs heute',
+  'Day Range': 'Tagestief bis Tageshoch',
+  '52 Week Range': 'Tiefster und höchster Kurs der letzten 52 Wochen',
+  Volume: 'Handelsvolumen heute (gehandelte Stückzahl)',
+  'Avg. Volume': 'Durchschnittliches Tages-Handelsvolumen',
+  'Market Cap': 'Marktkapitalisierung — Börsenwert aller Aktien zusammen',
+  Beta: 'Schwankungsstärke im Vergleich zum Gesamtmarkt (1 = wie der Markt, >1 = stärker)',
+  'PE Ratio (TTM)': 'Kurs-Gewinn-Verhältnis (dt. KGV) der letzten 12 Monate — wie viele Jahresgewinne man für die Aktie bezahlt',
+  'Forward PE': 'KGV auf Basis der für die nächsten 12 Monate erwarteten Gewinne',
+  'EPS (TTM)': 'Earnings per Share — Gewinn je Aktie der letzten 12 Monate',
+  'Revenue Growth': 'Umsatzwachstum gegenüber dem Vorjahr',
+  'Net Margin': 'Nettomarge — Gewinn in Prozent vom Umsatz',
+  'Perf. YTD': 'Kursentwicklung seit Jahresbeginn',
+  'Perf. 1Y': 'Kursentwicklung der letzten 12 Monate',
+  'Short Float': 'Anteil der frei handelbaren Aktien, die leerverkauft sind — Wetten auf fallende Kurse',
+  'Next Earnings': 'Nächster Termin für Quartalszahlen',
+  'Dividend Yield': 'Dividendenrendite — jährliche Ausschüttung in Prozent des Kurses',
+  'Ex-Dividend': 'Stichtag: Wer erst danach kauft, bekommt die nächste Dividende nicht mehr',
+  'Avg. Price Target': 'Durchschnittliches Kursziel aller Analysten',
+};
 
 // ---------- Übersicht (Snowflake) ----------
 
@@ -824,7 +856,7 @@ function Report({ symbol }: { symbol: string }) {
             </Suspense>
           )}
         </Panel>
-        <LinksCard symbol={a.symbol} />
+        <LinksCard symbol={a.symbol} name={a.name} />
       </div>
 
       <QuoteStrip a={a} />

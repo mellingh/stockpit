@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
 import { useLinksMutation, useWebLinks, useXAccounts } from '@/lib/queries';
+import { nameSlug } from '@/lib/format';
 
 function XLogo({ size = 12 }: { size?: number }) {
   return (
@@ -21,7 +22,7 @@ function XLogo({ size = 12 }: { size?: number }) {
  * für beides — @handle → X-Account, URL → Webseite (Symbol in der URL wird
  * automatisch zum Platzhalter).
  */
-export function LinksCard({ symbol }: { symbol: string }) {
+export function LinksCard({ symbol, name }: { symbol: string; name?: string }) {
   const ticker = symbol.split('.')[0].toUpperCase();
   const { data: accounts = [] } = useXAccounts();
   const { data: webLinks = [] } = useWebLinks();
@@ -37,7 +38,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
     if (ticker.length >= 2) {
       url = url.replace(new RegExp(`(?<![A-Za-z0-9])${ticker}(?![A-Za-z0-9])`, 'gi'), '{TICKER}');
     }
-    return api.post('/api/weblinks', { url });
+    return api.post('/api/weblinks', { url, symbol });
   });
   const xEntfernen = useLinksMutation((h: string) => api.del(`/api/xusers/${encodeURIComponent(h)}`));
   const linkEntfernen = useLinksMutation((url: string) =>
@@ -79,7 +80,7 @@ export function LinksCard({ symbol }: { symbol: string }) {
           {webLinks.map((l) => (
             <a
               key={l.url}
-              href={l.url.replaceAll('{TICKER}', ticker)}
+              href={l.url.replaceAll('{TICKER}', ticker).replaceAll('{NAME}', nameSlug(name ?? ticker))}
               target="_blank"
               rel="noopener noreferrer"
               title={`${l.name}: ${ticker} öffnen`}

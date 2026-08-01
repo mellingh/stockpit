@@ -24,10 +24,10 @@ export function computeSnowflake({ fundamental: f, kennzahlen: k, analysts, tech
     if (kgv < 15) wert += 2;
     else if (kgv < 25) wert += 1.25;
     else if (kgv < 40) wert += 0.5;
-    if (kgv > 60) risiken.push({ t: `Hohe Bewertung: KGV ${Math.round(kgv)} — viel Zukunft ist eingepreist`, info: 'KGV = Kurs-Gewinn-Verhältnis: wie viele Jahresgewinne man für die Aktie bezahlt. Werte über ~60 gelten als sehr teuer.' });
+    if (kgv > 60) risiken.push({ t: `Hohe Bewertung: PE Ratio ${Math.round(kgv)} — viel Zukunft ist eingepreist`, info: 'PE Ratio (Kurs-Gewinn-Verhältnis, dt. KGV): wie viele Jahresgewinne man für die Aktie bezahlt. Werte über ~60 gelten als sehr teuer.' });
   }
   if (k?.peg != null && k.peg > 0) {
-    if (k.peg < 1) { wert += 1.5; staerken.push({ t: `Günstig fürs Wachstum: PEG ${k.peg.toFixed(2)} (unter 1)`, info: 'PEG = KGV geteilt durch das erwartete Gewinnwachstum. Unter 1 heißt: Der Preis ist im Verhältnis zum Wachstum niedrig.' }); }
+    if (k.peg < 1) { wert += 1.5; staerken.push({ t: `Günstig fürs Wachstum: PEG ${k.peg.toFixed(2)} (unter 1)`, info: 'PEG Ratio = PE Ratio (KGV) geteilt durch das erwartete Gewinnwachstum. Unter 1 heißt: Der Preis ist im Verhältnis zum Wachstum niedrig.' }); }
     else if (k.peg < 2) wert += 0.75;
   }
   const upside = analysts?.targets?.upsidePct;

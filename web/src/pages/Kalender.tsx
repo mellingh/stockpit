@@ -89,28 +89,24 @@ function EventZeile({ e, autoOffen = false }: { e: KalenderEvent; autoOffen?: bo
   const aktuellCls =
     e.aktuellTrend === 'gut' ? 'text-up' : e.aktuellTrend === 'schlecht' ? 'text-down' : '';
 
-  const punkte = useMemo(() => {
-    if (!offen) return [];
+  // Festes Schema (Micha, Runde 17): 1. Bullet = was der Termin misst, dann
+  // maximal zwei Deutungs-Sätze — mehr nicht. Die Devisen-Faustregel kommt als
+  // abgesetzter Schlusssatz darunter (das Entscheidende zum Mitnehmen), und die
+  // Ergebnis-Zeile ist raus — Ist/Prognose stehen ja rechts in der Tabelle.
+  const { punkte, faustregel } = useMemo(() => {
+    if (!offen) return { punkte: [] as string[], faustregel: null as string | null };
     const erk = erklaerungFuer(e.titel);
-    const liste: string[] = [
+    const punkte = [
       erk.was,
-      ...erk.deutung.split(/(?<=\.)\s+(?=[A-ZÄÖÜ„"])/).filter(Boolean),
+      ...erk.deutung.split(/(?<=\.)\s+(?=[A-ZÄÖÜ„"])/).filter(Boolean).slice(0, 2),
     ];
-    if (erk.richtung && e.waehrung) {
-      liste.push(
-        erk.richtung === 'hoch-gut'
-          ? `Devisen-Faustregel: Fällt der Wert höher aus als erwartet, führt das in der Regel zu einem steigenden Kurs der Landeswährung (${e.waehrung}); wird die Prognose deutlich verfehlt, schwächt das die Währung.`
-          : `Devisen-Faustregel: Fällt der Wert niedriger aus als erwartet, gilt das als positiv für die Landeswährung (${e.waehrung}); ein deutlich höherer Wert schwächt sie.`
-      );
-    }
-    if (e.aktuell) {
-      liste.push(
-        `Ergebnis: ${e.aktuell} vs. Prognose ${e.prognose ?? '–'}${
-          e.aktuellTrend ? ` — ${e.aktuellTrend === 'gut' ? 'besser' : 'schlechter'} als erwartet` : ''
-        }.`
-      );
-    }
-    return liste;
+    const faustregel =
+      erk.richtung && e.waehrung
+        ? erk.richtung === 'hoch-gut'
+          ? `Fällt der Wert höher aus als erwartet, stärkt das in der Regel die Landeswährung (${e.waehrung}); wird die Prognose deutlich verfehlt, schwächt es sie.`
+          : `Fällt der Wert niedriger aus als erwartet, gilt das als positiv für die Landeswährung (${e.waehrung}); ein deutlich höherer Wert schwächt sie.`
+        : null;
+    return { punkte, faustregel };
   }, [offen, e]);
 
   return (
@@ -160,7 +156,16 @@ function EventZeile({ e, autoOffen = false }: { e: KalenderEvent; autoOffen?: bo
       {offen && (
         <tr className="border-b border-line last:border-b-0">
           <td colSpan={7} className="px-0 py-2.5">
-            <BulletListe punkte={punkte} />
+            <BulletListe
+              punkte={punkte}
+              schluss={
+                faustregel && (
+                  <p>
+                    <b className="text-ink">Devisen-Faustregel:</b> {faustregel}
+                  </p>
+                )
+              }
+            />
           </td>
         </tr>
       )}

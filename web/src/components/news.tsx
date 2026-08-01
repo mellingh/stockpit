@@ -44,15 +44,25 @@ function einordnungPunkte(n: NewsItemT): string[] {
   return parts;
 }
 
-export function BulletListe({ punkte }: { punkte: React.ReactNode[] }) {
+export function BulletListe({
+  punkte,
+  schluss,
+}: {
+  punkte: React.ReactNode[];
+  /** Abgesetzter Schlusssatz unter den Bullets (z. B. die Devisen-Faustregel) */
+  schluss?: React.ReactNode;
+}) {
   return (
-    <ul className="grid gap-2 rounded-md border border-line bg-panel2 px-4 py-3 text-small leading-relaxed text-ink2">
-      {punkte.map((p, i) => (
-        <li key={i} className="relative pl-4 before:absolute before:left-0 before:text-accent before:content-['–']">
-          {p}
-        </li>
-      ))}
-    </ul>
+    <div className="rounded-md border border-line bg-panel2 px-4 py-3 text-small leading-relaxed text-ink2">
+      <ul className="grid gap-2">
+        {punkte.map((p, i) => (
+          <li key={i} className="relative pl-4 before:absolute before:left-0 before:text-accent before:content-['–']">
+            {p}
+          </li>
+        ))}
+      </ul>
+      {schluss && <div className="mt-2.5 border-t border-line pt-2.5">{schluss}</div>}
+    </div>
   );
 }
 
@@ -70,7 +80,6 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
                 title={b.why === 'direkt' ? 'direkt betroffen' : `betroffen über ${b.why}`}
               >
                 {b.symbol}
-                {b.why === 'direkt' ? '' : ' ~'}
               </Badge>
             </Link>
           ))}

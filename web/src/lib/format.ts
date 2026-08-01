@@ -59,3 +59,13 @@ export const signClass = (v: number | null | undefined) =>
 
 /** EPS-Schreibweise: +1,07 / -0,52 */
 export const fmtEps = (v: number) => (v > 0 ? '+' : '') + v.toFixed(2).replace('.', ',');
+
+/** Firmenname → URL-Slug („Klarna Group plc" → „klarna-group-plc") — Gegenstück zum Server */
+export function nameSlug(name: string | null | undefined): string {
+  return String(name ?? '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}

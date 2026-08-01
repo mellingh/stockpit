@@ -345,19 +345,20 @@ function Positionen({ d }: { d: Dashboard }) {
           Über „+ Position hinzufügen" unten legst du deine erste an — die Kurse laufen dann automatisch ein.
         </Empty>
       ) : (
-        <table className="w-full border-collapse text-small">
+        <table className="w-full table-fixed border-collapse text-small">
           <thead>
             <tr>
+              {/* Feste Breiten: Positionen und Watchlist teilen sich dasselbe
+                  Spaltenraster — Kurs steht unter Kurs, Verlauf unter Verlauf. */}
               <TH>Wert</TH>
-              <TH className="text-right">Kurs</TH>
-              <TH className="text-right">Heute</TH>
-              {/* pl-5: sonst klebt der Kopf optisch an "HEUTE" und liest sich als ein Wort */}
-              <TH className="pl-5" title="Kursverlauf der letzten 30 Tage">
+              <TH className="w-[80px] text-right">Kurs</TH>
+              <TH className="w-[88px] text-right">Heute</TH>
+              <TH className="w-[116px] pl-5" title="Kursverlauf der letzten 30 Tage">
                 Verlauf
               </TH>
-              <TH className="text-right">Wert (EUR)</TH>
-              <TH className="text-right">G/V</TH>
-              <TH />
+              <TH className="w-[90px] text-right">Wert (EUR)</TH>
+              <TH className="w-[168px] text-right">G/V</TH>
+              <TH className="w-[44px]" />
             </tr>
           </thead>
           <tbody>
@@ -385,14 +386,14 @@ function Positionen({ d }: { d: Dashboard }) {
                   {fmtPct(p.tagesPct)}
                   <PrepostMini ab={p.ausserboerslich} />
                 </td>
-                <td className="py-3 pl-2">
+                <td className="py-3 pl-5">
                   <Sparkline values={p.sparkline} />
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">{fmtEur(p.valueEur)}</td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.gewinnEur))}>
                   {fmtEur(p.gewinnEur)} <span className="text-ink3">({fmtPct(p.gewinnPct)})</span>
                 </td>
-                <td className="w-[1%] whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
+                <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <span className="flex items-center gap-0.5 opacity-30 transition-opacity group-hover:opacity-100">
                     <Button variant="icon" size="icon" title="Stückzahl / Ø-Kaufkurs ändern" onClick={() => setBearbeite(p)}>
                       <Pencil size={14} />
@@ -433,17 +434,20 @@ function Watchlist({ d }: { d: Dashboard }) {
       {d.watchlist.length === 0 ? (
         <Empty>Keine beobachteten Werte — über „+ Wert beobachten" unten hinzufügen.</Empty>
       ) : (
-        <table className="w-full border-collapse text-small">
+        <table className="w-full table-fixed border-collapse text-small">
           <thead>
             <tr>
+              {/* Gleiches Spaltenraster wie die Positionen-Tabelle; der Füller
+                  ersetzt Wert (EUR) + G/V, damit Kurs/Heute/Verlauf exakt
+                  untereinander stehen. */}
               <TH>Wert</TH>
-              <TH className="text-right">Kurs</TH>
-              <TH className="text-right">Heute</TH>
-              {/* pl-5: sonst klebt der Kopf optisch an "HEUTE" und liest sich als ein Wort */}
-              <TH className="pl-5" title="Kursverlauf der letzten 30 Tage">
+              <TH className="w-[80px] text-right">Kurs</TH>
+              <TH className="w-[88px] text-right">Heute</TH>
+              <TH className="w-[116px] pl-5" title="Kursverlauf der letzten 30 Tage">
                 Verlauf
               </TH>
-              <TH />
+              <TH className="w-[258px]" />
+              <TH className="w-[44px]" />
             </tr>
           </thead>
           <tbody>
@@ -468,10 +472,11 @@ function Watchlist({ d }: { d: Dashboard }) {
                   {fmtPct(w.tagesPct)}
                   <PrepostMini ab={w.ausserboerslich} />
                 </td>
-                <td className="py-3 pl-2">
+                <td className="py-3 pl-5">
                   <Sparkline values={w.sparkline} />
                 </td>
-                <td className="w-[1%] whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
+                <td aria-hidden />
+                <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <span className="flex justify-end opacity-30 transition-opacity group-hover:opacity-100">
                     <Button
                       variant="icon"

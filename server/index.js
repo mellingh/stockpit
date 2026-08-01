@@ -169,6 +169,16 @@ const wrap = (fn) => (req, res) =>
 // Ticker-Symbole validieren, bevor sie in externe URLs/Anfragen wandern
 // (z. B. AAPL, SAP.DE, BRK-B, EURUSD=X, ^GSPC)
 const SYMBOL_RE = /^[A-Za-z0-9.\-^=]{1,20}$/;
+/** Firmenname → URL-Slug ("Klarna Group plc" → "klarna-group-plc") */
+function nameSlug(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 app.param('symbol', (req, res, next, symbol) => {
   if (!SYMBOL_RE.test(symbol)) return res.status(400).json({ error: 'Ungültiges Symbol' });
   next();
@@ -922,25 +932,44 @@ app.post('/api/weblinks', async (req, res) => {
   const host = parsed.hostname.replace(/^www\./, '');
   let name = host.split('.')[0].charAt(0).toUpperCase() + host.split('.')[0].slice(1);
 
-  // Ohne {TICKER} wäre der Link statisch (immer dieselbe Seite):
-  // bekannte Finanzseiten reparieren wir über ihr URL-Muster,
-  // alles andere lehnen wir mit einer Anleitung ab.
+  // Ohne {TICKER} wäre der Link statisch (immer dieselbe Seite). Reihenfolge:
+  // 1) bekannte Finanzseiten über ihr URL-Muster reparieren,
+  // 2) sonst den FIRMENNAMEN in der URL suchen (viele Seiten nutzen Namens-Slugs
+  //    wie "klarna-group-plc" statt des Tickers) → wird zu {NAME},
+  // 3) erst wenn beides scheitert, ablehnen.
+  let probeUrl = roh.replaceAll('{TICKER}', 'NVDA');
   if (!roh.includes('{TICKER}')) {
     const muster = store.sitePattern(roh);
     if (muster) {
       roh = muster.url;
       name = muster.name;
+      probeUrl = roh.replaceAll('{TICKER}', 'NVDA');
     } else {
-      return res.status(400).json({
-        error:
-          'Diese Seite kenne ich nicht — so würde immer nur die Startseite öffnen. Trick: Öffne dort eine beliebige Aktie und füge DEREN Seiten-URL ein; das Symbol darin wird automatisch zum Platzhalter.',
-      });
+      const symbol = String(req.body.symbol || '').trim();
+      let slug = null;
+      if (symbol && SYMBOL_RE.test(symbol)) {
+        try {
+          const quote = await yahoo.getQuote(symbol);
+          slug = nameSlug(displayName(quote, symbol));
+        } catch {}
+      }
+      if (slug && slug.length >= 5 && roh.toLowerCase().includes(slug)) {
+        // Namens-Slug gefunden → Platzhalter; beim Öffnen wird er aus dem
+        // Firmennamen des jeweils angezeigten Werts neu gebildet.
+        roh = roh.replace(new RegExp(slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '{NAME}');
+        probeUrl = roh.replaceAll('{NAME}', slug);
+      } else {
+        return res.status(400).json({
+          error:
+            'Diese Seite kenne ich nicht — so würde immer nur die Startseite öffnen. Trick: Öffne dort die Seite GENAU der Aktie, die du gerade analysierst, und füge deren URL ein — Ticker oder Firmenname darin wird automatisch zum Platzhalter.',
+        });
+      }
     }
   }
 
-  // Antwortet die Seite überhaupt? Mit einem echten Ticker statt des Platzhalters
+  // Antwortet die Seite überhaupt? Mit echten Werten statt der Platzhalter
   // prüfen, damit die getestete Adresse der späteren entspricht.
-  const probe = await urlErreichbar(roh.replaceAll('{TICKER}', 'NVDA'));
+  const probe = await urlErreichbar(probeUrl);
   if (!probe.ok) return res.status(400).json({ error: probe.grund });
 
   res.json(store.addWebLink({ name, url: roh }));
