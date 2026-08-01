@@ -193,6 +193,57 @@ const nasdaqDatum = (s) => {
   return m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]), 12).toISOString() : null;
 };
 
+// Haupt-IPO-Quelle: investing.com/ipo-calendar — die HTML-Seite ist (anders
+// als das gesperrte sslecal2-Widget) per curl/fetch erreichbar und listet
+// auch weit terminierte Deals und Nicht-US-Börsengänge (TSXV etc.) mit Land.
+const IPO_LAND = {
+  'United States': 'US', Canada: 'CA', 'United Kingdom': 'GB', Germany: 'DE',
+  Japan: 'JP', China: 'CN', 'Hong Kong': 'HK', India: 'IN', Australia: 'AU',
+  France: 'FR', Netherlands: 'NL', Sweden: 'SE', Switzerland: 'CH',
+};
+
+async function iposVonInvesting() {
+  try {
+    const res = await fetch('https://www.investing.com/ipo-calendar/', {
+      headers: { 'user-agent': UA },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    // Zeilenweise parsen — ein Regex über mehrere <tr> hinweg verrutscht
+    // zwischen den Zeilen (Symbol der einen, Land der nächsten)
+    const rows = html.match(/<tr>\s*<td class="first left bold"[\s\S]*?<\/tr>/g) ?? [];
+    const jetzt = Date.now();
+    return rows
+      .map((row) => {
+        const ts = Number(row.match(/data-value="(\d+)"/)?.[1] ?? 0) * 1000;
+        if (!ts) return null;
+        const landName = row.match(/title="([^"]+)" class="ceFlags/)?.[1] ?? null;
+        const firma = row.match(/class="elp" title="([^"]+)"/)?.[1] ?? null;
+        const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(([, z]) =>
+          z.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+        );
+        // tds: [0] Datum, [1] "Firma (SYM)", [2] Börse, [3] IPO-Wert, [4] Preis, [5] Last
+        // Leerzeichen in den Klammern zulassen — bei verlinkten Symbolen
+        // ("( <a>ANTP</a> )") entstehen sie durch das Tag-Strippen
+        const symbol = tds[1]?.match(/\(\s*([A-Za-z0-9.\-]+)\s*\)\s*$/)?.[1] ?? null;
+        return {
+          status: ts <= jetzt ? 'gepreist' : 'erwartet',
+          symbol,
+          firma,
+          boerse: tds[2] || null,
+          preis: tds[4] && tds[4] !== '-' ? tds[4] : null,
+          volumenUsd: saZahl(tds[3] ?? ''),
+          zeit: new Date(ts + 12 * 3600 * 1000).toISOString(),
+          land: IPO_LAND[landName] ?? null,
+        };
+      })
+      .filter((e) => e && e.symbol);
+  } catch {
+    return []; // investing darf ausfallen — Nasdaq/stockanalysis tragen dann
+  }
+}
+
 // Zweite IPO-Quelle: stockanalysis.com/ipos/calendar (serverseitig gerendert,
 // wie schon bei den Analysten-Ratings). Listet gelegentlich Deals, die bei
 // Nasdaq noch fehlen — wird per Symbol dazugemischt.
@@ -279,15 +330,26 @@ export function getIpos() {
         });
       }
     }
-    // Zweite Quelle dazumischen (nur Symbole, die Nasdaq nicht schon listet)
+    // Nasdaq-Zeilen sind immer US
+    for (const e of events) e.land = 'US';
+
+    // investing (Hauptliste, mit Ländern und weit terminierten Deals) und
+    // stockanalysis dazumischen — Dublettenschutz per Symbol
     const bekannt = new Set(events.map((e) => e.symbol).filter(Boolean));
-    for (const e of await iposVonStockanalysis()) {
+    for (const e of [...(await iposVonInvesting()), ...(await iposVonStockanalysis())]) {
       if (!bekannt.has(e.symbol)) {
         bekannt.add(e.symbol);
-        events.push(e);
+        events.push({ land: 'US', ...e });
       }
     }
-    events.sort((a, b) => new Date(a.zeit ?? 0) - new Date(b.zeit ?? 0));
-    return { quelle: 'Nasdaq (nur US-Börsengänge)', events };
+
+    // Fenster: letzte Woche (frisch gepreist) bis Jahresende
+    const von = Date.now() - 8 * 86400000;
+    const gefiltert = events.filter((e) => {
+      const t = e.zeit ? new Date(e.zeit).getTime() : null;
+      return t == null || t >= von;
+    });
+    gefiltert.sort((a, b) => new Date(a.zeit ?? 0) - new Date(b.zeit ?? 0));
+    return { quelle: 'investing.com + Nasdaq + stockanalysis', events: gefiltert };
   });
 }

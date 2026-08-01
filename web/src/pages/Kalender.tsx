@@ -411,7 +411,8 @@ function FeiertageTab() {
             <tbody>
               {data.events.map((f, i) => (
                 <tr key={`${f.land}-${f.zeit}-${i}`} className="border-b border-line last:border-b-0">
-                  <td className="py-2.5 font-mono text-small text-ink2 tnum">
+                  {/* gleiche Optik wie die Zeit-Spalte im Wirtschaftskalender (Konstanz) */}
+                  <td className="py-2.5 font-mono text-micro text-ink3 tnum">
                     {new Date(f.zeit).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
                   </td>
                   <td className="whitespace-nowrap py-2.5 text-small">
@@ -467,8 +468,8 @@ function IposTab() {
                     {e.zeit ? new Date(e.zeit).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
                   </td>
                   <td className="py-2.5 pr-3">
-                    {/* Flagge vor der Firma wie bei investing — Quelle ist US-only */}
-                    <span className="mr-1.5 text-lg leading-none">{flagge('US')}</span>
+                    {/* Flagge vor der Firma wie bei investing */}
+                    <span className="mr-1.5 text-lg leading-none">{flagge(e.land ?? 'US')}</span>
                     <span className="text-small font-medium text-ink">{e.firma ?? '–'}</span>
                     {e.symbol && <span className="ml-2 font-mono text-micro text-ink3">{e.symbol}</span>}
                   </td>
@@ -485,7 +486,7 @@ function IposTab() {
             </tbody>
           </table>
         ))}
-      <p className="mt-4 text-micro text-ink3">Deckt US-Börsengänge ab (Nasdaq und NYSE) — mehr gibt es kostenlos nicht zuverlässig.</p>
+      <p className="mt-4 text-micro text-ink3">Frisch gepreiste und angekündigte Börsengänge — terminlose Anmeldungen erscheinen erst mit festem Datum.</p>
     </>
   );
 }

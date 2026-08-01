@@ -302,6 +302,7 @@ export interface FeiertagsKalender {
 
 export interface IpoEvent {
   status: 'erwartet' | 'gepreist';
+  land?: string | null;
   symbol: string | null;
   firma: string | null;
   boerse: string | null;
