@@ -321,6 +321,7 @@ export interface TrendingItem {
   symbol: string;
   name: string;
   tagesPct: number | null;
+  sektor?: string;
 }
 
 export interface WebLink {

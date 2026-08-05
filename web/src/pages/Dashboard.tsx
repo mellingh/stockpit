@@ -68,7 +68,7 @@ function TerminWert({ t }: { t: Termin }) {
     <Link
       to={`/analyse?symbol=${encodeURIComponent(t.symbol!)}`}
       title={`${t.name} — ${t.typ}, ${fmtDate(t.date)}`}
-      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors hover:bg-panel2"
+      className="flex min-h-[45px] items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors hover:bg-panel2"
     >
       <span className="w-[96px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       {/* feste Spaltenbreite: sonst beginnt „Quartalszahlen" je nach Ticker-Länge woanders */}
@@ -105,7 +105,7 @@ function TerminMarkt({ t }: { t: Termin }) {
       // mehreren Ländern erscheinen (Arbeitslosenquote US + CA öffnete beide)
       to={`/kalender?${t.days === 0 ? '' : 'tag=woche&'}event=${encodeURIComponent(`${t.date}~${t.name}~${t.land ?? ''}`)}`}
       title={`${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}`}
-      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors hover:bg-panel2"
+      className="flex min-h-[45px] items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors hover:bg-panel2"
     >
       <span className="w-[96px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       <span className="w-[56px] shrink-0 whitespace-nowrap" title={t.waehrung ?? ''}><span className="mr-1.5 text-lg leading-none">{flagge(t.land)}</span>{t.land ?? t.waehrung}</span>

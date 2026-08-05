@@ -146,9 +146,24 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
           <Empty>Gerade keine Trend-Daten verfügbar.</Empty>
         ) : (
           <div className="grid gap-2">
-            {trending.map((t) => (
-              <StartChip key={t.symbol} {...t} onPick={onPick} />
-            ))}
+            {/* gleiche Sektor-Gruppierung wie „Deine Werte" (Micha, Runde 30) —
+                die Gruppen wechseln mit den Trend-Tickern dynamisch mit */}
+            {[...trending]
+              .sort(
+                (a, b) =>
+                  (a.sektor ?? 'Sonstige').localeCompare(b.sektor ?? 'Sonstige') ||
+                  a.name.localeCompare(b.name)
+              )
+              .map((t, i, arr) => (
+                <Fragment key={t.symbol}>
+                  {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (t.sektor ?? 'Sonstige')) && (
+                    <div className={cn('text-micro font-bold uppercase tracking-[0.14em] text-accent', i > 0 && 'mt-4')}>
+                      {t.sektor ?? 'Sonstige'}
+                    </div>
+                  )}
+                  <StartChip symbol={t.symbol} name={t.name} tagesPct={t.tagesPct} onPick={onPick} />
+                </Fragment>
+              ))}
           </div>
         )}
       </Panel>

@@ -822,15 +822,23 @@ app.get(
   wrap(async (req, res) => {
     const symbols = await yahoo.getTrendingSymbols().catch(() => []);
     const quotes = await yahoo.getQuotes(symbols);
-    const items = symbols
-      .map((s) => quotes[s])
-      .filter((q) => q && ['EQUITY', 'ETF'].includes(q.quoteType))
-      .slice(0, 8)
-      .map((q) => ({
-        symbol: q.symbol,
-        name: displayName(q, q.symbol),
-        tagesPct: q.regularMarketChangePercent ?? null,
-      }));
+    const items = await Promise.all(
+      symbols
+        .map((s) => quotes[s])
+        .filter((q) => q && ['EQUITY', 'ETF'].includes(q.quoteType))
+        .slice(0, 8)
+        .map(async (q) => {
+          // gleiche Sektor-Gruppierung wie Positionen/Watchlist (Micha, Runde 30)
+          const istEtf = q.quoteType === 'ETF';
+          const sektorRoh = istEtf ? 'ETFs' : (await getSector(q.symbol)) ?? 'Sonstige';
+          return {
+            symbol: q.symbol,
+            name: displayName(q, q.symbol),
+            tagesPct: q.regularMarketChangePercent ?? null,
+            sektor: SEKTOR_DE[sektorRoh] ?? sektorRoh,
+          };
+        })
+    );
     res.json(items);
   })
 );
