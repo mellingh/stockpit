@@ -513,7 +513,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   Spaltenraster — Kurs steht unter Kurs. Die Verlauf-Sparkline ist
                   raus (Micha, Runde 31: sagte nichts aus, was „Heute" nicht zeigt) —
                   dafür Ø Kauf und mehr Luft für Wert/G/V/Aktionen. */}
-              <TH>Wert</TH>
+              <TH><span className="sr-only">Wert</span></TH>
               <TH className="w-[104px] text-right">Kurs</TH>
               <TH className="w-[96px] text-right">Heute</TH>
               <TH className="w-[104px] text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
@@ -632,7 +632,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               {/* Gleiches Spaltenraster wie die Positionen-Tabelle; der Füller
                   ersetzt Ø Kauf + Wert + G/V, damit Kurs/Heute exakt
                   untereinander stehen. */}
-              <TH>Wert</TH>
+              <TH><span className="sr-only">Wert</span></TH>
               <TH className="w-[104px] text-right">Kurs</TH>
               <TH className="w-[96px] text-right">Heute</TH>
               <TH className="w-[434px]" />

@@ -65,7 +65,7 @@ export function LinksCard({ symbol, name }: { symbol: string; name?: string }) {
           {accounts.length > 0 && (
             <div>
               <div className="mb-2 text-micro font-bold uppercase tracking-[0.14em] text-ink3">X-Accounts</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col items-start gap-2">
                 {accounts.map((h) => (
                   <a
                     key={h}
@@ -89,7 +89,7 @@ export function LinksCard({ symbol, name }: { symbol: string; name?: string }) {
           {webLinks.length > 0 && (
             <div>
               <div className="mb-2 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Finanzseiten</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col items-start gap-2">
                 {webLinks.map((l) => (
                   <a
                     key={l.url}
