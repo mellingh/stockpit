@@ -96,7 +96,7 @@ export function StockChart({
       },
       crosshair: { mode: 0 },
       rightPriceScale: { borderColor: '#2a3346' },
-      timeScale: { borderColor: '#2a3346' },
+      timeScale: { borderColor: '#2a3346', minBarSpacing: 0.05 },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
       handleScale: {
         mouseWheel: true,
@@ -155,9 +155,11 @@ export function StockChart({
       if (!ueberPreisachse(e)) return;
       e.preventDefault();
       e.stopPropagation();
+      // Weite Grenzen: bei 15x lief das Rad gegen die Wand und reagierte
+      // nicht mehr — danach musste man per Drag weiter (Micha, Runde 23)
       priceZoomRef.current = Math.min(
-        Math.max(priceZoomRef.current * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 0.15),
-        15
+        Math.max(priceZoomRef.current * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 0.02),
+        80
       );
       chart.priceScale('right').applyOptions({ autoScale: true });
     };

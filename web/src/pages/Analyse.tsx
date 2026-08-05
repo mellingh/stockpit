@@ -16,8 +16,8 @@ const StockChart = lazy(() =>
 import { LinksCard } from '@/components/links-card';
 import { RadarChart } from '@/components/radar';
 import { NewsItem } from '@/components/news';
-import type { Analyse, Rating, SnowflakePunkt } from '@/lib/api';
-import { useAnalyse, useDashboard, useHistory, useTrending } from '@/lib/queries';
+import { api, type Analyse, type Rating, type SnowflakePunkt } from '@/lib/api';
+import { useAnalyse, useDashboard, useHistory, usePortfolioMutation, useTrending } from '@/lib/queries';
 import { fmtCompact, fmtDate, fmtEps, fmtMoney, fmtNum, fmtPct, fmtPctFrac, signClass } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -140,6 +140,43 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
         )}
       </Panel>
     </div>
+  );
+}
+
+// ---------- Watchlist-Schnellzugriff im Report-Kopf ----------
+
+function WatchButton({ symbol }: { symbol: string }) {
+  const { data: d } = useDashboard();
+  const hinzufuegen = usePortfolioMutation(() => api.post('/api/watchlist', { symbol }));
+  const entfernen = usePortfolioMutation(() => api.del(`/api/watchlist/${encodeURIComponent(symbol)}`));
+
+  const imDepot = d?.positions.some((p) => p.symbol === symbol) ?? false;
+  const beobachtet = d?.watchlist.some((w) => w.symbol === symbol) ?? false;
+
+  // Was schon im Depot liegt, muss man nicht beobachten (Watchlist-Regel)
+  if (imDepot) return <Badge variant="neu">Im Depot</Badge>;
+  if (beobachtet) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        title="Von der Watchlist entfernen"
+        onClick={() => entfernen.mutate(undefined)}
+        disabled={entfernen.isPending}
+      >
+        ✓ Beobachtet
+      </Button>
+    );
+  }
+  return (
+    <Button
+      variant="action"
+      size="sm"
+      onClick={() => hinzufuegen.mutate(undefined)}
+      disabled={hinzufuegen.isPending || !d}
+    >
+      + Beobachten
+    </Button>
   );
 }
 
@@ -521,9 +558,6 @@ function Analysten({ a }: { a: Analyse }) {
     ...an.trend.map((row) => RECO_KEYS.reduce((s, k) => s + (row[k] || 0), 0)),
     1
   );
-  const pos = (v: number) =>
-    t.low != null && t.high != null && t.high > t.low ? `${(((v - t.low) / (t.high - t.low)) * 100).toFixed(1)}%` : '0%';
-
   return (
     <Panel>
       <PanelTitle>Analysten</PanelTitle>
@@ -590,30 +624,59 @@ function Analysten({ a }: { a: Analyse }) {
 
       {t.low != null && t.high != null && t.high > t.low && (
         <div className="mt-5">
-          <div className="mb-3 text-micro font-bold uppercase tracking-[0.14em] text-ink3">
+          <div className="text-micro font-bold uppercase tracking-[0.14em] text-ink3">
             Kursziele der Analysten
           </div>
-          <div className="relative h-1.5 rounded-full bg-gradient-to-r from-down/60 via-warn/60 to-up/60">
-            {a.kurs.preis != null && a.kurs.preis >= t.low && a.kurs.preis <= t.high && (
-              <span
-                className="absolute top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded bg-ink"
-                style={{ left: pos(a.kurs.preis) }}
-                title={`Aktueller Kurs ${fmtMoney(a.kurs.preis, a.currency)}`}
-              />
-            )}
-            {t.mean != null && (
-              <span
-                className="absolute top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded bg-accent"
-                style={{ left: pos(t.mean) }}
-                title={`Ø-Kursziel ${fmtMoney(t.mean, a.currency)}`}
-              />
-            )}
-          </div>
-          <div className="mt-2 flex justify-between font-mono text-micro text-ink3 tnum">
+          {/* Yahoo-Stil (Micha, Runde 23): graue Linie mit Endpunkten, blauer
+              Marker = Ø-Kursziel (Wert mittig DARÜBER), weißer Marker =
+              aktueller Kurs (Wert mittig DARUNTER). Marker sitzen exakt,
+              die Beschriftungen werden an den Rändern eingefangen. */}
+          {(() => {
+            const posPct = (v: number) => Math.min(100, Math.max(0, ((v - t.low!) / (t.high! - t.low!)) * 100));
+            const labelPct = (v: number) => Math.min(86, Math.max(14, posPct(v)));
+            const kurs = a.kurs.preis;
+            return (
+              <div className="relative mx-2 mt-9 mb-9">
+                <div className="relative h-[3px] rounded-full bg-line-strong">
+                  {/* Endpunkte */}
+                  <span aria-hidden className="absolute left-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
+                  <span aria-hidden className="absolute right-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
+                  {t.mean != null && (
+                    <>
+                      <span
+                        className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-accent"
+                        style={{ left: `${posPct(t.mean)}%` }}
+                        title={`Ø-Kursziel ${fmtMoney(t.mean, a.currency)}`}
+                      />
+                      <div
+                        className="absolute bottom-[14px] -translate-x-1/2 whitespace-nowrap rounded-md border border-accent/60 bg-panel2 px-2 py-0.5 font-mono text-micro text-accent tnum"
+                        style={{ left: `${labelPct(t.mean)}%` }}
+                      >
+                        Ø {fmtNum(t.mean)} ({fmtPct(t.upsidePct)})
+                      </div>
+                    </>
+                  )}
+                  {kurs != null && (
+                    <>
+                      <span
+                        className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-ink"
+                        style={{ left: `${posPct(kurs)}%` }}
+                        title={`Aktueller Kurs ${fmtMoney(kurs, a.currency)}`}
+                      />
+                      <div
+                        className="absolute top-[14px] -translate-x-1/2 whitespace-nowrap rounded-md border border-line-strong bg-panel2 px-2 py-0.5 font-mono text-micro text-ink tnum"
+                        style={{ left: `${labelPct(kurs)}%` }}
+                      >
+                        Aktuell {fmtNum(kurs)}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          <div className="mx-2 flex justify-between font-mono text-micro text-ink3 tnum">
             <span>Tief {fmtNum(t.low)}</span>
-            <span className="text-accent">
-              Ø {fmtNum(t.mean)} ({fmtPct(t.upsidePct)})
-            </span>
             <span>Hoch {fmtNum(t.high)}</span>
           </div>
         </div>
@@ -788,15 +851,19 @@ function Report({ symbol }: { symbol: string }) {
 
   return (
     <div className="grid gap-5 [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms] [&>*:nth-child(6)]:[animation-delay:250ms]">
-      <header>
-        <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Badge variant="chip">{a.symbol}</Badge>
-          {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
-          {a.type === 'ETF' && <Badge variant="cat">ETF</Badge>}
-          {a.sektor && <Badge>{a.sektor}</Badge>}
-          {a.branche && <Badge>{a.branche}</Badge>}
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge variant="chip">{a.symbol}</Badge>
+            {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
+            {a.type === 'ETF' && <Badge variant="cat">ETF</Badge>}
+            {a.sektor && <Badge>{a.sektor}</Badge>}
+            {a.branche && <Badge>{a.branche}</Badge>}
+          </div>
         </div>
+        {/* Schneller Weg auf die Watchlist, direkt neben dem Namen (Micha, Runde 23) */}
+        <WatchButton symbol={a.symbol} />
       </header>
 
       <ZahlenBanner a={a} />

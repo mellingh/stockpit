@@ -59,39 +59,55 @@ export function LinksCard({ symbol, name }: { symbol: string; name?: string }) {
       {accounts.length + webLinks.length === 0 ? (
         <Empty>Noch nichts hinterlegt.</Empty>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {accounts.map((h) => (
-            <a
-              key={h}
-              href={suchLink(h)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Posts von @${h} zu $${ticker} auf X`}
-              aria-label={`Posts von @${h} zu $${ticker} auf X öffnen (neues Fenster)`}
-              className={pillKlasse}
-            >
-              <span className="text-ink3">
-                <XLogo />
-              </span>
-              @{h}
-              <ArrowUpRight size={12} aria-hidden className="text-ink3 transition-colors group-hover:text-accent" />
-            </a>
-          ))}
-          {webLinks.map((l) => (
-            <a
-              key={l.url}
-              href={l.url.replaceAll('{TICKER}', ticker).replaceAll('{NAME}', nameSlug(name ?? ticker))}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`${l.name}: ${ticker} öffnen`}
-              aria-label={`${ticker} bei ${l.name} öffnen (neues Fenster)`}
-              className={pillKlasse}
-            >
-              <Globe size={12} className="text-ink3" />
-              {l.name}
-              <ArrowUpRight size={12} aria-hidden className="text-ink3 transition-colors group-hover:text-accent" />
-            </a>
-          ))}
+        /* Zwei Gruppen statt eines Pill-Klumpens (Micha, Runde 23):
+           X-Accounts und Finanzseiten getrennt, je mit Mini-Überschrift */
+        <div className="grid gap-4">
+          {accounts.length > 0 && (
+            <div>
+              <div className="mb-2 text-micro font-bold uppercase tracking-[0.14em] text-ink3">X-Accounts</div>
+              <div className="flex flex-wrap gap-2">
+                {accounts.map((h) => (
+                  <a
+                    key={h}
+                    href={suchLink(h)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Posts von @${h} zu $${ticker} auf X`}
+                    aria-label={`Posts von @${h} zu $${ticker} auf X öffnen (neues Fenster)`}
+                    className={pillKlasse}
+                  >
+                    <span className="text-ink3">
+                      <XLogo />
+                    </span>
+                    @{h}
+                    <ArrowUpRight size={12} aria-hidden className="text-ink3 transition-colors group-hover:text-accent" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {webLinks.length > 0 && (
+            <div>
+              <div className="mb-2 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Finanzseiten</div>
+              <div className="flex flex-wrap gap-2">
+                {webLinks.map((l) => (
+                  <a
+                    key={l.url}
+                    href={l.url.replaceAll('{TICKER}', ticker).replaceAll('{NAME}', nameSlug(name ?? ticker))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`${l.name}: ${ticker} öffnen`}
+                    aria-label={`${ticker} bei ${l.name} öffnen (neues Fenster)`}
+                    className={pillKlasse}
+                  >
+                    <Globe size={12} className="text-ink3" />
+                    {l.name}
+                    <ArrowUpRight size={12} aria-hidden className="text-ink3 transition-colors group-hover:text-accent" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       <Button variant="action" size="sm" className="mt-4" onClick={() => setVerwaltenOffen(true)}>
