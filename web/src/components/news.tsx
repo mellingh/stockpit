@@ -150,9 +150,12 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
         )}
       </div>
       {(punkte.length > 0 || fazit) && (
-        <Accordion type="single" collapsible>
+        /* Trigger kompakt + leicht eingezogen: sonst ist der Abstand unter der
+           zugeklappten News größer als über ihr (Micha, Runde 33 — Zeilen sollen
+           unabhängig vom Aufklappen gleich wirken) */
+        <Accordion type="single" collapsible className="-mb-2">
           <AccordionItem value="einordnung" className="border-0">
-            <AccordionTrigger>Einordnung</AccordionTrigger>
+            <AccordionTrigger className="h-control-sm">Einordnung</AccordionTrigger>
             <AccordionContent>
               <BulletListe
                 punkte={punkte}

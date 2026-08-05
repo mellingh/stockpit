@@ -55,10 +55,20 @@ function StatCard({
 // ---------- Wichtige Termine ----------
 
 function wannVon(t: Termin) {
-  const uhr = new Date(t.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  if (t.days === 0) return `heute ${uhr}`;
-  if (t.days === 1) return `morgen ${uhr}`;
-  return new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  const d = new Date(t.date);
+  const uhr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  // Kalendertage selbst rechnen statt t.days zu trauen: der Server hält gemeldete
+  // Zahlen 3 Tage in der Liste und meldete dabei days:0 — ein gestriger 22-Uhr-Termin
+  // stand als „heute 22:00" ÜBER „heute 14:30" und wirkte falsch sortiert (Runde 33)
+  const heute0 = new Date();
+  heute0.setHours(0, 0, 0, 0);
+  const d0 = new Date(d);
+  d0.setHours(0, 0, 0, 0);
+  const tage = Math.round((+d0 - +heute0) / 86_400_000);
+  if (tage === -1) return `gestern ${uhr}`;
+  if (tage === 0) return `heute ${uhr}`;
+  if (tage === 1) return `morgen ${uhr}`;
+  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 }
 
 function TerminWert({ t }: { t: Termin }) {
@@ -916,10 +926,25 @@ export default function DashboardPage() {
                   <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Deine Werte</div>
                   {d.termine.filter((t) => t.typ !== 'Markt').length ? (
                     <div className="scroll-dezent max-h-[225px] overflow-y-auto">
-                      {d.termine
-                        .filter((t) => t.typ !== 'Markt')
-                        .sort((a, b) => +new Date(a.date) - +new Date(b.date))
-                        .map((t, i) => <TerminWert key={i} t={t} />)}
+                      {/* Unterteilung wie die Sektor-Gruppen der Tabellen (Micha, Runde 33):
+                          erst die gehaltenen Positionen, dann die Watchlist — jede Gruppe
+                          für sich nach Zeit sortiert, das Nächste zuerst */}
+                      {(['Positionen', 'Watchlist'] as const).map((gruppe) => {
+                        const imDepot = new Set(d.positions.map((p) => p.symbol));
+                        const eintraege = d.termine
+                          .filter((t) => t.typ !== 'Markt')
+                          .filter((t) => (gruppe === 'Positionen') === imDepot.has(t.symbol ?? ''))
+                          .sort((a, b) => +new Date(a.date) - +new Date(b.date));
+                        if (!eintraege.length) return null;
+                        return (
+                          <Fragment key={gruppe}>
+                            <div className="pb-1.5 pt-3 text-micro font-bold uppercase tracking-[0.14em] text-accent first:pt-0">
+                              {gruppe}
+                            </div>
+                            {eintraege.map((t, i) => <TerminWert key={i} t={t} />)}
+                          </Fragment>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="py-2 text-small text-ink3">Keine Termine deiner Werte.</p>

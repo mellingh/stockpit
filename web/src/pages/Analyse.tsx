@@ -815,6 +815,11 @@ const STUDIEN_STATUS_DE: Record<string, { label: string; variante: BadgeVariante
   SUSPENDED: { label: 'Pausiert', variante: 'neg' },
   WITHDRAWN: { label: 'Zurückgezogen', variante: 'neg' },
   UNKNOWN: { label: 'Status unbekannt', variante: 'neu' },
+  // Expanded-Access-Studien haben eigene Status (Micha fand rohes „AVAILABLE")
+  AVAILABLE: { label: 'Verfügbar', variante: 'pos' },
+  NO_LONGER_AVAILABLE: { label: 'Nicht mehr verfügbar', variante: 'neg' },
+  TEMPORARILY_NOT_AVAILABLE: { label: 'Vorübergehend nicht verfügbar', variante: 'warn' },
+  APPROVED_FOR_MARKETING: { label: 'Zugelassen', variante: 'chip' },
 };
 function abschlussDatum(c: string) {
   const d = new Date(c.length === 7 ? `${c}-15` : c);

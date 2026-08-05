@@ -29,7 +29,9 @@ export function PanelTitle({
   return (
     <h2
       className={cn(
-        'mb-4 flex items-center gap-2.5 text-micro font-bold uppercase tracking-[0.14em] text-ink2',
+        // eine Stufe über den Unter-Überschriften („Deine Werte" = micro/ink3):
+        // 13px + helleres Ink, damit der Karten-Titel klar führt (Micha, Runde 33)
+        'mb-4 flex items-center gap-2.5 text-small font-bold uppercase tracking-[0.14em] text-ink',
         className
       )}
       {...props}
