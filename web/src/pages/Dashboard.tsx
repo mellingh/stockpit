@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton, SkeletonRows, SkeletonText } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { SymbolSearch } from '@/components/symbol-search';
-import { Sparkline } from '@/components/sparkline';
 import { Donut, CAT_COLORS } from '@/components/donut';
 import { NewsItem } from '@/components/news';
 import { api, type Dashboard, type Position, type SearchResult, type Termin, type Ausserboerslich } from '@/lib/api';
@@ -500,16 +499,18 @@ function Positionen({ d }: { d: Dashboard }) {
           <thead>
             <tr>
               {/* Feste Breiten: Positionen und Watchlist teilen sich dasselbe
-                  Spaltenraster — Kurs steht unter Kurs, Verlauf unter Verlauf. */}
+                  Spaltenraster — Kurs steht unter Kurs. Die Verlauf-Sparkline ist
+                  raus (Micha, Runde 31: sagte nichts aus, was „Heute" nicht zeigt) —
+                  dafür Ø Kauf und mehr Luft für Wert/G/V/Aktionen. */}
               <TH>Wert</TH>
-              <TH className="w-[96px] text-right">Kurs</TH>
-              <TH className="w-[104px] text-right">Heute</TH>
-              <TH className="w-[140px] pl-5" title="Kursverlauf der letzten 30 Tage">
-                Verlauf
+              <TH className="w-[104px] text-right">Kurs</TH>
+              <TH className="w-[96px] text-right">Heute</TH>
+              <TH className="w-[104px] text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
+                Ø Kauf
               </TH>
-              <TH className="w-[108px] text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
-              <TH className="w-[190px] text-right">G/V</TH>
-              <TH className="w-[44px]" />
+              <TH className="w-[130px] text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
+              <TH className="w-[200px] text-right">G/V</TH>
+              <TH className="w-[64px]" />
             </tr>
           </thead>
           <tbody>
@@ -556,8 +557,8 @@ function Positionen({ d }: { d: Dashboard }) {
                   {fmtPct(p.tagesPct)}
                   <PrepostMini ab={p.ausserboerslich} />
                 </td>
-                <td className="py-3 pl-5">
-                  <Sparkline values={p.sparkline} />
+                <td className="py-3 text-right font-mono text-small text-ink2 tnum">
+                  {fmtMoney(p.buyPrice, p.buyCurrency || p.waehrung)}
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
                   <BetragKauf eur={p.valueEur} p={p} fx={d.fx} />
@@ -616,16 +617,13 @@ function Watchlist({ d }: { d: Dashboard }) {
           <thead>
             <tr>
               {/* Gleiches Spaltenraster wie die Positionen-Tabelle; der Füller
-                  ersetzt Wert (EUR) + G/V, damit Kurs/Heute/Verlauf exakt
+                  ersetzt Ø Kauf + Wert + G/V, damit Kurs/Heute exakt
                   untereinander stehen. */}
               <TH>Wert</TH>
-              <TH className="w-[96px] text-right">Kurs</TH>
-              <TH className="w-[104px] text-right">Heute</TH>
-              <TH className="w-[140px] pl-5" title="Kursverlauf der letzten 30 Tage">
-                Verlauf
-              </TH>
-              <TH className="w-[298px]" />
-              <TH className="w-[44px]" />
+              <TH className="w-[104px] text-right">Kurs</TH>
+              <TH className="w-[96px] text-right">Heute</TH>
+              <TH className="w-[434px]" />
+              <TH className="w-[64px]" />
             </tr>
           </thead>
           <tbody>
@@ -640,7 +638,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               <Fragment key={w.symbol}>
                 {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
                   <tr className="border-b border-line">
-                    <td colSpan={6} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
+                    <td colSpan={5} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
                       {w.sektor ?? 'Sonstige'}
                     </td>
                   </tr>
@@ -666,9 +664,6 @@ function Watchlist({ d }: { d: Dashboard }) {
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.tagesPct))}>
                   {fmtPct(w.tagesPct)}
                   <PrepostMini ab={w.ausserboerslich} />
-                </td>
-                <td className="py-3 pl-5">
-                  <Sparkline values={w.sparkline} />
                 </td>
                 <td aria-hidden />
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>

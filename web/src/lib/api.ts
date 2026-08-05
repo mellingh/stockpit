@@ -246,7 +246,7 @@ export interface Analyse {
     performance?: { woche: number | null; monat: number | null; quartal: number | null; halbjahr: number | null; ytd: number | null; jahr: number | null } | null;
   } | null;
   snowflake: Snowflake | null;
-  termine: { earnings: string | number | null; exDividende: string | number | null; dividende: string | number | null };
+  termine: { earnings: string | number | null; earningsEpsErwartet?: number | null; exDividende: string | number | null; dividende: string | number | null };
   zahlen: Zahlen | null;
   etf: EtfInfo | null;
   trials: Trial[] | null;

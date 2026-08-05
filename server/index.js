@@ -381,6 +381,9 @@ app.get(
     const cal = summary?.calendarEvents ?? {};
     const termine = {
       earnings: cal.earnings?.earningsDate?.[0] ?? null,
+      // Analysten-Schätzung für den ANSTEHENDEN Termin — der Zahlen-Banner zeigt
+      // sie in der Vorschau (a.zahlen greift erst nach dem Report)
+      earningsEpsErwartet: cal.earnings?.earningsAverage ?? null,
       exDividende: cal.exDividendDate ?? null,
       dividende: cal.dividendDate ?? null,
     };

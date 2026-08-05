@@ -325,7 +325,10 @@ function ZahlenBanner({ a }: { a: Analyse }) {
     : gemeldetTage! <= 0
       ? 'heute'
       : 'gestern';
-  const epsErw = z?.epsErwartet ?? null;
+  // Vorschau: a.zahlen greift erst nach dem Report — die Schätzung für den
+  // anstehenden Termin kommt aus den Kalender-Terminen (Micha, Runde 31:
+  // „Quartalszahlen heute erwartet" stand ohne den erwarteten Wert da)
+  const epsErw = z?.epsErwartet ?? a.termine?.earningsEpsErwartet ?? null;
 
   return (
     <div
@@ -793,25 +796,56 @@ function Historie({ a }: { a: Analyse }) {
 
 // ---------- Extra: Studien / ETF ----------
 
+/** clinicaltrials-Rohwerte („PHASE2", „RECRUITING") lesbar machen — Unbekanntes bleibt stehen */
+const PHASE_DE: Record<string, string> = {
+  EARLY_PHASE1: 'Frühe Phase 1',
+  PHASE1: 'Phase 1',
+  PHASE2: 'Phase 2',
+  PHASE3: 'Phase 3',
+  PHASE4: 'Phase 4',
+  NA: 'Ohne Phase',
+};
+const STUDIEN_STATUS_DE: Record<string, string> = {
+  RECRUITING: 'Rekrutiert',
+  NOT_YET_RECRUITING: 'Noch nicht rekrutierend',
+  ENROLLING_BY_INVITATION: 'Aufnahme auf Einladung',
+  ACTIVE_NOT_RECRUITING: 'Aktiv',
+  COMPLETED: 'Abgeschlossen',
+  TERMINATED: 'Abgebrochen',
+  SUSPENDED: 'Pausiert',
+  WITHDRAWN: 'Zurückgezogen',
+  UNKNOWN: 'Status unbekannt',
+};
+function abschlussDatum(c: string) {
+  const d = new Date(c.length === 7 ? `${c}-15` : c);
+  return Number.isNaN(+d) ? c : d.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });
+}
+
 function Extra({ a }: { a: Analyse }) {
   if (a.trials?.length) {
     return (
       <Panel>
+        {/* Aufbau je Studie exakt wie eine News (Micha, Runde 31 — Konstanz):
+            Meta-Zeile oben (rechts das Datum), großer Titel, Badge-Zeile darunter */}
         <PanelTitle>Studien-Pipeline</PanelTitle>
         {a.trials.slice(0, 8).map((t, i) => (
-          <div key={i} className="grid gap-1.5 border-b border-line py-3 last:border-b-0">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="cat">{(t.phases ?? []).join(' / ') || 'Phase –'}</Badge>
-              <Badge>{t.status ?? ''}</Badge>
-              {t.completion && <span className="text-micro text-ink3">Abschluss ~ {t.completion}</span>}
+          <article key={i} className="grid gap-2 border-b border-line py-4 last:border-b-0">
+            <div className="flex flex-wrap items-center gap-2.5 font-mono text-micro uppercase tracking-wider text-ink3">
+              <span>{t.conditions?.length ? t.conditions.join(' · ') : 'clinicaltrials.gov'}</span>
+              {t.completion && <span className="ml-auto shrink-0">Abschluss ~ {abschlussDatum(t.completion)}</span>}
             </div>
-            <a href={t.link} target="_blank" rel="noopener" className="text-small text-ink transition-colors hover:text-accent">
-              {t.title}
-            </a>
-            {t.conditions?.length ? (
-              <div className="font-mono text-micro text-ink3">{t.conditions.join(' · ')}</div>
-            ) : null}
-          </div>
+            <h3 className="text-lg font-semibold leading-snug">
+              <a href={t.link} target="_blank" rel="noopener" className="text-ink transition-colors hover:text-accent">
+                {t.title}
+              </a>
+            </h3>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="cat">
+                {(t.phases ?? []).map((p) => PHASE_DE[p] ?? p).join(' / ') || 'Ohne Phase'}
+              </Badge>
+              {t.status && <Badge>{STUDIEN_STATUS_DE[t.status] ?? t.status}</Badge>}
+            </div>
+          </article>
         ))}
       </Panel>
     );
