@@ -677,16 +677,21 @@ function Analysten({ a }: { a: Analyse }) {
           <div className="text-micro font-bold uppercase tracking-[0.14em] text-ink3">
             Kursziele der Analysten
           </div>
-          {/* Yahoo-Stil (Micha, Runde 23): graue Linie mit Endpunkten, blauer
-              Marker = Ø-Kursziel (Wert mittig DARÜBER), weißer Marker =
-              aktueller Kurs (Wert mittig DARUNTER). Marker sitzen exakt,
-              die Beschriftungen werden an den Rändern eingefangen. */}
+          {/* Yahoo-Stil, überarbeitet (Micha, Runde 36): BEIDE Badges liegen ÜBER
+              der Skala — Ø in der oberen, Aktuell in der unteren Reihe (kollidieren
+              nie). Liegt der Wert außerhalb der Spanne (Marker am Rand geklemmt),
+              steht die Badge bündig am Rand; sonst exakt mittig über ihrem Marker. */}
           {(() => {
             const posPct = (v: number) => Math.min(100, Math.max(0, ((v - t.low!) / (t.high! - t.low!)) * 100));
-            const labelPct = (v: number) => Math.min(86, Math.max(14, posPct(v)));
+            const labelStyle = (v: number): React.CSSProperties => {
+              const p = posPct(v);
+              if (p <= 8) return { left: 0 };
+              if (p >= 92) return { right: 0 };
+              return { left: `${p}%`, transform: 'translateX(-50%)' };
+            };
             const kurs = a.kurs.preis;
             return (
-              <div className="relative mx-2 mt-9 mb-9">
+              <div className="relative mx-2 mb-4 mt-[74px]">
                 <div className="relative h-[3px] rounded-full bg-line-strong">
                   {/* Endpunkte */}
                   <span aria-hidden className="absolute left-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
@@ -699,8 +704,8 @@ function Analysten({ a }: { a: Analyse }) {
                         title={`Ø-Kursziel ${fmtMoney(t.mean, a.currency)}`}
                       />
                       <div
-                        className="absolute bottom-[14px] -translate-x-1/2 whitespace-nowrap rounded-md border border-accent/60 bg-panel2 px-2 py-0.5 font-mono text-micro text-accent tnum"
-                        style={{ left: `${labelPct(t.mean)}%` }}
+                        className="absolute bottom-[42px] whitespace-nowrap rounded-md border border-accent/60 bg-panel2 px-2 py-0.5 font-mono text-micro text-accent tnum"
+                        style={labelStyle(t.mean)}
                       >
                         Ø {fmtNum(t.mean)} ({fmtPct(t.upsidePct)})
                       </div>
@@ -709,13 +714,13 @@ function Analysten({ a }: { a: Analyse }) {
                   {kurs != null && (
                     <>
                       <span
-                        className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 rounded bg-ink"
+                        className="absolute bottom-1/2 h-3.5 w-[3px] -translate-x-1/2 rounded bg-ink"
                         style={{ left: `${posPct(kurs)}%` }}
                         title={`Aktueller Kurs ${fmtMoney(kurs, a.currency)}`}
                       />
                       <div
-                        className="absolute top-[14px] -translate-x-1/2 whitespace-nowrap rounded-md border border-line-strong bg-panel2 px-2 py-0.5 font-mono text-micro text-ink tnum"
-                        style={{ left: `${labelPct(kurs)}%` }}
+                        className="absolute bottom-[14px] whitespace-nowrap rounded-md border border-line-strong bg-panel2 px-2 py-0.5 font-mono text-micro text-ink tnum"
+                        style={labelStyle(kurs)}
                       >
                         Aktuell {fmtNum(kurs)}
                       </div>
