@@ -39,6 +39,7 @@ export interface Position {
 export interface WatchItem {
   symbol: string;
   name: string;
+  sektor?: string;
   preis: number | null;
   waehrung: string | null;
   tagesPct: number | null;

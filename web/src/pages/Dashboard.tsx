@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link, useNavigate } from '@/lib/router';
 import { Pencil, X } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
@@ -101,7 +101,9 @@ function TerminMarkt({ t }: { t: Termin }) {
   const kurzTitel = t.name.replace(/\s*\((Monat|Jahr|Quartal)\)/g, '');
   return (
     <Link
-      to={`/kalender?${t.days === 0 ? '' : 'tag=woche&'}event=${encodeURIComponent(`${t.date}~${t.name}`)}`}
+      // Land gehört in den Schlüssel: dieselbe Kennzahl kann am selben Tag in
+      // mehreren Ländern erscheinen (Arbeitslosenquote US + CA öffnete beide)
+      to={`/kalender?${t.days === 0 ? '' : 'tag=woche&'}event=${encodeURIComponent(`${t.date}~${t.name}~${t.land ?? ''}`)}`}
       title={`${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}`}
       className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
     >
@@ -123,6 +125,26 @@ function TerminMarkt({ t }: { t: Termin }) {
       </span>
     </Link>
   );
+}
+
+/**
+ * Umgerechneter EUR-Kurs als Zweitzeile unter dem Börsenkurs — der Kurs selbst
+ * bleibt in der Handelswährung (das ist die echte Notierung), aber wer in EUR
+ * kauft, sieht sofort, was ein Stück gerade kostet (Micha, Runde 24).
+ */
+function KursInEur({
+  preis,
+  waehrung,
+  fx,
+}: {
+  preis: number | null;
+  waehrung: string | null;
+  fx: Record<string, number | null>;
+}) {
+  if (preis == null || !waehrung || waehrung === 'EUR') return null;
+  const rate = fx?.[waehrung];
+  if (rate == null) return null;
+  return <span className="block text-micro text-ink3 tnum">≈ {fmtEur(preis * rate)}</span>;
 }
 
 // ---------- Pre-/After-Market-Mini ----------
@@ -415,9 +437,24 @@ function Positionen({ d }: { d: Dashboard }) {
             </tr>
           </thead>
           <tbody>
-            {d.positions.map((p) => (
+            {/* Nach Sektor gruppiert (Micha, Runde 24) — Trennzeilen wie die
+                Tages-Separatoren im Kalender */}
+            {[...d.positions]
+              .sort(
+                (a, b) =>
+                  (a.sektor ?? 'Sonstige').localeCompare(b.sektor ?? 'Sonstige') ||
+                  (b.valueEur ?? 0) - (a.valueEur ?? 0)
+              )
+              .map((p, i, arr) => (
+              <Fragment key={p.id}>
+                {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (p.sektor ?? 'Sonstige')) && (
+                  <tr className="border-b border-line">
+                    <td colSpan={7} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-accent first:pt-1">
+                      {p.sektor ?? 'Sonstige'}
+                    </td>
+                  </tr>
+                )}
               <tr
-                key={p.id}
                 onClick={() => navigate(`/analyse?symbol=${encodeURIComponent(p.symbol)}`)}
                 className="group cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
               >
@@ -434,7 +471,10 @@ function Positionen({ d }: { d: Dashboard }) {
                     {p.symbol} · {p.shares} Stk.
                   </div>
                 </td>
-                <td className="py-3 text-right font-mono text-small tnum">{fmtMoney(p.preis, p.waehrung)}</td>
+                <td className="py-3 text-right font-mono text-small tnum">
+                  {fmtMoney(p.preis, p.waehrung)}
+                  <KursInEur preis={p.preis} waehrung={p.waehrung} fx={d.fx} />
+                </td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.tagesPct))}>
                   {fmtPct(p.tagesPct)}
                   <PrepostMini ab={p.ausserboerslich} />
@@ -463,6 +503,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   </span>
                 </td>
               </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -504,9 +545,23 @@ function Watchlist({ d }: { d: Dashboard }) {
             </tr>
           </thead>
           <tbody>
-            {d.watchlist.map((w) => (
+            {/* gleiche Sektor-Gruppierung wie die Positionen-Tabelle */}
+            {[...d.watchlist]
+              .sort(
+                (a, b) =>
+                  (a.sektor ?? 'Sonstige').localeCompare(b.sektor ?? 'Sonstige') ||
+                  a.name.localeCompare(b.name)
+              )
+              .map((w, i, arr) => (
+              <Fragment key={w.symbol}>
+                {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
+                  <tr className="border-b border-line">
+                    <td colSpan={6} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-accent">
+                      {w.sektor ?? 'Sonstige'}
+                    </td>
+                  </tr>
+                )}
               <tr
-                key={w.symbol}
                 onClick={() => navigate(`/analyse?symbol=${encodeURIComponent(w.symbol)}`)}
                 className="group cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-panel2"
               >
@@ -520,7 +575,10 @@ function Watchlist({ d }: { d: Dashboard }) {
                   </Link>
                   <div className="font-mono text-micro tracking-wide text-ink3">{w.symbol}</div>
                 </td>
-                <td className="py-3 text-right font-mono text-small tnum">{fmtMoney(w.preis, w.waehrung)}</td>
+                <td className="py-3 text-right font-mono text-small tnum">
+                  {fmtMoney(w.preis, w.waehrung)}
+                  <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
+                </td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.tagesPct))}>
                   {fmtPct(w.tagesPct)}
                   <PrepostMini ab={w.ausserboerslich} />
@@ -543,6 +601,7 @@ function Watchlist({ d }: { d: Dashboard }) {
                   </span>
                 </td>
               </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -725,23 +784,48 @@ export default function DashboardPage() {
       {d && (
         <>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(280px,1.35fr)_1fr_1fr]">
+            {/* Leerzustand: erklärender Platzhalter statt nacktem Strich */}
             <StatCard
               label="Gesamtwert (EUR)"
-              value={d.positions.length ? fmtEur(d.totalEur) : '—'}
-              sub={d.fx?.USD ? `1 USD = ${d.fx.USD.toFixed(4).replace('.', ',')} €` : undefined}
+              value={
+                d.positions.length ? (
+                  fmtEur(d.totalEur)
+                ) : (
+                  <span className="text-base font-medium text-ink3">Noch keine Positionen</span>
+                )
+              }
+              sub={
+                d.positions.length
+                  ? d.fx?.USD
+                    ? `1 USD = ${d.fx.USD.toFixed(4).replace('.', ',')} €`
+                    : undefined
+                  : 'Lege unten deine erste Position an'
+              }
               featured
             />
             <StatCard
               label="Gewinn / Verlust"
-              value={d.positions.length ? fmtEur(d.gewinnEur) : '—'}
-              valueClass={signClass(d.gewinnEur)}
+              value={
+                d.positions.length ? (
+                  fmtEur(d.gewinnEur)
+                ) : (
+                  <span className="text-base font-medium text-ink3">erscheint mit der ersten Position</span>
+                )
+              }
+              valueClass={d.positions.length ? signClass(d.gewinnEur) : undefined}
               sub={d.gewinnPct != null ? `${fmtPct(d.gewinnPct)} seit Kauf` : undefined}
               delay={60}
             />
             <StatCard
               label="Heute"
-              value={d.positions.length ? fmtEur(d.dayChangeEur) : '—'}
-              valueClass={signClass(d.dayChangeEur)}
+              value={
+                d.positions.length ? (
+                  fmtEur(d.dayChangeEur)
+                ) : (
+                  <span className="text-base font-medium text-ink3">erscheint mit der ersten Position</span>
+                )
+              }
+              valueClass={d.positions.length ? signClass(d.dayChangeEur) : undefined}
               sub={d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : undefined}
               delay={120}
             />

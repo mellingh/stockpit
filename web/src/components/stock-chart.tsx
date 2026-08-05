@@ -182,6 +182,8 @@ export function StockChart({
     });
 
     chartRef.current = chart;
+    // Test-Haken für E2E-Zugriff auf die Chart-API (lokale App, kein Risiko)
+    (container as unknown as { _chart?: IChartApi })._chart = chart;
     candleRef.current = candle;
     volumeRef.current = volume;
     sma50Ref.current = sma50;

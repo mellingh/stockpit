@@ -537,9 +537,11 @@ app.get(
           ampel = analyzeTechnicals(history)?.ampel ?? null;
         } catch {}
 
-        // Für die Sektor-Allokation: ETF eigener Topf, Aktien nach Sektor
+        // Für Allokation + Tabellen-Gruppierung: ETF eigener Topf, Aktien
+        // nach Sektor — direkt auf Deutsch (Anzeige und Gruppierungs-Key)
         const istEtf = quote?.quoteType === 'ETF';
-        const sektor = istEtf ? 'ETFs' : (await getSector(pos.symbol)) ?? 'Sonstige';
+        const sektorRoh = istEtf ? 'ETFs' : (await getSector(pos.symbol)) ?? 'Sonstige';
+        const sektor = SEKTOR_DE[sektorRoh] ?? sektorRoh;
 
         return {
           ...pos,
@@ -561,6 +563,9 @@ app.get(
     const watchlist = await Promise.all(
       data.watchlist.map(async (w) => {
         const quote = quotes[w.symbol];
+        // gleiche Sektor-Gruppierung wie bei den Positionen
+        const istEtf = quote?.quoteType === 'ETF';
+        const sektorRoh = istEtf ? 'ETFs' : (await getSector(w.symbol)) ?? 'Sonstige';
         let sparkline = [];
         try {
           const history = await yahoo.getHistory(w.symbol, '6m');
@@ -568,6 +573,7 @@ app.get(
         } catch {}
         return {
           ...w,
+          sektor: SEKTOR_DE[sektorRoh] ?? sektorRoh,
           name: displayName(quote, w.name || w.symbol),
           preis: quote?.regularMarketPrice ?? null,
           waehrung: quote?.currency ?? null,
@@ -680,7 +686,7 @@ app.get(
     const sektorMap = new Map();
     for (const p of positions) {
       if (p.valueEur == null) continue;
-      const key = SEKTOR_DE[p.sektor] ?? p.sektor;
+      const key = p.sektor;
       const eintrag = sektorMap.get(key) ?? { label: key, valueEur: 0, symbole: [] };
       eintrag.valueEur += p.valueEur;
       eintrag.symbole.push(p.symbol);

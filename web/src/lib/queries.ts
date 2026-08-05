@@ -18,7 +18,14 @@ import {
 } from './api';
 
 export const useDashboard = () =>
-  useQuery({ queryKey: ['dashboard'], queryFn: () => api.get<Dashboard>('/api/dashboard') });
+  useQuery({
+    queryKey: ['dashboard'],
+    queryFn: () => api.get<Dashboard>('/api/dashboard'),
+    // Kurse minütlich nachziehen (Server-Quote-Cache: 1 Minute; Yahoo liefert
+    // ohnehin ~15 Min verzögerte Kurse — schnelleres Polling bringt nichts)
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
 
 export const useNewsfeed = () =>
   useQuery({

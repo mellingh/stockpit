@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useSetParam } from '@/lib/router';
 import { Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
@@ -100,13 +100,19 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
   const { data: d } = useDashboard();
   const { data: trending, isLoading: trendLaedt } = useTrending();
 
+  // Nach Sektor gruppiert — gleiche Gruppierung wie die Dashboard-Tabellen
   const eigene = useMemo(() => {
     if (!d) return [];
     const gesehen = new Set<string>();
     return [
-      ...d.positions.map((p) => ({ symbol: p.symbol, name: p.name, tagesPct: p.tagesPct })),
-      ...d.watchlist.map((w) => ({ symbol: w.symbol, name: w.name, tagesPct: w.tagesPct })),
-    ].filter((w) => !gesehen.has(w.symbol) && gesehen.add(w.symbol));
+      ...d.positions.map((p) => ({ symbol: p.symbol, name: p.name, tagesPct: p.tagesPct, sektor: p.sektor })),
+      ...d.watchlist.map((w) => ({ symbol: w.symbol, name: w.name, tagesPct: w.tagesPct, sektor: w.sektor })),
+    ]
+      .filter((w) => !gesehen.has(w.symbol) && gesehen.add(w.symbol))
+      .sort(
+        (a, b) =>
+          (a.sektor ?? 'Sonstige').localeCompare(b.sektor ?? 'Sonstige') || a.name.localeCompare(b.name)
+      );
   }, [d]);
 
   return (
@@ -119,8 +125,15 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
           <Empty>Noch keine Positionen oder Watchlist-Werte — im Dashboard anlegen.</Empty>
         ) : (
           <div className="grid gap-2">
-            {eigene.map((w) => (
-              <StartChip key={w.symbol} {...w} onPick={onPick} />
+            {eigene.map((w, i, arr) => (
+              <Fragment key={w.symbol}>
+                {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
+                  <div className={cn('text-micro font-bold uppercase tracking-[0.14em] text-accent', i > 0 && 'mt-2')}>
+                    {w.sektor ?? 'Sonstige'}
+                  </div>
+                )}
+                <StartChip symbol={w.symbol} name={w.name} tagesPct={w.tagesPct} onPick={onPick} />
+              </Fragment>
             ))}
           </div>
         )}
@@ -145,6 +158,10 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
 
 // ---------- Watchlist-Schnellzugriff im Report-Kopf ----------
 
+/**
+ * Sitzt oben in der Seitenspalte (über Meinungen & Links), volle Spaltenbreite —
+ * alle drei Zustände haben exakt dieselbe Form und Höhe (Micha, Runde 24).
+ */
 function WatchButton({ symbol }: { symbol: string }) {
   const { data: d } = useDashboard();
   const hinzufuegen = usePortfolioMutation(() => api.post('/api/watchlist', { symbol }));
@@ -153,13 +170,20 @@ function WatchButton({ symbol }: { symbol: string }) {
   const imDepot = d?.positions.some((p) => p.symbol === symbol) ?? false;
   const beobachtet = d?.watchlist.some((w) => w.symbol === symbol) ?? false;
 
-  // Was schon im Depot liegt, muss man nicht beobachten (Watchlist-Regel)
-  if (imDepot) return <Badge variant="neu">Im Depot</Badge>;
+  // Was schon im Depot liegt, muss man nicht beobachten (Watchlist-Regel):
+  // gleiche Form wie der Button, aber sichtbar keine Aktion
+  if (imDepot) {
+    return (
+      <div className="flex h-control-md w-full items-center justify-center rounded-md border border-line bg-panel2 text-small font-medium text-ink2">
+        ✓ Im Depot
+      </div>
+    );
+  }
   if (beobachtet) {
     return (
       <Button
         variant="ghost"
-        size="sm"
+        className="w-full"
         title="Von der Watchlist entfernen"
         onClick={() => entfernen.mutate(undefined)}
         disabled={entfernen.isPending}
@@ -171,7 +195,7 @@ function WatchButton({ symbol }: { symbol: string }) {
   return (
     <Button
       variant="action"
-      size="sm"
+      className="w-full"
       onClick={() => hinzufuegen.mutate(undefined)}
       disabled={hinzufuegen.isPending || !d}
     >
@@ -640,11 +664,11 @@ function Analysten({ a }: { a: Analyse }) {
                 <div className="relative h-[3px] rounded-full bg-line-strong">
                   {/* Endpunkte */}
                   <span aria-hidden className="absolute left-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
-                  <span aria-hidden className="absolute right-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
+                  <span aria-hidden className="absolute right-0 top-1/2 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
                   {t.mean != null && (
                     <>
                       <span
-                        className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-accent"
+                        className="absolute bottom-1/2 h-3.5 w-[3px] -translate-x-1/2 rounded bg-accent"
                         style={{ left: `${posPct(t.mean)}%` }}
                         title={`Ø-Kursziel ${fmtMoney(t.mean, a.currency)}`}
                       />
@@ -659,7 +683,7 @@ function Analysten({ a }: { a: Analyse }) {
                   {kurs != null && (
                     <>
                       <span
-                        className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-ink"
+                        className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 rounded bg-ink"
                         style={{ left: `${posPct(kurs)}%` }}
                         title={`Aktueller Kurs ${fmtMoney(kurs, a.currency)}`}
                       />
@@ -851,24 +875,22 @@ function Report({ symbol }: { symbol: string }) {
 
   return (
     <div className="grid gap-5 [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms] [&>*:nth-child(6)]:[animation-delay:250ms]">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant="chip">{a.symbol}</Badge>
-            {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
-            {a.type === 'ETF' && <Badge variant="cat">ETF</Badge>}
-            {a.sektor && <Badge>{a.sektor}</Badge>}
-            {a.branche && <Badge>{a.branche}</Badge>}
-          </div>
+      <header>
+        <h1 className="font-display text-display-md font-bold tracking-tight text-balance">{a.name}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge variant="chip">{a.symbol}</Badge>
+          {a.kurs.boerse && <Badge>{a.kurs.boerse}</Badge>}
+          {a.type === 'ETF' && <Badge variant="cat">ETF</Badge>}
+          {a.sektor && <Badge>{a.sektor}</Badge>}
+          {a.branche && <Badge>{a.branche}</Badge>}
         </div>
-        {/* Schneller Weg auf die Watchlist, direkt neben dem Namen (Micha, Runde 23) */}
-        <WatchButton symbol={a.symbol} />
       </header>
 
-      <ZahlenBanner a={a} />
-
+      {/* Banner nur in Chartbreite — rechts daneben beginnt die Seitenspalte
+          mit dem Watch-Button auf gleicher Höhe (Micha, Runde 24) */}
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="grid gap-5">
+        <ZahlenBanner a={a} />
         <Panel className="p-4 pb-2">
           <div className="flex flex-wrap items-baseline gap-3 px-1 pb-2.5">
             <span className="font-display text-display-md font-bold leading-none tnum">
@@ -923,7 +945,11 @@ function Report({ symbol }: { symbol: string }) {
             </Suspense>
           )}
         </Panel>
-        <LinksCard symbol={a.symbol} name={a.name} />
+        </div>
+        <div className="grid content-start gap-5">
+          <WatchButton symbol={a.symbol} />
+          <LinksCard symbol={a.symbol} name={a.name} />
+        </div>
       </div>
 
       <QuoteStrip a={a} />

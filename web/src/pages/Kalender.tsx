@@ -625,7 +625,9 @@ export default function KalenderPage() {
                     <Fragment key={`${e.titel}-${e.zeit}-${i}`}>
                       {separator}
                       {i === jetztVor && <JetztLinie jetzt={jetzt} />}
-                      <EventZeile e={e} autoOffen={eventKey === `${e.zeit}~${e.titel}`} />
+                      {/* Schlüssel inkl. Land — dieselbe Kennzahl kann am selben
+                          Tag in mehreren Ländern erscheinen (US + CA) */}
+                      <EventZeile e={e} autoOffen={eventKey === `${e.zeit}~${e.titel}~${e.land ?? ''}`} />
                     </Fragment>
                   );
                 })}
