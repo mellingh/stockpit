@@ -482,9 +482,10 @@ function IposTab() {
                   <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
                     {e.volumenUsd != null ? `${fmtCompact(e.volumenUsd)} $` : '–'}
                   </td>
-                  {/* Spannen mit Luft um den Bindestrich: „15.00 – 17.00" statt „15.00-17.00" */}
+                  {/* Spannen mit SCHMALER Luft um den Bindestrich (U+2009): volle
+                      Leerzeichen waren zu viel, gar keine zu eng (Micha, Runde 26/27) */}
                   <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
-                    {e.preis ? e.preis.replace(/(\d)\s*[-–]\s*(\d)/, '$1 – $2') : '–'}
+                    {e.preis ? e.preis.replace(/(\d)\s*[-–]\s*(\d)/, '$1 – $2') : '–'}
                   </td>
                   <td className="py-2.5 text-right">
                     {/* Anzeige-Wording statt der API-Werte gepreist/erwartet (Micha, Runde 25):

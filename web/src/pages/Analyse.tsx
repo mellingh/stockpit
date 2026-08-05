@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useSetParam } from '@/lib/router';
-import { Check, Plus, Search } from 'lucide-react';
+import { Check, Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -198,12 +198,14 @@ function WatchButton({ symbol }: { symbol: string }) {
     <Button
       variant="subtle"
       size="sm"
-      className="ml-auto gap-1.5 self-center"
+      className="ml-auto self-center"
       title="Zur Watchlist hinzufügen"
       onClick={() => hinzufuegen.mutate(undefined)}
       disabled={hinzufuegen.isPending || !d}
     >
-      <Plus size={14} aria-hidden className="text-accent" /> Watchlist
+      {/* Text-Plus wie bei „+ Hinzufügen" der Links-Karte — ein Icon-Plus war
+          sichtbar größer und brach die Konstanz (Micha, Runde 27) */}
+      + Watchlist
     </Button>
   );
 }
