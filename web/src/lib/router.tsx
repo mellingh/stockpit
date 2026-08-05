@@ -30,6 +30,14 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
   return <RouterContext.Provider value={{ url, navigate }}>{children}</RouterContext.Provider>;
 }
 
+/** Browser-Tab-Titel: „Stockpit · <Seite/Symbol>" (Micha, Runde 32) — der Punkt
+ *  ist derselbe Trenner wie zwischen Ticker und Stückzahl in den Tabellen. */
+export function useTitel(teil?: string | null) {
+  useEffect(() => {
+    document.title = teil ? `Stockpit · ${teil}` : 'Stockpit';
+  }, [teil]);
+}
+
 export function useNavigate() {
   return useContext(RouterContext).navigate;
 }

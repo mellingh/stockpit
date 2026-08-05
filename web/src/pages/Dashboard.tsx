@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Link, useNavigate } from '@/lib/router';
+import { Link, useNavigate, useTitel } from '@/lib/router';
 import { Pencil, X } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton, SkeletonRows, SkeletonText } from '@/components/ui/skeleton';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { SymbolSearch } from '@/components/symbol-search';
 import { Donut, CAT_COLORS } from '@/components/donut';
 import { NewsItem } from '@/components/news';
@@ -495,8 +494,9 @@ function Positionen({ d }: { d: Dashboard }) {
           Über „+ Position hinzufügen" unten legst du deine erste an — die Kurse laufen dann automatisch ein.
         </Empty>
       ) : (
+        <div className="scroll-dezent max-h-[570px] overflow-y-auto">
         <table className="w-full table-fixed border-collapse text-small">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-panel">
             <tr>
               {/* Feste Breiten: Positionen und Watchlist teilen sich dasselbe
                   Spaltenraster — Kurs steht unter Kurs. Die Verlauf-Sparkline ist
@@ -592,6 +592,7 @@ function Positionen({ d }: { d: Dashboard }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       <Button variant="action" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
         + Position hinzufügen
@@ -613,8 +614,9 @@ function Watchlist({ d }: { d: Dashboard }) {
       {d.watchlist.length === 0 ? (
         <Empty>Keine beobachteten Werte — über „+ Wert beobachten" unten hinzufügen.</Empty>
       ) : (
+        <div className="scroll-dezent max-h-[570px] overflow-y-auto">
         <table className="w-full table-fixed border-collapse text-small">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-panel">
             <tr>
               {/* Gleiches Spaltenraster wie die Positionen-Tabelle; der Füller
                   ersetzt Ø Kauf + Wert + G/V, damit Kurs/Heute exakt
@@ -684,6 +686,7 @@ function Watchlist({ d }: { d: Dashboard }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       <Button variant="action" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
         + Wert beobachten
@@ -777,21 +780,13 @@ function NewsLage() {
                 Feed nicht erreichbar: {f}
               </p>
             ))}
-            {data.items.slice(0, 5).map((n, i) => (
-              <NewsItem key={`${n.link}-${i}`} n={n} zeigeChips />
-            ))}
-            {data.items.length > 5 && (
-              <Accordion type="single" collapsible>
-                <AccordionItem value="mehr" className="border-0">
-                  <AccordionTrigger>Mehr anzeigen ({data.items.length - 5})</AccordionTrigger>
-                  <AccordionContent>
-                    {data.items.slice(5).map((n, i) => (
-                      <NewsItem key={`${n.link}-rest-${i}`} n={n} zeigeChips />
-                    ))}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
+            {/* Gekappte Höhe + Scrollen statt „Mehr anzeigen" (Micha, Runde 32) —
+                die Karte wächst nicht mehr endlos unter die Allokation hinaus */}
+            <div className="scroll-dezent -mr-2 max-h-[820px] overflow-y-auto pr-2">
+              {data.items.map((n, i) => (
+                <NewsItem key={`${n.link}-${i}`} n={n} zeigeChips />
+              ))}
+            </div>
           </>
         ))}
     </Panel>
@@ -801,6 +796,7 @@ function NewsLage() {
 // ---------- Seite ----------
 
 export default function DashboardPage() {
+  useTitel('Dashboard');
   const { data: d, isLoading, error } = useDashboard();
 
   const heute = new Date().toLocaleDateString('de-DE', {
@@ -913,11 +909,18 @@ export default function DashboardPage() {
           {d.termine.length > 0 && (
             <Panel className="animate-rise" style={{ animationDelay: '90ms' }}>
               <PanelTitle>Wichtige Termine</PanelTitle>
+              {/* Beide Spalten streng nach Zeit sortiert (das Nächste zuerst),
+                  sichtbar sind ~5 Zeilen (5 × 45px), der Rest scrollt (Micha, Runde 32) */}
               <div className="grid grid-cols-1 gap-x-10 gap-y-4 lg:grid-cols-2">
                 <div>
                   <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Deine Werte</div>
                   {d.termine.filter((t) => t.typ !== 'Markt').length ? (
-                    d.termine.filter((t) => t.typ !== 'Markt').map((t, i) => <TerminWert key={i} t={t} />)
+                    <div className="scroll-dezent max-h-[225px] overflow-y-auto">
+                      {d.termine
+                        .filter((t) => t.typ !== 'Markt')
+                        .sort((a, b) => +new Date(a.date) - +new Date(b.date))
+                        .map((t, i) => <TerminWert key={i} t={t} />)}
+                    </div>
                   ) : (
                     <p className="py-2 text-small text-ink3">Keine Termine deiner Werte.</p>
                   )}
@@ -925,10 +928,12 @@ export default function DashboardPage() {
                 <div>
                   <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Markt-Events</div>
                   {d.termine.filter((t) => t.typ === 'Markt').length ? (
-                    d.termine
-                      .filter((t) => t.typ === 'Markt')
-                      .slice(0, 3)
-                      .map((t, i) => <TerminMarkt key={i} t={t} />)
+                    <div className="scroll-dezent max-h-[225px] overflow-y-auto">
+                      {d.termine
+                        .filter((t) => t.typ === 'Markt')
+                        .sort((a, b) => +new Date(a.date) - +new Date(b.date))
+                        .map((t, i) => <TerminMarkt key={i} t={t} />)}
+                    </div>
                   ) : (
                     <p className="py-2 text-small text-ink3">Keine großen Markt-Events.</p>
                   )}

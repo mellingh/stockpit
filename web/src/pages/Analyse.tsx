@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams, useSetParam } from '@/lib/router';
+import { useNavigate, useSearchParams, useSetParam, useTitel } from '@/lib/router';
 import { Check, Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
@@ -737,17 +737,18 @@ function Analysten({ a }: { a: Analyse }) {
 // ---------- Analysten-Historie ----------
 
 function Historie({ a }: { a: Analyse }) {
-  const [alle, setAlle] = useState(false);
   if (!a.ratings?.length) return null;
   const hatKursziele = a.ratings.some((r) => r.kursziel != null);
-  const liste = alle ? a.ratings : a.ratings.slice(0, 5);
+  // ~5 Zeilen sichtbar, der Rest scrollt — statt „Mehr anzeigen" (Micha, Runde 32)
+  const liste = a.ratings;
   const aktionCls = (r: Rating) =>
     r.aktion === 'Hochgestuft' ? 'text-up' : r.aktion === 'Abgestuft' ? 'text-down' : '';
   return (
     <Panel>
       <PanelTitle>Analysten-Historie</PanelTitle>
+      <div className="scroll-dezent max-h-[240px] overflow-y-auto">
       <table className="w-full border-collapse text-small">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-panel">
           <tr className="text-left text-micro font-bold uppercase tracking-[0.14em] text-ink3">
             <th className="pb-2">Datum</th>
             <th className="pb-2">Analyst</th>
@@ -780,11 +781,7 @@ function Historie({ a }: { a: Analyse }) {
           ))}
         </tbody>
       </table>
-      {!alle && a.ratings.length > 5 && (
-        <Button variant="ghost" size="sm" className="mt-3.5" onClick={() => setAlle(true)}>
-          Mehr anzeigen ({a.ratings.length - 5})
-        </Button>
-      )}
+      </div>
       {!hatKursziele && (
         <p className="mt-3 rounded-md border border-line bg-panel2 px-3 py-2 text-micro text-ink3">
           Für diesen Wert sind keine Kursziele je Bank frei verfügbar — die Konsens-Spanne steht im Analysten-Panel.
@@ -805,16 +802,19 @@ const PHASE_DE: Record<string, string> = {
   PHASE4: 'Phase 4',
   NA: 'Ohne Phase',
 };
-const STUDIEN_STATUS_DE: Record<string, string> = {
-  RECRUITING: 'Rekrutiert',
-  NOT_YET_RECRUITING: 'Noch nicht rekrutierend',
-  ENROLLING_BY_INVITATION: 'Aufnahme auf Einladung',
-  ACTIVE_NOT_RECRUITING: 'Aktiv',
-  COMPLETED: 'Abgeschlossen',
-  TERMINATED: 'Abgebrochen',
-  SUSPENDED: 'Pausiert',
-  WITHDRAWN: 'Zurückgezogen',
-  UNKNOWN: 'Status unbekannt',
+// Farben angelehnt an clinicaltrials.gov (Micha, Runde 32): laufend = grün,
+// abgebrochen/zurückgezogen/pausiert = rot, fertig = blau, wartend = gold
+type BadgeVariante = 'pos' | 'neg' | 'chip' | 'warn' | 'neu';
+const STUDIEN_STATUS_DE: Record<string, { label: string; variante: BadgeVariante }> = {
+  RECRUITING: { label: 'Rekrutiert', variante: 'pos' },
+  ACTIVE_NOT_RECRUITING: { label: 'Aktiv', variante: 'pos' },
+  ENROLLING_BY_INVITATION: { label: 'Aufnahme auf Einladung', variante: 'pos' },
+  NOT_YET_RECRUITING: { label: 'Noch nicht rekrutierend', variante: 'warn' },
+  COMPLETED: { label: 'Abgeschlossen', variante: 'chip' },
+  TERMINATED: { label: 'Abgebrochen', variante: 'neg' },
+  SUSPENDED: { label: 'Pausiert', variante: 'neg' },
+  WITHDRAWN: { label: 'Zurückgezogen', variante: 'neg' },
+  UNKNOWN: { label: 'Status unbekannt', variante: 'neu' },
 };
 function abschlussDatum(c: string) {
   const d = new Date(c.length === 7 ? `${c}-15` : c);
@@ -828,7 +828,9 @@ function Extra({ a }: { a: Analyse }) {
         {/* Aufbau je Studie exakt wie eine News (Micha, Runde 31 — Konstanz):
             Meta-Zeile oben (rechts das Datum), großer Titel, Badge-Zeile darunter */}
         <PanelTitle>Studien-Pipeline</PanelTitle>
-        {a.trials.slice(0, 8).map((t, i) => (
+        {/* ~5 Studien sichtbar, der Rest scrollt (Micha, Runde 32) */}
+        <div className="scroll-dezent -mr-2 max-h-[620px] overflow-y-auto pr-2">
+        {a.trials.map((t, i) => (
           <article key={i} className="grid gap-2 border-b border-line py-4 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2.5 font-mono text-micro uppercase tracking-wider text-ink3">
               <span>{t.conditions?.length ? t.conditions.join(' · ') : 'clinicaltrials.gov'}</span>
@@ -843,10 +845,15 @@ function Extra({ a }: { a: Analyse }) {
               <Badge variant="cat">
                 {(t.phases ?? []).map((p) => PHASE_DE[p] ?? p).join(' / ') || 'Ohne Phase'}
               </Badge>
-              {t.status && <Badge>{STUDIEN_STATUS_DE[t.status] ?? t.status}</Badge>}
+              {t.status && (
+                <Badge variant={STUDIEN_STATUS_DE[t.status]?.variante ?? 'neu'}>
+                  {STUDIEN_STATUS_DE[t.status]?.label ?? t.status}
+                </Badge>
+              )}
             </div>
           </article>
         ))}
+        </div>
       </Panel>
     );
   }
@@ -1021,23 +1028,12 @@ function Report({ symbol }: { symbol: string }) {
         {!a.news?.length ? (
           <Empty>Keine aktuellen News gefunden.</Empty>
         ) : (
-          <>
-            {a.news.slice(0, 5).map((n, i) => (
+          /* ~5 News sichtbar, der Rest scrollt — statt „Mehr anzeigen" (Micha, Runde 32) */
+          <div className="scroll-dezent -mr-2 max-h-[820px] overflow-y-auto pr-2">
+            {a.news.map((n, i) => (
               <NewsItem key={`${n.link}-${i}`} n={n} />
             ))}
-            {a.news.length > 5 && (
-              <Accordion type="single" collapsible>
-                <AccordionItem value="mehr" className="border-0">
-                  <AccordionTrigger>Mehr anzeigen ({a.news.length - 5})</AccordionTrigger>
-                  <AccordionContent>
-                    {a.news.slice(5).map((n, i) => (
-                      <NewsItem key={`${n.link}-rest-${i}`} n={n} />
-                    ))}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
-          </>
+          </div>
         )}
       </Panel>
     </div>
@@ -1050,6 +1046,8 @@ export default function AnalysePage() {
   const params = useSearchParams();
   const navigate = useNavigate();
   const symbol = params.get('symbol');
+  // im Report zählt das Symbol im Tab-Titel, sonst der Seitenname
+  useTitel(symbol || 'Analyse');
   const waehlen = (s: string) => navigate(`/analyse?symbol=${encodeURIComponent(s)}`);
 
   return (

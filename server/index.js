@@ -786,22 +786,58 @@ app.get(
 // Die interne Such-API von simplywall.st löst sie auf (kostenlos, kein Key,
 // inoffiziell wie Yahoo) — via curl, pro Symbol einen Tag gecacht.
 
-function swsFirmenPfad(symbol) {
+async function swsSuche(query) {
+  const { stdout } = await new Promise((resolve, reject) => {
+    execFile(
+      'curl',
+      ['-s', '--max-time', '8',
+        '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        `https://simplywall.st/api/search/${encodeURIComponent(query)}`],
+      { maxBuffer: 1024 * 1024, windowsHide: true },
+      (err, out) => (err ? reject(err) : resolve({ stdout: out }))
+    );
+  });
+  const treffer = JSON.parse(stdout);
+  return Array.isArray(treffer) ? treffer : [];
+}
+
+// Rechtsform-Zusätze zählen beim Namensvergleich nicht mit
+const SWS_STOPP = new Set(['inc', 'corp', 'corporation', 'ltd', 'limited', 'plc', 'ag', 'se', 'sa', 'spa', 'nv', 'co', 'kgaa', 'the', 'and']);
+function nameWorte(n) {
+  return new Set(
+    String(n ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9äöüß]+/g, ' ')
+      .split(' ')
+      .filter((w) => w.length >= 2 && !SWS_STOPP.has(w))
+  );
+}
+
+function swsFirmenPfad(symbol, name) {
   return cached(`sws:${symbol}`, DAY, async () => {
-    const { stdout } = await new Promise((resolve, reject) => {
-      execFile(
-        'curl',
-        ['-s', '--max-time', '8',
-          '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-          `https://simplywall.st/api/search/${encodeURIComponent(symbol)}`],
-        { maxBuffer: 1024 * 1024, windowsHide: true },
-        (err, out) => (err ? reject(err) : resolve({ stdout: out }))
-      );
-    });
-    const treffer = JSON.parse(stdout);
-    if (!Array.isArray(treffer) || !treffer.length) return null;
-    const exakt = treffer.find((t) => t.ticker?.toUpperCase() === symbol.toUpperCase());
-    return (exakt ?? treffer[0])?.url ?? null;
+    // Double-Check gegen den Firmennamen (Micha, Runde 32): denselben Ticker
+    // gibt es an mehreren Börsen (CAI = Cairo Communication in Mailand UND
+    // Caris Life Sciences an der Nasdaq) — der Ticker allein reicht nicht.
+    const sollWorte = nameWorte(name);
+    const labelPasst = (label) => {
+      if (!sollWorte.size) return true; // ohne Yahoo-Namen keine Prüfung möglich
+      const lw = nameWorte(label);
+      for (const w of sollWorte) if (lw.has(w)) return true;
+      return false;
+    };
+    const passt = (t) => t.ticker?.toUpperCase() === symbol.toUpperCase() && labelPasst(t.label);
+
+    let treffer = await swsSuche(symbol);
+    let hit = treffer.find(passt);
+    if (!hit && sollWorte.size) {
+      // Ticker-Suche brachte die falsche Firma → per Firmenname nachsuchen
+      treffer = await swsSuche(name);
+      hit = treffer.find(passt) ?? treffer.find((t) => labelPasst(t.label));
+    }
+    if (!hit && !sollWorte.size) {
+      hit = treffer.find((t) => t.ticker?.toUpperCase() === symbol.toUpperCase()) ?? treffer[0];
+    }
+    return hit?.url ?? null;
   });
 }
 
@@ -809,11 +845,14 @@ app.get(
   '/api/goto/sws/:symbol',
   wrap(async (req, res) => {
     const base = req.params.symbol.split('.')[0];
-    const pfad = await swsFirmenPfad(base).catch(() => null);
+    // Yahoo-Name als Referenz für den Firmen-Check
+    const quotes = await yahoo.getQuotes([req.params.symbol]).catch(() => ({}));
+    const name = displayName(quotes[req.params.symbol], '') || null;
+    const pfad = await swsFirmenPfad(base, name).catch(() => null);
     res.redirect(
       pfad
         ? `https://simplywall.st${pfad}`
-        : `https://www.google.com/search?q=site%3Asimplywall.st+${encodeURIComponent(base)}`
+        : `https://www.google.com/search?q=site%3Asimplywall.st+${encodeURIComponent(name || base)}`
     );
   })
 );

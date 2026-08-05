@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
-import { useSearchParams, useSetParam } from '@/lib/router';
+import { useSearchParams, useSetParam, useTitel } from '@/lib/router';
 import { useEarnings, useFeiertage, useIpos, useKalender } from '@/lib/queries';
 import { erklaerungFuer, flagge } from '@/lib/event-lexikon';
 import type { KalenderEvent } from '@/lib/api';
@@ -509,6 +509,7 @@ function IposTab() {
 }
 
 export default function KalenderPage() {
+  useTitel('Kalender');
   const { data, isLoading, error } = useKalender();
   // Filter stehen in der URL: teilbar, überlebt F5, Zurück-Button funktioniert
   const params = useSearchParams();
