@@ -12,19 +12,17 @@ import { fmtNum, fmtPct } from '@/lib/format';
 
 /**
  * TradingView-artiger Kurs-Chart — 1:1-Portierung des v1-Verhaltens:
- * Candles + Volumen + SMA 50/200, Intraday-Zeitachse, OHLC-Overlay mit
- * Titelzeile, Preislinien (Vortag gepunktet, Vor-/Nachbörslich gestrichelt)
+ * Candles + Volumen + SMA 50/200, Intraday-Zeitachse, transparentes
+ * OHLC-Overlay, Preislinien (Vortag gepunktet, Vor-/Nachbörslich gestrichelt)
  * und Mausrad-Zoom ÜBER der Preisachse (autoscaleInfoProvider + Faktor,
  * Doppelklick auf die Achse = Reset) — das kann die Bibliothek nicht nativ.
  */
 export function StockChart({
   data,
-  titelZeile,
   vortag,
   ausserboerslich,
 }: {
   data: ChartData;
-  titelZeile: string;
   vortag: number | null;
   ausserboerslich: Ausserboerslich | null;
 }) {
@@ -41,7 +39,6 @@ export function StockChart({
   const dataLenRef = useRef(0);
   const linesRef = useRef<IPriceLine[]>([]);
   const lastBarRef = useRef<Candle | null>(null);
-  const symRef = useRef<HTMLDivElement>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
 
   // OHLC-Zeile direkt ins DOM schreiben (kein React-Rerender pro Mausbewegung)
@@ -326,11 +323,7 @@ export function StockChart({
     return () => ro?.disconnect();
   }, [data]);
 
-  // Titelzeile + Preislinien
-  useEffect(() => {
-    if (symRef.current) symRef.current.textContent = titelZeile;
-  }, [titelZeile]);
-
+  // Preislinien
   useEffect(() => {
     const candle = candleRef.current;
     if (!candle) return;
@@ -364,10 +357,14 @@ export function StockChart({
 
   return (
     <div ref={containerRef} className="relative h-[400px] w-full">
-      <div className="pointer-events-none absolute left-2.5 top-2 z-10 rounded-md bg-[rgba(23,29,43,0.82)] px-2.5 py-1.5 backdrop-blur-sm">
-        <div ref={symRef} className="text-micro font-semibold text-ink" />
-        <div ref={ohlcRef} className="flex gap-2.5 font-mono text-micro text-ink3 tnum" />
-      </div>
+      {/* OHLC-Zeile transparent über dem Chart wie bei TradingView (Micha, Runde 28):
+          keine Kachel/kein Blur, keine Titelzeile (Name/Zeitraum/Börse stehen oben) —
+          nur ein Hauch Text-Schatten, damit die Werte über Kerzen lesbar bleiben */}
+      <div
+        ref={ohlcRef}
+        className="pointer-events-none absolute left-2.5 top-2 z-10 flex gap-2.5 font-mono text-micro text-ink3 tnum"
+        style={{ textShadow: '0 1px 4px rgba(11, 14, 20, 0.9)' }}
+      />
     </div>
   );
 }

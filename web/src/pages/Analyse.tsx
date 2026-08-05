@@ -175,8 +175,8 @@ function WatchButton({ symbol }: { symbol: string }) {
   // gleiche Form wie der Button, aber sichtbar keine Aktion
   if (imDepot) {
     return (
-      <div className="ml-auto inline-flex h-control-sm items-center gap-1.5 self-center rounded-md border border-line bg-panel2 px-3 text-small font-medium text-ink2">
-        <Check size={14} aria-hidden className="text-up" /> Im Depot
+      <div className="ml-auto inline-flex h-control-sm items-center gap-1 self-center rounded-md border border-line bg-panel2 px-3 text-small font-medium text-ink2">
+        <Check size={13} aria-hidden className="text-up" /> Im Depot
       </div>
     );
   }
@@ -185,12 +185,14 @@ function WatchButton({ symbol }: { symbol: string }) {
       <Button
         variant="subtle"
         size="sm"
-        className="ml-auto gap-1.5 self-center"
+        className="ml-auto gap-1 self-center"
         title="Von der Watchlist entfernen"
         onClick={() => entfernen.mutate(undefined)}
         disabled={entfernen.isPending}
       >
-        <Check size={14} aria-hidden className="text-up" /> Hinzugefügt
+        {/* Check bleibt grün, aber in Textgröße (13) und mit dem Abstand eines
+            normalen Leerzeichens — Höhe/Optik exakt wie „+ Watchlist" */}
+        <Check size={13} aria-hidden className="text-up" /> Hinzugefügt
       </Button>
     );
   }
@@ -198,14 +200,13 @@ function WatchButton({ symbol }: { symbol: string }) {
     <Button
       variant="subtle"
       size="sm"
-      className="ml-auto self-center"
+      className="ml-auto gap-1 self-center"
       title="Zur Watchlist hinzufügen"
       onClick={() => hinzufuegen.mutate(undefined)}
       disabled={hinzufuegen.isPending || !d}
     >
-      {/* Text-Plus wie bei „+ Hinzufügen" der Links-Karte — ein Icon-Plus war
-          sichtbar größer und brach die Konstanz (Micha, Runde 27) */}
-      + Watchlist
+      {/* Text-Plus wie bei „+ Hinzufügen" (Icon-Plus war größer), aber blau */}
+      <span aria-hidden className="text-accent">+</span> Watchlist
     </Button>
   );
 }
@@ -865,7 +866,6 @@ function Report({ symbol }: { symbol: string }) {
   const setRange = (v: string) => setParam('range', v === '1y' ? null : v);
   const history = useHistory(range !== '1y' ? symbol : null, range);
   const chartData = range === '1y' ? a?.chart : (history.data ?? a?.chart);
-  const rangeLabel = RANGES.find(([r]) => r === range)?.[1] ?? '1J';
 
   if (isLoading) return <ReportSkelett />;
   if (error || !a) {
@@ -945,7 +945,6 @@ function Report({ symbol }: { symbol: string }) {
             <Suspense fallback={<Skeleton className="h-[380px] w-full" aria-label="Chart wird geladen" />}>
               <StockChart
                 data={chartData}
-                titelZeile={[a.name, rangeLabel, a.kurs.boerse].filter(Boolean).join(' · ')}
                 vortag={a.kurs.vortag}
                 ausserboerslich={a.kurs.ausserboerslich}
               />
