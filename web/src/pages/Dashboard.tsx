@@ -583,7 +583,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   />
                 </td>
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
-                  <span className="flex items-center justify-end gap-1 opacity-30 transition-opacity group-hover:opacity-100">
+                  <span className="flex items-center justify-end gap-0 opacity-30 transition-opacity group-hover:opacity-100">
                     <Button variant="icon" size="icon" title="Stückzahl / Ø-Kaufkurs ändern" onClick={() => setBearbeite(p)}>
                       <Pencil size={14} />
                     </Button>
@@ -594,7 +594,7 @@ function Positionen({ d }: { d: Dashboard }) {
                       title="Position löschen"
                       onClick={() => loeschen.mutate(p.id)}
                     >
-                      <X size={15} />
+                      <X size={14} />
                     </Button>
                   </span>
                 </td>
@@ -688,7 +688,7 @@ function Watchlist({ d }: { d: Dashboard }) {
                       title="Von der Watchlist entfernen"
                       onClick={() => entfernen.mutate(w.symbol)}
                     >
-                      <X size={15} />
+                      <X size={14} />
                     </Button>
                   </span>
                 </td>
