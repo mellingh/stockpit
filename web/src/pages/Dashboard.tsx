@@ -931,9 +931,12 @@ export default function DashboardPage() {
                     <ScrollListe className="max-h-[270px]">
                       {(['Positionen', 'Watchlist'] as const).map((gruppe) => {
                         const imDepot = new Set(d.positions.map((p) => p.symbol));
+                        // maximal 1 Tag zurück (Micha, Runde 37) — Älteres fliegt raus
+                        const gestern0 = new Date(new Date().setHours(0, 0, 0, 0)) .getTime() - 86_400_000;
                         const eintraege = d.termine
                           .filter((t) => t.typ !== 'Markt')
                           .filter((t) => (gruppe === 'Positionen') === imDepot.has(t.symbol ?? ''))
+                          .filter((t) => +new Date(t.date) >= gestern0)
                           .sort((a, b) => +new Date(a.date) - +new Date(b.date));
                         if (!eintraege.length) return null;
                         return (
@@ -956,6 +959,7 @@ export default function DashboardPage() {
                     <ScrollListe className="max-h-[225px]">
                       {d.termine
                         .filter((t) => t.typ === 'Markt')
+                        .filter((t) => +new Date(t.date) >= new Date(new Date().setHours(0, 0, 0, 0)).getTime() - 86_400_000)
                         .sort((a, b) => +new Date(a.date) - +new Date(b.date))
                         .map((t, i) => <TerminMarkt key={i} t={t} />)}
                     </ScrollListe>

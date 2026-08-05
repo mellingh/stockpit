@@ -677,10 +677,11 @@ function Analysten({ a }: { a: Analyse }) {
           <div className="text-micro font-bold uppercase tracking-[0.14em] text-ink3">
             Kursziele der Analysten
           </div>
-          {/* Yahoo-Stil, überarbeitet (Micha, Runde 36): BEIDE Badges liegen ÜBER
-              der Skala — Ø in der oberen, Aktuell in der unteren Reihe (kollidieren
-              nie). Liegt der Wert außerhalb der Spanne (Marker am Rand geklemmt),
-              steht die Badge bündig am Rand; sonst exakt mittig über ihrem Marker. */}
+          {/* Yahoo-Stil (Micha, Runde 36/37): BEIDE Badges auf GLEICHER Höhe über
+              der Skala; nur wenn sie sich horizontal überlappen würden, rückt Ø
+              eine Reihe höher. Die Marker kreuzen die Linie mittig — so bleibt
+              auch bei randbündigen Badges Luft zwischen Badge und Strich.
+              Wert außerhalb der Spanne → Badge bündig am Rand, sonst mittig. */}
           {(() => {
             const posPct = (v: number) => Math.min(100, Math.max(0, ((v - t.low!) / (t.high! - t.low!)) * 100));
             const labelStyle = (v: number): React.CSSProperties => {
@@ -690,8 +691,10 @@ function Analysten({ a }: { a: Analyse }) {
               return { left: `${p}%`, transform: 'translateX(-50%)' };
             };
             const kurs = a.kurs.preis;
+            const gestaffelt =
+              t.mean != null && kurs != null && Math.abs(posPct(t.mean) - posPct(kurs)) < 22;
             return (
-              <div className="relative mx-2 mb-4 mt-[74px]">
+              <div className={cn('relative mx-2 mb-4', gestaffelt ? 'mt-[74px]' : 'mt-[46px]')}>
                 <div className="relative h-[3px] rounded-full bg-line-strong">
                   {/* Endpunkte */}
                   <span aria-hidden className="absolute left-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink3" />
@@ -699,12 +702,15 @@ function Analysten({ a }: { a: Analyse }) {
                   {t.mean != null && (
                     <>
                       <span
-                        className="absolute bottom-1/2 h-3.5 w-[3px] -translate-x-1/2 rounded bg-accent"
+                        className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-accent"
                         style={{ left: `${posPct(t.mean)}%` }}
                         title={`Ø-Kursziel ${fmtMoney(t.mean, a.currency)}`}
                       />
                       <div
-                        className="absolute bottom-[42px] whitespace-nowrap rounded-md border border-accent/60 bg-panel2 px-2 py-0.5 font-mono text-micro text-accent tnum"
+                        className={cn(
+                          'absolute whitespace-nowrap rounded-md border border-accent/60 bg-panel2 px-2 py-0.5 font-mono text-micro text-accent tnum',
+                          gestaffelt ? 'bottom-[42px]' : 'bottom-[14px]'
+                        )}
                         style={labelStyle(t.mean)}
                       >
                         Ø {fmtNum(t.mean)} ({fmtPct(t.upsidePct)})
@@ -714,7 +720,7 @@ function Analysten({ a }: { a: Analyse }) {
                   {kurs != null && (
                     <>
                       <span
-                        className="absolute bottom-1/2 h-3.5 w-[3px] -translate-x-1/2 rounded bg-ink"
+                        className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-ink"
                         style={{ left: `${posPct(kurs)}%` }}
                         title={`Aktueller Kurs ${fmtMoney(kurs, a.currency)}`}
                       />
