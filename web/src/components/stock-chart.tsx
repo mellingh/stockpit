@@ -35,6 +35,7 @@ export function StockChart({
   const sma50Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const sma200Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const priceZoomRef = useRef(1);
+  const dataLenRef = useRef(0);
   const linesRef = useRef<IPriceLine[]>([]);
   const lastBarRef = useRef<Candle | null>(null);
   const symRef = useRef<HTMLDivElement>(null);
@@ -171,6 +172,21 @@ export function StockChart({
     container.addEventListener('wheel', onWheel, { passive: false, capture: true });
     container.addEventListener('dblclick', onDblClick, true);
 
+    // Zoom-out-Klemme (Micha, Runde 25): ohne Grenze schrumpften die Kerzen beim
+    // Rauszoomen zu einem Klumpen zwischen Leerraum — wie TradingView endet der
+    // Raus-Zoom jetzt beim Gesamtbild (alle Kerzen + Rand), weiter raus geht nicht.
+    const RAND = 6; // Bars Luft links/rechts im Gesamtbild
+    let klemmt = false;
+    chart.timeScale().subscribeVisibleLogicalRangeChange((r) => {
+      const len = dataLenRef.current;
+      if (!r || klemmt || !len) return;
+      if (r.to - r.from > len - 1 + 2 * RAND + 0.5) {
+        klemmt = true;
+        chart.timeScale().setVisibleLogicalRange({ from: -RAND, to: len - 1 + RAND });
+        klemmt = false;
+      }
+    });
+
     chart.subscribeCrosshairMove((param) => {
       const bar = param?.seriesData?.get(candle) as Candle | undefined;
       if (!param?.time || !bar) {
@@ -219,10 +235,33 @@ export function StockChart({
     sma200Ref.current?.setData(data.sma200.map((p) => ({ ...p, time: p.time as unknown as UTCTimestamp })));
     chart.timeScale().applyOptions({ timeVisible: !!data.intraday, secondsVisible: false });
     priceZoomRef.current = 1;
-    chart.timeScale().fitContent();
+    dataLenRef.current = data.candles.length;
+    // Startansicht mit Luft nach rechts (Micha, Runde 25): fitContent() presste
+    // die heutige Kerze exakt an die Preisskala, die Kurs-Labels verdeckten sie.
+    // autoSize misst den Container ERST NACH diesem Effekt und verwirft dabei die
+    // Ansicht (deshalb fehlte in Runde 24 das rechte Chart-Ende) — darum wird die
+    // Startansicht nach dem Layout über einen ResizeObserver erneut angewendet.
+    const setzeStart = () => {
+      if (data.candles.length) {
+        chart.timeScale().setVisibleLogicalRange({ from: -1, to: data.candles.length - 1 + 6 });
+      } else {
+        chart.timeScale().fitContent();
+      }
+    };
+    setzeStart();
+    let ro: ResizeObserver | null = null;
+    if (containerRef.current) {
+      ro = new ResizeObserver(() => {
+        setzeStart();
+        ro?.disconnect();
+        ro = null;
+      });
+      ro.observe(containerRef.current);
+    }
 
     lastBarRef.current = data.candles[data.candles.length - 1] ?? null;
     setOhlc(lastBarRef.current, lastBarRef.current?.volume);
+    return () => ro?.disconnect();
   }, [data]);
 
   // Titelzeile + Preislinien

@@ -457,7 +457,12 @@ function IposTab() {
                 <THKopf className="cursor-help text-right" title="Gesamtwert der angebotenen Aktien (Emissionsvolumen)">
                   IPO-Wert
                 </THKopf>
-                <THKopf className="text-right">Preis ($)</THKopf>
+                <THKopf
+                  className="cursor-help text-right"
+                  title="Bei geplanten IPOs der vorgesehene Ausgabepreis bzw. die Spanne — der kann sich bis zur Preisfestsetzung noch ändern. Final ist der Preis erst mit Status „abgeschlossen“."
+                >
+                  Preis ($)
+                </THKopf>
                 <THKopf className="text-right">Status</THKopf>
               </tr>
             </thead>
@@ -479,14 +484,22 @@ function IposTab() {
                   </td>
                   <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.preis ?? '–'}</td>
                   <td className="py-2.5 text-right">
-                    <Badge variant={e.status === 'gepreist' ? 'pos' : 'neu'}>{e.status}</Badge>
+                    {/* Anzeige-Wording statt der API-Werte gepreist/erwartet (Micha, Runde 25):
+                        „abgeschlossen“ = Ausgabepreis final festgesetzt, „geplant“ = Termin steht,
+                        Preis ist noch der Vorschlag/die Spanne */}
+                    <Badge
+                      variant={e.status === 'gepreist' ? 'pos' : 'neu'}
+                      title={e.status === 'gepreist' ? 'Ausgabepreis wurde final festgesetzt' : 'Termin steht — Preis kann sich bis zur Festsetzung noch ändern'}
+                    >
+                      {e.status === 'gepreist' ? 'abgeschlossen' : 'geplant'}
+                    </Badge>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         ))}
-      <p className="mt-4 text-micro text-ink3">Frisch gepreiste und angekündigte Börsengänge — terminlose Anmeldungen erscheinen erst mit festem Datum.</p>
+      <p className="mt-4 text-micro text-ink3">Frisch abgeschlossene und geplante Börsengänge — terminlose Anmeldungen erscheinen erst mit festem Datum.</p>
     </>
   );
 }

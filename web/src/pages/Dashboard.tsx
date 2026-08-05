@@ -57,9 +57,9 @@ function StatCard({
 // ---------- Wichtige Termine ----------
 
 function wannVon(t: Termin) {
-  if (t.days === 0)
-    return `heute ${new Date(t.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
-  if (t.days === 1) return 'morgen';
+  const uhr = new Date(t.date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  if (t.days === 0) return `heute ${uhr}`;
+  if (t.days === 1) return `morgen ${uhr}`;
   return new Date(t.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
 }
 
@@ -68,9 +68,9 @@ function TerminWert({ t }: { t: Termin }) {
     <Link
       to={`/analyse?symbol=${encodeURIComponent(t.symbol!)}`}
       title={`${t.name} — ${t.typ}, ${fmtDate(t.date)}`}
-      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
+      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors hover:bg-panel2"
     >
-      <span className="w-[86px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
+      <span className="w-[96px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       {/* feste Spaltenbreite: sonst beginnt „Quartalszahlen" je nach Ticker-Länge woanders */}
       <span className="w-[68px] shrink-0">
         <Badge variant="chip">{t.symbol}</Badge>
@@ -105,9 +105,9 @@ function TerminMarkt({ t }: { t: Termin }) {
       // mehreren Ländern erscheinen (Arbeitslosenquote US + CA öffnete beide)
       to={`/kalender?${t.days === 0 ? '' : 'tag=woche&'}event=${encodeURIComponent(`${t.date}~${t.name}~${t.land ?? ''}`)}`}
       title={`${t.name} — Prognose ${t.prognose ?? '–'}, vorher ${t.vorher ?? '–'}`}
-      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors last:border-b-0 hover:bg-panel2"
+      className="flex items-center gap-3 border-b border-line py-2.5 text-small text-ink transition-colors hover:bg-panel2"
     >
-      <span className="w-[86px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
+      <span className="w-[96px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       <span className="w-[56px] shrink-0 whitespace-nowrap" title={t.waehrung ?? ''}><span className="mr-1.5 text-lg leading-none">{flagge(t.land)}</span>{t.land ?? t.waehrung}</span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
         {kurzTitel}
@@ -449,7 +449,9 @@ function Positionen({ d }: { d: Dashboard }) {
               <Fragment key={p.id}>
                 {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (p.sektor ?? 'Sonstige')) && (
                   <tr className="border-b border-line">
-                    <td colSpan={7} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-accent first:pt-1">
+                    {/* Luft über der Gruppe: erste Gruppe knapp, alle weiteren deutlich
+                        abgesetzt (Micha, Runde 25 — „sehen, wo sich die Gruppen trennen") */}
+                    <td colSpan={7} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
                       {p.sektor ?? 'Sonstige'}
                     </td>
                   </tr>
@@ -556,7 +558,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               <Fragment key={w.symbol}>
                 {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
                   <tr className="border-b border-line">
-                    <td colSpan={6} className="pb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-accent">
+                    <td colSpan={6} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
                       {w.sektor ?? 'Sonstige'}
                     </td>
                   </tr>

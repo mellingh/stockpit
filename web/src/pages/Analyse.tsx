@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useSetParam } from '@/lib/router';
-import { Search } from 'lucide-react';
+import { Check, Plus, Search } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -128,7 +128,7 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
             {eigene.map((w, i, arr) => (
               <Fragment key={w.symbol}>
                 {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
-                  <div className={cn('text-micro font-bold uppercase tracking-[0.14em] text-accent', i > 0 && 'mt-2')}>
+                  <div className={cn('text-micro font-bold uppercase tracking-[0.14em] text-accent', i > 0 && 'mt-4')}>
                     {w.sektor ?? 'Sonstige'}
                   </div>
                 )}
@@ -159,8 +159,9 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
 // ---------- Watchlist-Schnellzugriff im Report-Kopf ----------
 
 /**
- * Sitzt oben in der Seitenspalte (über Meinungen & Links), volle Spaltenbreite —
- * alle drei Zustände haben exakt dieselbe Form und Höhe (Micha, Runde 24).
+ * Sitzt oben in der Seitenspalte (über Meinungen & Links) — kompakt auf der
+ * 32er-Reihe wie „+ Hinzufügen" in der Links-Karte, nicht spaltenbreit
+ * (Micha, Runde 25). Alle drei Zustände formgleich, Icons statt Text-Häkchen.
  */
 function WatchButton({ symbol }: { symbol: string }) {
   const { data: d } = useDashboard();
@@ -174,8 +175,8 @@ function WatchButton({ symbol }: { symbol: string }) {
   // gleiche Form wie der Button, aber sichtbar keine Aktion
   if (imDepot) {
     return (
-      <div className="flex h-control-md w-full items-center justify-center rounded-md border border-line bg-panel2 text-small font-medium text-ink2">
-        ✓ Im Depot
+      <div className="inline-flex h-control-sm items-center justify-self-start gap-1.5 rounded-md border border-line bg-panel2 px-3 text-small font-medium text-ink2">
+        <Check size={14} aria-hidden className="text-up" /> Im Depot
       </div>
     );
   }
@@ -183,23 +184,25 @@ function WatchButton({ symbol }: { symbol: string }) {
     return (
       <Button
         variant="ghost"
-        className="w-full"
+        size="sm"
+        className="justify-self-start gap-1.5"
         title="Von der Watchlist entfernen"
         onClick={() => entfernen.mutate(undefined)}
         disabled={entfernen.isPending}
       >
-        ✓ Beobachtet
+        <Check size={14} aria-hidden className="text-up" /> Hinzugefügt
       </Button>
     );
   }
   return (
     <Button
       variant="action"
-      className="w-full"
+      size="sm"
+      className="justify-self-start gap-1.5"
       onClick={() => hinzufuegen.mutate(undefined)}
       disabled={hinzufuegen.isPending || !d}
     >
-      + Beobachten
+      <Plus size={14} aria-hidden /> Zur Watchlist hinzufügen
     </Button>
   );
 }
