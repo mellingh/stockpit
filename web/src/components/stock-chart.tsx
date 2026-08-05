@@ -35,6 +35,9 @@ export function StockChart({
   const sma50Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const sma200Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const priceZoomRef = useRef(1);
+  // Manuell verschobene Preisspanne (TradingView-Modus): gesetzt, sobald der
+  // Nutzer vertikal zieht — ab dann gilt diese Spanne statt der Auto-Skalierung
+  const priceFixRef = useRef<{ min: number; max: number } | null>(null);
   const dataLenRef = useRef(0);
   const linesRef = useRef<IPriceLine[]>([]);
   const lastBarRef = useRef<Candle | null>(null);
@@ -138,9 +141,12 @@ export function StockChart({
       crosshairMarkerVisible: false,
     });
 
-    // Preisachsen-Zoom: Autoscale-Spanne um die Mitte strecken/stauchen
+    // Preisachsen-Zoom + manuelle Preisspanne: die feste Spanne (nach vertikalem
+    // Ziehen) gewinnt; sonst wird die Auto-Spanne um die Mitte gestreckt/gestaucht
     candle.applyOptions({
       autoscaleInfoProvider: (original: () => { priceRange: { minValue: number; maxValue: number } } | null) => {
+        const fix = priceFixRef.current;
+        if (fix) return { priceRange: { minValue: fix.min, maxValue: fix.max } };
         const res = original();
         if (!res?.priceRange || priceZoomRef.current === 1) return res;
         const mitte = (res.priceRange.minValue + res.priceRange.maxValue) / 2;
@@ -148,6 +154,15 @@ export function StockChart({
         return { ...res, priceRange: { minValue: mitte - halb, maxValue: mitte + halb } };
       },
     });
+    // Die SMAs hängen an derselben Preisskala: sobald der Nutzer zoomt/verschiebt,
+    // dürfen sie die Spanne nicht wieder aufweiten (Autoscale nimmt die Vereinigung)
+    const smaProvider = (original: () => { priceRange: { minValue: number; maxValue: number } } | null) =>
+      priceFixRef.current || priceZoomRef.current !== 1 ? null : original();
+    sma50.applyOptions({ autoscaleInfoProvider: smaProvider });
+    sma200.applyOptions({ autoscaleInfoProvider: smaProvider });
+
+    const preisskalaNeu = () => chart.priceScale('right').applyOptions({ autoScale: true });
+    const paneHoehe = () => container.clientHeight - chart.timeScale().height();
     const ueberPreisachse = (e: MouseEvent) => {
       const x = e.clientX - container.getBoundingClientRect().left;
       return x >= container.clientWidth - chart.priceScale('right').width();
@@ -156,21 +171,64 @@ export function StockChart({
       if (!ueberPreisachse(e)) return;
       e.preventDefault();
       e.stopPropagation();
-      // Weite Grenzen: bei 15x lief das Rad gegen die Wand und reagierte
-      // nicht mehr — danach musste man per Drag weiter (Micha, Runde 23)
-      priceZoomRef.current = Math.min(
-        Math.max(priceZoomRef.current * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 0.02),
-        80
-      );
-      chart.priceScale('right').applyOptions({ autoScale: true });
+      const faktor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+      const fix = priceFixRef.current;
+      if (fix) {
+        const mitte = (fix.min + fix.max) / 2;
+        const halb = ((fix.max - fix.min) / 2) * faktor;
+        priceFixRef.current = { min: mitte - halb, max: mitte + halb };
+      } else {
+        // Weite Grenzen: bei 15x lief das Rad gegen die Wand und reagierte
+        // nicht mehr — danach musste man per Drag weiter (Micha, Runde 23)
+        priceZoomRef.current = Math.min(Math.max(priceZoomRef.current * faktor, 0.02), 80);
+      }
+      preisskalaNeu();
     };
     const onDblClick = (e: MouseEvent) => {
       if (!ueberPreisachse(e)) return;
       priceZoomRef.current = 1;
-      chart.priceScale('right').applyOptions({ autoScale: true });
+      priceFixRef.current = null;
+      preisskalaNeu();
     };
     container.addEventListener('wheel', onWheel, { passive: false, capture: true });
     container.addEventListener('dblclick', onDblClick, true);
+
+    // Vertikales Verschieben (Micha, Runde 26): im gezoomten Chart ließ sich die
+    // Ansicht nur seitlich bewegen. Wie bei TradingView löst ein vertikaler Zug
+    // im Kerzenbereich die Auto-Skalierung und verschiebt die Preisspanne mit —
+    // seitliches Ziehen allein lässt sie in Ruhe (5px-Schwelle).
+    let panY: number | null = null;
+    let panVertikal = 0;
+    const onPointerDown = (e: PointerEvent) => {
+      const imPane = e.clientY - container.getBoundingClientRect().top < paneHoehe();
+      if (e.button !== 0 || ueberPreisachse(e) || !imPane) return;
+      panY = e.clientY;
+      panVertikal = 0;
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (panY == null) return;
+      const dy = e.clientY - panY;
+      panY = e.clientY;
+      panVertikal += Math.abs(dy);
+      if (!priceFixRef.current) {
+        if (panVertikal < 5) return;
+        const oben = candle.coordinateToPrice(0);
+        const unten = candle.coordinateToPrice(paneHoehe());
+        if (oben == null || unten == null) return;
+        priceFixRef.current = { min: unten as number, max: oben as number };
+      }
+      if (dy === 0) return;
+      const fix = priceFixRef.current;
+      const preisProPixel = (fix.max - fix.min) / paneHoehe();
+      priceFixRef.current = { min: fix.min + dy * preisProPixel, max: fix.max + dy * preisProPixel };
+      preisskalaNeu();
+    };
+    const onPointerUp = () => {
+      panY = null;
+    };
+    container.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
 
     // Zoom-out-Klemme (Micha, Runde 25): ohne Grenze schrumpften die Kerzen beim
     // Rauszoomen zu einem Klumpen zwischen Leerraum — wie TradingView endet der
@@ -208,6 +266,9 @@ export function StockChart({
     return () => {
       container.removeEventListener('wheel', onWheel, true);
       container.removeEventListener('dblclick', onDblClick, true);
+      container.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
       chart.remove();
       chartRef.current = null;
     };
@@ -235,6 +296,7 @@ export function StockChart({
     sma200Ref.current?.setData(data.sma200.map((p) => ({ ...p, time: p.time as unknown as UTCTimestamp })));
     chart.timeScale().applyOptions({ timeVisible: !!data.intraday, secondsVisible: false });
     priceZoomRef.current = 1;
+    priceFixRef.current = null;
     dataLenRef.current = data.candles.length;
     // Startansicht mit Luft nach rechts (Micha, Runde 25): fitContent() presste
     // die heutige Kerze exakt an die Preisskala, die Kurs-Labels verdeckten sie.

@@ -482,7 +482,10 @@ function IposTab() {
                   <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
                     {e.volumenUsd != null ? `${fmtCompact(e.volumenUsd)} $` : '–'}
                   </td>
-                  <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">{e.preis ?? '–'}</td>
+                  {/* Spannen mit Luft um den Bindestrich: „15.00 – 17.00" statt „15.00-17.00" */}
+                  <td className="py-2.5 text-right font-mono text-small text-ink2 tnum">
+                    {e.preis ? e.preis.replace(/(\d)\s*[-–]\s*(\d)/, '$1 – $2') : '–'}
+                  </td>
                   <td className="py-2.5 text-right">
                     {/* Anzeige-Wording statt der API-Werte gepreist/erwartet (Micha, Runde 25):
                         „abgeschlossen“ = Ausgabepreis final festgesetzt, „geplant“ = Termin steht,

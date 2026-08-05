@@ -159,9 +159,9 @@ function Startansicht({ onPick }: { onPick: (s: string) => void }) {
 // ---------- Watchlist-Schnellzugriff im Report-Kopf ----------
 
 /**
- * Sitzt oben in der Seitenspalte (über Meinungen & Links) — kompakt auf der
- * 32er-Reihe wie „+ Hinzufügen" in der Links-Karte, nicht spaltenbreit
- * (Micha, Runde 25). Alle drei Zustände formgleich, Icons statt Text-Häkchen.
+ * Sitzt oben rechts IN der Chart-Karte, in der Kurs-Zeile (Micha, Runde 26) —
+ * dezent in der „Im Depot"-Chip-Optik (subtle, 32er-Reihe), kurzes Label.
+ * Ein separater Button über der Seitenspalte verschob die Kachel-Oberkanten.
  */
 function WatchButton({ symbol }: { symbol: string }) {
   const { data: d } = useDashboard();
@@ -175,7 +175,7 @@ function WatchButton({ symbol }: { symbol: string }) {
   // gleiche Form wie der Button, aber sichtbar keine Aktion
   if (imDepot) {
     return (
-      <div className="inline-flex h-control-sm items-center justify-self-start gap-1.5 rounded-md border border-line bg-panel2 px-3 text-small font-medium text-ink2">
+      <div className="ml-auto inline-flex h-control-sm items-center gap-1.5 self-center rounded-md border border-line bg-panel2 px-3 text-small font-medium text-ink2">
         <Check size={14} aria-hidden className="text-up" /> Im Depot
       </div>
     );
@@ -183,9 +183,9 @@ function WatchButton({ symbol }: { symbol: string }) {
   if (beobachtet) {
     return (
       <Button
-        variant="ghost"
+        variant="subtle"
         size="sm"
-        className="justify-self-start gap-1.5"
+        className="ml-auto gap-1.5 self-center"
         title="Von der Watchlist entfernen"
         onClick={() => entfernen.mutate(undefined)}
         disabled={entfernen.isPending}
@@ -196,13 +196,14 @@ function WatchButton({ symbol }: { symbol: string }) {
   }
   return (
     <Button
-      variant="action"
+      variant="subtle"
       size="sm"
-      className="justify-self-start gap-1.5"
+      className="ml-auto gap-1.5 self-center"
+      title="Zur Watchlist hinzufügen"
       onClick={() => hinzufuegen.mutate(undefined)}
       disabled={hinzufuegen.isPending || !d}
     >
-      <Plus size={14} aria-hidden /> Zur Watchlist hinzufügen
+      <Plus size={14} aria-hidden className="text-accent" /> Watchlist
     </Button>
   );
 }
@@ -912,6 +913,7 @@ function Report({ symbol }: { symbol: string }) {
                 </span>
               </span>
             )}
+            <WatchButton symbol={a.symbol} />
           </div>
           <div className="flex flex-wrap items-center gap-1.5 px-1 pb-3">
             {RANGES.map(([r, label]) => (
@@ -950,7 +952,6 @@ function Report({ symbol }: { symbol: string }) {
         </Panel>
         </div>
         <div className="grid content-start gap-5">
-          <WatchButton symbol={a.symbol} />
           <LinksCard symbol={a.symbol} name={a.name} />
         </div>
       </div>
