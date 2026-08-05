@@ -14,7 +14,7 @@ import { Donut, CAT_COLORS } from '@/components/donut';
 import { NewsItem } from '@/components/news';
 import { api, type Dashboard, type Position, type SearchResult, type Termin, type Ausserboerslich } from '@/lib/api';
 import { useDashboard, useNewsfeed, usePortfolioMutation } from '@/lib/queries';
-import { fmtEur, fmtEps, fmtMoney, fmtPct, fmtDate, signClass } from '@/lib/format';
+import { fmtEur, fmtEps, fmtMoney, fmtMoneyGanz, fmtPct, fmtDate, signClass } from '@/lib/format';
 import { flagge } from '@/lib/event-lexikon';
 import { cn } from '@/lib/utils';
 
@@ -145,6 +145,82 @@ function KursInEur({
   const rate = fx?.[waehrung];
   if (rate == null) return null;
   return <span className="block text-micro text-ink3 tnum">≈ {fmtEur(preis * rate)}</span>;
+}
+
+/** Wechselkurs nach EUR — EUR selbst zählt als 1, Unbekanntes als null */
+function rateEur(fx: Record<string, number | null>, w: string | null | undefined): number | null {
+  if (!w) return null;
+  return w === 'EUR' ? 1 : (fx?.[w] ?? null);
+}
+
+/**
+ * Positions-Geldzellen in der KAUFwährung (Micha, Runde 29): Kurs, Wert und G/V
+ * stehen primär in der Währung, in der gekauft wurde (buyCurrency, sonst
+ * Notierungswährung) — darunter klein die ≈-Umrechnung: in EUR, bzw. bei
+ * EUR-Käufen fremdnotierter Werte die Notierungswährung. So decken sich die
+ * Zahlen mit dem Broker-Depot.
+ */
+function KursKauf({ p, fx }: { p: Position; fx: Record<string, number | null> }) {
+  const k = p.buyCurrency || p.waehrung;
+  const rN = rateEur(fx, p.waehrung);
+  const rK = rateEur(fx, k);
+  if (p.preis != null && k && k !== p.waehrung && rN != null && rK != null) {
+    return (
+      <>
+        {fmtMoney((p.preis * rN) / rK, k)}
+        <span className="block text-micro text-ink3 tnum">≈ {fmtMoney(p.preis, p.waehrung)}</span>
+      </>
+    );
+  }
+  return (
+    <>
+      {fmtMoney(p.preis, p.waehrung)}
+      <KursInEur preis={p.preis} waehrung={p.waehrung} fx={fx} />
+    </>
+  );
+}
+
+function BetragKauf({
+  eur,
+  p,
+  fx,
+  suffix,
+}: {
+  eur: number | null;
+  p: Position;
+  fx: Record<string, number | null>;
+  /** steht inline HINTER dem Primärbetrag (z. B. die G/V-Prozentklammer) */
+  suffix?: React.ReactNode;
+}) {
+  const k = p.buyCurrency || p.waehrung;
+  const rK = rateEur(fx, k);
+  const rN = rateEur(fx, p.waehrung);
+  if (eur == null || !k || rK == null)
+    return (
+      <>
+        {fmtEur(eur)}
+        {suffix}
+      </>
+    );
+  if (k === 'EUR') {
+    // in EUR gekauft: EUR primär, bei Fremdnotierung ≈ Notierungswährung darunter
+    return (
+      <>
+        {fmtEur(eur)}
+        {suffix}
+        {p.waehrung && p.waehrung !== 'EUR' && rN != null && (
+          <span className="block text-micro text-ink3 tnum">≈ {fmtMoneyGanz(eur / rN, p.waehrung)}</span>
+        )}
+      </>
+    );
+  }
+  return (
+    <>
+      {fmtMoneyGanz(eur / rK, k)}
+      {suffix}
+      <span className="block text-micro text-ink3 tnum">≈ {fmtEur(eur)}</span>
+    </>
+  );
 }
 
 // ---------- Pre-/After-Market-Mini ----------
@@ -431,7 +507,7 @@ function Positionen({ d }: { d: Dashboard }) {
               <TH className="w-[140px] pl-5" title="Kursverlauf der letzten 30 Tage">
                 Verlauf
               </TH>
-              <TH className="w-[108px] text-right">Wert (EUR)</TH>
+              <TH className="w-[108px] text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
               <TH className="w-[190px] text-right">G/V</TH>
               <TH className="w-[44px]" />
             </tr>
@@ -474,8 +550,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   </div>
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
-                  {fmtMoney(p.preis, p.waehrung)}
-                  <KursInEur preis={p.preis} waehrung={p.waehrung} fx={d.fx} />
+                  <KursKauf p={p} fx={d.fx} />
                 </td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.tagesPct))}>
                   {fmtPct(p.tagesPct)}
@@ -484,9 +559,16 @@ function Positionen({ d }: { d: Dashboard }) {
                 <td className="py-3 pl-5">
                   <Sparkline values={p.sparkline} />
                 </td>
-                <td className="py-3 text-right font-mono text-small tnum">{fmtEur(p.valueEur)}</td>
+                <td className="py-3 text-right font-mono text-small tnum">
+                  <BetragKauf eur={p.valueEur} p={p} fx={d.fx} />
+                </td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.gewinnEur))}>
-                  {fmtEur(p.gewinnEur)} <span className="text-ink3">({fmtPct(p.gewinnPct)})</span>
+                  <BetragKauf
+                    eur={p.gewinnEur}
+                    p={p}
+                    fx={d.fx}
+                    suffix={<span className="text-ink3"> ({fmtPct(p.gewinnPct)})</span>}
+                  />
                 </td>
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <span className="flex items-center gap-0.5 opacity-30 transition-opacity group-hover:opacity-100">

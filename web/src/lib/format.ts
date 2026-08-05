@@ -17,6 +17,16 @@ export const fmtMoney = (v: number | null | undefined, currency?: string | null)
     ? '–'
     : new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency || 'EUR' }).format(v);
 
+/** Ganze Beträge (Positionswert, G/V) in beliebiger Währung — wie fmtEur ohne Cents */
+export const fmtMoneyGanz = (v: number | null | undefined, currency?: string | null) =>
+  v == null
+    ? '–'
+    : new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: currency || 'EUR',
+        maximumFractionDigits: 0,
+      }).format(v);
+
 export function fmtPct(v: number | null | undefined, signed = true) {
   if (v == null || Number.isNaN(v)) return '–';
   const s = signed && v > 0 ? '+' : '';

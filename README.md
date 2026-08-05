@@ -87,7 +87,7 @@ Der Empfänger startet mit leerem Portfolio und kann eigene X-Accounts für die 
 - Das KI-Modell versteht Englisch am besten (Finanz-News sind überwiegend englisch);
   für deutsche Feeds nutzt es ein mehrsprachiges Zweitmodell.
 
-**Keine Anlageberatung.** Alle Angaben ohne Gewähr — die App ist ein Recherche-Werkzeug, keine Empfehlung.
+**Keine Anlageberatung.** Alle Angaben ohne Gewähr — die App ist ein Recherche-Werkzeug, keine Empfehlung. Gewinn/Verlust sind **Bruttowerte**: Steuern und Ordergebühren werden nicht abgezogen.
 
 ## Technik (für Neugierige)
 
