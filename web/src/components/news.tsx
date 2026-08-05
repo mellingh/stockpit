@@ -156,7 +156,9 @@ export function NewsItem({ n, zeigeChips = false }: { n: NewsItemT; zeigeChips?:
         <Accordion type="single" collapsible className="-mb-2">
           <AccordionItem value="einordnung" className="border-0">
             <AccordionTrigger className="h-control-sm">Einordnung</AccordionTrigger>
-            <AccordionContent>
+            {/* pb-2 gleicht das -mb-2 der Accordion aus: aufgeklappt ist der Abstand
+                unter der Box exakt so groß wie zugeklappt unter dem Trigger (Runde 34) */}
+            <AccordionContent className="pb-2">
               <BulletListe
                 punkte={punkte}
                 schluss={fazit && (

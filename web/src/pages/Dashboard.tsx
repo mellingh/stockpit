@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton, SkeletonRows, SkeletonText } from '@/components/ui/skeleton';
 import { SymbolSearch } from '@/components/symbol-search';
 import { Donut, CAT_COLORS } from '@/components/donut';
+import { ScrollListe } from '@/components/scroll-liste';
 import { NewsItem } from '@/components/news';
 import { api, type Dashboard, type Position, type SearchResult, type Termin, type Ausserboerslich } from '@/lib/api';
 import { useDashboard, useNewsfeed, usePortfolioMutation } from '@/lib/queries';
@@ -504,7 +505,7 @@ function Positionen({ d }: { d: Dashboard }) {
           Über „+ Position hinzufügen" unten legst du deine erste an — die Kurse laufen dann automatisch ein.
         </Empty>
       ) : (
-        <div className="scroll-dezent max-h-[570px] overflow-y-auto">
+        <ScrollListe className="max-h-[570px]">
         <table className="w-full table-fixed border-collapse text-small">
           <thead className="sticky top-0 z-10 bg-panel">
             <tr>
@@ -582,7 +583,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   />
                 </td>
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
-                  <span className="flex items-center gap-0.5 opacity-30 transition-opacity group-hover:opacity-100">
+                  <span className="flex items-center justify-end gap-1 opacity-30 transition-opacity group-hover:opacity-100">
                     <Button variant="icon" size="icon" title="Stückzahl / Ø-Kaufkurs ändern" onClick={() => setBearbeite(p)}>
                       <Pencil size={14} />
                     </Button>
@@ -602,7 +603,7 @@ function Positionen({ d }: { d: Dashboard }) {
             ))}
           </tbody>
         </table>
-        </div>
+        </ScrollListe>
       )}
       <Button variant="action" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
         + Position hinzufügen
@@ -624,7 +625,7 @@ function Watchlist({ d }: { d: Dashboard }) {
       {d.watchlist.length === 0 ? (
         <Empty>Keine beobachteten Werte — über „+ Wert beobachten" unten hinzufügen.</Empty>
       ) : (
-        <div className="scroll-dezent max-h-[570px] overflow-y-auto">
+        <ScrollListe className="max-h-[570px]">
         <table className="w-full table-fixed border-collapse text-small">
           <thead className="sticky top-0 z-10 bg-panel">
             <tr>
@@ -696,7 +697,7 @@ function Watchlist({ d }: { d: Dashboard }) {
             ))}
           </tbody>
         </table>
-        </div>
+        </ScrollListe>
       )}
       <Button variant="action" size="sm" className="mt-4" onClick={() => setAddOffen(true)}>
         + Wert beobachten
@@ -792,11 +793,11 @@ function NewsLage() {
             ))}
             {/* Gekappte Höhe + Scrollen statt „Mehr anzeigen" (Micha, Runde 32) —
                 die Karte wächst nicht mehr endlos unter die Allokation hinaus */}
-            <div className="scroll-dezent -mr-2 max-h-[820px] overflow-y-auto pr-2">
+            <ScrollListe className="max-h-[820px]">
               {data.items.map((n, i) => (
                 <NewsItem key={`${n.link}-${i}`} n={n} zeigeChips />
               ))}
-            </div>
+            </ScrollListe>
           </>
         ))}
     </Panel>
@@ -923,12 +924,11 @@ export default function DashboardPage() {
                   sichtbar sind ~5 Zeilen (5 × 45px), der Rest scrollt (Micha, Runde 32) */}
               <div className="grid grid-cols-1 gap-x-10 gap-y-4 lg:grid-cols-2">
                 <div>
-                  <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Deine Werte</div>
+                  {/* „Deine Werte" ist raus (Micha, Runde 34) — die Gruppen Positionen |
+                      Watchlist stehen direkt in der Markt-Events-Optik (grau statt accent),
+                      jede für sich streng nach Zeit sortiert, das Nächste zuerst */}
                   {d.termine.filter((t) => t.typ !== 'Markt').length ? (
-                    <div className="scroll-dezent max-h-[225px] overflow-y-auto">
-                      {/* Unterteilung wie die Sektor-Gruppen der Tabellen (Micha, Runde 33):
-                          erst die gehaltenen Positionen, dann die Watchlist — jede Gruppe
-                          für sich nach Zeit sortiert, das Nächste zuerst */}
+                    <ScrollListe className="max-h-[270px]">
                       {(['Positionen', 'Watchlist'] as const).map((gruppe) => {
                         const imDepot = new Set(d.positions.map((p) => p.symbol));
                         const eintraege = d.termine
@@ -938,14 +938,14 @@ export default function DashboardPage() {
                         if (!eintraege.length) return null;
                         return (
                           <Fragment key={gruppe}>
-                            <div className="pb-1.5 pt-3 text-micro font-bold uppercase tracking-[0.14em] text-accent first:pt-0">
+                            <div className="mb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-ink3 first:pt-0">
                               {gruppe}
                             </div>
                             {eintraege.map((t, i) => <TerminWert key={i} t={t} />)}
                           </Fragment>
                         );
                       })}
-                    </div>
+                    </ScrollListe>
                   ) : (
                     <p className="py-2 text-small text-ink3">Keine Termine deiner Werte.</p>
                   )}
@@ -953,12 +953,12 @@ export default function DashboardPage() {
                 <div>
                   <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Markt-Events</div>
                   {d.termine.filter((t) => t.typ === 'Markt').length ? (
-                    <div className="scroll-dezent max-h-[225px] overflow-y-auto">
+                    <ScrollListe className="max-h-[225px]">
                       {d.termine
                         .filter((t) => t.typ === 'Markt')
                         .sort((a, b) => +new Date(a.date) - +new Date(b.date))
                         .map((t, i) => <TerminMarkt key={i} t={t} />)}
-                    </div>
+                    </ScrollListe>
                   ) : (
                     <p className="py-2 text-small text-ink3">Keine großen Markt-Events.</p>
                   )}

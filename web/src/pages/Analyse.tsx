@@ -14,6 +14,7 @@ const StockChart = lazy(() =>
   import('@/components/stock-chart').then((m) => ({ default: m.StockChart }))
 );
 import { LinksCard } from '@/components/links-card';
+import { ScrollListe } from '@/components/scroll-liste';
 import { RadarChart } from '@/components/radar';
 import { NewsItem } from '@/components/news';
 import { api, type Analyse, type Rating, type SnowflakePunkt } from '@/lib/api';
@@ -746,7 +747,7 @@ function Historie({ a }: { a: Analyse }) {
   return (
     <Panel>
       <PanelTitle>Analysten-Historie</PanelTitle>
-      <div className="scroll-dezent max-h-[240px] overflow-y-auto">
+      <ScrollListe className="max-h-[240px]">
       <table className="w-full border-collapse text-small">
         <thead className="sticky top-0 z-10 bg-panel">
           <tr className="text-left text-micro font-bold uppercase tracking-[0.14em] text-ink3">
@@ -781,7 +782,7 @@ function Historie({ a }: { a: Analyse }) {
           ))}
         </tbody>
       </table>
-      </div>
+      </ScrollListe>
       {!hatKursziele && (
         <p className="mt-3 rounded-md border border-line bg-panel2 px-3 py-2 text-micro text-ink3">
           Für diesen Wert sind keine Kursziele je Bank frei verfügbar — die Konsens-Spanne steht im Analysten-Panel.
@@ -834,7 +835,7 @@ function Extra({ a }: { a: Analyse }) {
             Meta-Zeile oben (rechts das Datum), großer Titel, Badge-Zeile darunter */}
         <PanelTitle>Studien-Pipeline</PanelTitle>
         {/* ~5 Studien sichtbar, der Rest scrollt (Micha, Runde 32) */}
-        <div className="scroll-dezent -mr-2 max-h-[620px] overflow-y-auto pr-2">
+        <ScrollListe className="max-h-[620px]">
         {a.trials.map((t, i) => (
           <article key={i} className="grid gap-2 border-b border-line py-4 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2.5 font-mono text-micro uppercase tracking-wider text-ink3">
@@ -858,7 +859,7 @@ function Extra({ a }: { a: Analyse }) {
             </div>
           </article>
         ))}
-        </div>
+        </ScrollListe>
       </Panel>
     );
   }
@@ -1034,11 +1035,11 @@ function Report({ symbol }: { symbol: string }) {
           <Empty>Keine aktuellen News gefunden.</Empty>
         ) : (
           /* ~5 News sichtbar, der Rest scrollt — statt „Mehr anzeigen" (Micha, Runde 32) */
-          <div className="scroll-dezent -mr-2 max-h-[820px] overflow-y-auto pr-2">
+          <ScrollListe className="max-h-[820px]">
             {a.news.map((n, i) => (
               <NewsItem key={`${n.link}-${i}`} n={n} />
             ))}
-          </div>
+          </ScrollListe>
         )}
       </Panel>
     </div>
