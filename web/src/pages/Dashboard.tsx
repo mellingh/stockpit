@@ -621,7 +621,12 @@ function Positionen({ d }: { d: Dashboard }) {
                   dafür Ø Kauf und mehr Luft für Wert/G/V/Aktionen. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH className="w-[104px] text-right">Kurs</TH>
-              <TH className="w-[116px] text-right">Heute</TH>
+              <TH
+                className="w-[116px] cursor-help text-right"
+                title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
+              >
+                % heute
+              </TH>
               <TH className="w-[104px] text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
                 Ø Kauf
               </TH>
@@ -739,7 +744,12 @@ function Watchlist({ d }: { d: Dashboard }) {
                   untereinander stehen. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH className="w-[104px] text-right">Kurs</TH>
-              <TH className="w-[116px] text-right">Heute</TH>
+              <TH
+                className="w-[116px] cursor-help text-right"
+                title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
+              >
+                % heute
+              </TH>
               <TH className="w-[422px]" />
               <TH className="w-[64px]" />
             </tr>
