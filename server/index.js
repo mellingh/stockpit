@@ -161,6 +161,39 @@ function ausserboerslich(quote) {
   return null;
 }
 
+/**
+ * Fallback (Runde 39): Yahoo liefert aus der EU oft KEINE Pre-/Post-Werte
+ * (marketState=PRE, aber preMarketPrice fehlt — auch in quoteSummary/chart).
+ * stockanalysis.com springt ein: /api/quotes/s/<ticker> hat `ep` (extended
+ * price), `ecp` (%), `es` ("Pre-market"/"After-hours"), `ets` (Zeitstempel).
+ * Nur nackte US-Ticker; 1 min Cache wie die Quotes.
+ */
+function prepostFallback(symbol, quote) {
+  const state = quote?.marketState || '';
+  if (!/^(PRE|POST|CLOSED)/.test(state) || quote?.hasPrePostMarketData === false) return Promise.resolve(null);
+  if (/[.^=]/.test(symbol)) return Promise.resolve(null);
+  return cached(`prepost:${symbol}`, MINUTE, async () => {
+    try {
+      const res = await fetch(`https://stockanalysis.com/api/quotes/s/${encodeURIComponent(symbol)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      });
+      if (!res.ok) return null;
+      const { data } = await res.json();
+      if (!data || data.e !== true || data.ep == null || !data.es) return null;
+      // veraltete Extended-Daten (Wochenende) nicht als aktuell ausgeben
+      if (data.ets && Date.now() - data.ets > 18 * 60 * 60 * 1000) return null;
+      return { phase: /pre/i.test(data.es) ? 'pre' : 'post', preis: data.ep, pct: data.ecp ?? null };
+    } catch {
+      return null;
+    }
+  });
+}
+
+async function getAusserboerslich(symbol, quote) {
+  if (!quote) return null;
+  return ausserboerslich(quote) ?? (await prepostFallback(symbol, quote));
+}
+
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
     console.error(`[api] ${req.path}:`, err.message);
@@ -468,7 +501,7 @@ app.get(
         marktkap: quote.marketCap ?? null,
         zeit: quote.regularMarketTime,
         boerse: quote.fullExchangeName,
-        ausserboerslich: ausserboerslich(quote),
+        ausserboerslich: await getAusserboerslich(symbol, quote),
       },
       sektor: profile.sector ? SEKTOR_DE[profile.sector] ?? profile.sector : null,
       branche: brancheDeutsch(profile.industry ?? null),
@@ -553,7 +586,7 @@ app.get(
           preis: price,
           waehrung: quote?.currency ?? null,
           tagesPct: quote?.regularMarketChangePercent ?? null,
-          ausserboerslich: quote ? ausserboerslich(quote) : null,
+          ausserboerslich: await getAusserboerslich(pos.symbol, quote),
           valueEur,
           gewinnEur: valueEur != null && costEur != null ? valueEur - costEur : null,
           gewinnPct: valueEur != null && costEur ? ((valueEur - costEur) / costEur) * 100 : null,
@@ -581,7 +614,7 @@ app.get(
           preis: quote?.regularMarketPrice ?? null,
           waehrung: quote?.currency ?? null,
           tagesPct: quote?.regularMarketChangePercent ?? null,
-          ausserboerslich: quote ? ausserboerslich(quote) : null,
+          ausserboerslich: await getAusserboerslich(w.symbol, quote),
           sparkline,
         };
       })
