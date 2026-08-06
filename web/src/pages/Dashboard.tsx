@@ -275,8 +275,10 @@ function PrepostSumme({ d }: { d: Dashboard }) {
   }
   if (!phase || !basis) return null;
   const pct = (delta / basis) * 100;
+  // klein NEBEN dem grossen Betrag (Micha, Runde 40) — die Zeile unter
+  // "zum Vortag" machte die Kachel hoeher als ihre Nachbarn
   return (
-    <span className={cn('block', signClass(delta))}>
+    <span className={cn('ml-2.5 font-mono text-small font-medium tnum', signClass(delta))}>
       {phase === 'pre' ? 'Pre-Market' : 'Nachbörslich'} {delta >= 0 ? '+' : ''}
       {fmtEur(delta)} ({fmtPct(pct)})
     </span>
@@ -566,12 +568,12 @@ function Positionen({ d }: { d: Dashboard }) {
                   dafür Ø Kauf und mehr Luft für Wert/G/V/Aktionen. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH className="w-[104px] text-right">Kurs</TH>
-              <TH className="w-[96px] text-right">Heute</TH>
+              <TH className="w-[116px] text-right">Heute</TH>
               <TH className="w-[104px] text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
                 Ø Kauf
               </TH>
               <TH className="w-[130px] text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
-              <TH className="w-[200px] text-right">G/V</TH>
+              <TH className="w-[188px] text-right">G/V</TH>
               <TH className="w-[64px]" />
             </tr>
           </thead>
@@ -685,8 +687,8 @@ function Watchlist({ d }: { d: Dashboard }) {
                   untereinander stehen. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH className="w-[104px] text-right">Kurs</TH>
-              <TH className="w-[96px] text-right">Heute</TH>
-              <TH className="w-[434px]" />
+              <TH className="w-[116px] text-right">Heute</TH>
+              <TH className="w-[422px]" />
               <TH className="w-[64px]" />
             </tr>
           </thead>
@@ -957,20 +959,16 @@ export default function DashboardPage() {
               label="Heute"
               value={
                 d.positions.length ? (
-                  fmtEur(d.dayChangeEur)
+                  <>
+                    {fmtEur(d.dayChangeEur)}
+                    <PrepostSumme d={d} />
+                  </>
                 ) : (
                   <span className="text-base font-medium text-ink3">erscheint mit der ersten Position</span>
                 )
               }
               valueClass={d.positions.length ? signClass(d.dayChangeEur) : undefined}
-              sub={
-                d.dayChangePct != null ? (
-                  <>
-                    {fmtPct(d.dayChangePct)} zum Vortag
-                    <PrepostSumme d={d} />
-                  </>
-                ) : undefined
-              }
+              sub={d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : undefined}
               delay={120}
             />
           </div>
