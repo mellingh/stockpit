@@ -591,6 +591,22 @@ const KEY_LABELS: Record<string, string> = {
   sell: 'Verkaufen',
   strong_sell: 'Stark verkaufen',
 };
+// Konsens-Badge trägt exakt die Legendenfarbe seiner Kategorie (Micha, Runde 43) —
+// vorher färbten starre Mean-Schwellen (≤2/≥3,5) dasselbe „Kaufen" mal grün, mal grau
+const KEY_BUCKET: Record<string, keyof typeof RECO_COLORS> = {
+  strong_buy: 'strongBuy',
+  buy: 'buy',
+  hold: 'hold',
+  underperform: 'sell',
+  sell: 'strongSell',
+  strong_sell: 'strongSell',
+};
+function konsensBucket(key: string | undefined, mean: number) {
+  return (
+    KEY_BUCKET[key ?? ''] ??
+    (mean < 1.5 ? 'strongBuy' : mean < 2.5 ? 'buy' : mean < 3.5 ? 'hold' : mean < 4.5 ? 'sell' : 'strongSell')
+  );
+}
 
 function Analysten({ a }: { a: Analyse }) {
   const an = a.analysts;
@@ -614,7 +630,13 @@ function Analysten({ a }: { a: Analyse }) {
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="font-display text-display-md font-bold tnum">{an.mean?.toFixed(1)}</span>
         <span className="text-small text-ink3">/ 5 · Konsens (1 = Stark kaufen)</span>
-        <Badge variant={an.mean <= 2 ? 'pos' : an.mean >= 3.5 ? 'neg' : 'neu'}>
+        <Badge
+          style={{
+            color: RECO_COLORS[konsensBucket(an.key, an.mean)],
+            borderColor: `${RECO_COLORS[konsensBucket(an.key, an.mean)]}66`,
+            backgroundColor: `${RECO_COLORS[konsensBucket(an.key, an.mean)]}1f`,
+          }}
+        >
           {KEY_LABELS[an.key ?? ''] ??
             (an.key ?? '').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
         </Badge>
