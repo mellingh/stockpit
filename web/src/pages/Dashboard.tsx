@@ -295,11 +295,38 @@ function PrepostSumme({ d }: { d: Dashboard }) {
  * nennt gestern); ab Markteröffnung fällt das automatisch weg. Nachbörslich
  * bleiben beide sichtbar (Tages-% ist dann die heutige Session).
  */
-function HeuteZelle({ tagesPct, ab }: { tagesPct: number | null; ab: Ausserboerslich | null }) {
+function HeuteZelle({
+  tagesPct,
+  ab,
+  waehrung,
+  kauf,
+  fx,
+}: {
+  tagesPct: number | null;
+  ab: Ausserboerslich | null;
+  waehrung: string | null;
+  /** Kaufwährung — bestimmt wie in der Kurs-Spalte die Anzeige-Währung (Runde 42) */
+  kauf?: string | null;
+  fx: Record<string, number | null>;
+}) {
   if (ab?.phase === 'pre' && ab.pct != null) {
+    const k = kauf || waehrung;
+    const rN = rateEur(fx, waehrung);
+    const rK = rateEur(fx, k);
+    const preisK =
+      ab.preis == null || !k
+        ? null
+        : k === waehrung
+          ? ab.preis
+          : rN != null && rK != null
+            ? (ab.preis * rN) / rK
+            : null;
     return (
-      <span title={`Vorbörslich — letzter Handelstag: ${fmtPct(tagesPct)}`}>
+      <span title={`Vorbörslicher Kurs — letzter Handelstag: ${fmtPct(tagesPct)}`}>
         <span className="text-ink3">Pre</span> {fmtPct(ab.pct)}
+        {preisK != null && (
+          <span className="block text-micro text-ink3 tnum">{fmtMoney(preisK, k)}</span>
+        )}
       </span>
     );
   }
@@ -644,7 +671,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   <KursKauf p={p} fx={d.fx} />
                 </td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.ausserboerslich?.phase === 'pre' && p.ausserboerslich.pct != null ? p.ausserboerslich.pct : p.tagesPct))}>
-                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} />
+                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} waehrung={p.waehrung} kauf={p.buyCurrency} fx={d.fx} />
                 </td>
                 <td className="py-3 text-right font-mono text-small text-ink2 tnum">
                   <OKaufZelle p={p} fx={d.fx} />
@@ -753,7 +780,7 @@ function Watchlist({ d }: { d: Dashboard }) {
                   <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                 </td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.ausserboerslich?.phase === 'pre' && w.ausserboerslich.pct != null ? w.ausserboerslich.pct : w.tagesPct))}>
-                  <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
+                  <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} waehrung={w.waehrung} fx={d.fx} />
                 </td>
                 <td aria-hidden />
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
