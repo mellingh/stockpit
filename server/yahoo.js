@@ -23,12 +23,16 @@ export function getIntraday(symbol, range) {
   const cfg = INTRADAY[range];
   return cached(`intraday:${symbol}:${range}`, 5 * MINUTE, async () => {
     const period1 = new Date(Date.now() - cfg.days * DAY);
-    const result = await yahooFinance.chart(symbol, { period1, interval: cfg.interval });
+    // includePrePost: vor-/nachbörsliche Kerzen im Intraday-Chart (Micha, Runde 38)
+    const result = await yahooFinance.chart(symbol, { period1, interval: cfg.interval, includePrePost: true });
     let quotes = (result.quotes || []).filter((q) => q.close != null);
     if (range === '1d' && quotes.length) {
-      // nur der letzte Handelstag
-      const lastDay = new Date(quotes[quotes.length - 1].date).toDateString();
-      quotes = quotes.filter((q) => new Date(q.date).toDateString() === lastDay);
+      // nur der letzte HANDELSTAG inkl. Pre/Post: Sessions trennt eine Lücke > 4 h.
+      // Ein Kalendertags-Vergleich scheitert hier, weil die US-Nachbörse (bis
+      // 20:00 ET) in deutscher Zeit bereits auf dem Folgetag liegt.
+      let start = quotes.length - 1;
+      while (start > 0 && new Date(quotes[start].date) - new Date(quotes[start - 1].date) < 4 * 60 * 60 * 1000) start--;
+      quotes = quotes.slice(start);
     }
     return quotes;
   });

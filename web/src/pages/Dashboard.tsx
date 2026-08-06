@@ -189,6 +189,29 @@ function KursKauf({ p, fx }: { p: Position; fx: Record<string, number | null> })
   );
 }
 
+/**
+ * Ø-Kaufkurs mit ≈-Umrechnung wie die Kurs-Spalte (Micha, Runde 38) — Umrechnung
+ * zum HEUTIGEN Wechselkurs (der historische ist ohne Kaufdatum nicht bekannt).
+ */
+function OKaufZelle({ p, fx }: { p: Position; fx: Record<string, number | null> }) {
+  const k = p.buyCurrency || p.waehrung;
+  if (p.buyPrice == null || !k) return <>{fmtMoney(p.buyPrice, k)}</>;
+  const rK = rateEur(fx, k);
+  const rN = rateEur(fx, p.waehrung);
+  const eur = rK != null ? p.buyPrice * rK : null;
+  return (
+    <>
+      {fmtMoney(p.buyPrice, k)}
+      {k !== 'EUR' && eur != null && (
+        <span className="block text-micro text-ink3 tnum">≈ {fmtEur(eur)}</span>
+      )}
+      {k === 'EUR' && p.waehrung && p.waehrung !== 'EUR' && rN != null && eur != null && (
+        <span className="block text-micro text-ink3 tnum">≈ {fmtMoney(eur / rN, p.waehrung)}</span>
+      )}
+    </>
+  );
+}
+
 function BetragKauf({
   eur,
   p,
@@ -229,6 +252,34 @@ function BetragKauf({
       {suffix}
       <span className="block text-micro text-ink3 tnum">≈ {fmtEur(eur)}</span>
     </>
+  );
+}
+
+/**
+ * Aggregierter Pre-/After-Market-Effekt fürs Depot (Micha, Runde 38): Summe über
+ * alle Positionen mit außerbörslichem Kurs — shares × (Prepost − Schluss) × FX.
+ * Erscheint als Zweitzeile in der „Heute"-Kachel, nur wenn Daten da sind
+ * (nur US-Börsen liefern Pre/Post; XETRA & Co. fallen still weg).
+ */
+function PrepostSumme({ d }: { d: Dashboard }) {
+  let delta = 0;
+  let basis = 0;
+  let phase: 'pre' | 'post' | null = null;
+  for (const p of d.positions) {
+    const ab = p.ausserboerslich;
+    const rate = rateEur(d.fx, p.waehrung);
+    if (!ab || ab.preis == null || p.preis == null || rate == null) continue;
+    delta += p.shares * (ab.preis - p.preis) * rate;
+    basis += p.shares * p.preis * rate;
+    phase = ab.phase;
+  }
+  if (!phase || !basis) return null;
+  const pct = (delta / basis) * 100;
+  return (
+    <span className={cn('block', signClass(delta))}>
+      {phase === 'pre' ? 'Pre-Market' : 'Nachbörslich'} {delta >= 0 ? '+' : ''}
+      {fmtEur(delta)} ({fmtPct(pct)})
+    </span>
   );
 }
 
@@ -569,7 +620,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   <PrepostMini ab={p.ausserboerslich} />
                 </td>
                 <td className="py-3 text-right font-mono text-small text-ink2 tnum">
-                  {fmtMoney(p.buyPrice, p.buyCurrency || p.waehrung)}
+                  <OKaufZelle p={p} fx={d.fx} />
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
                   <BetragKauf eur={p.valueEur} p={p} fx={d.fx} />
@@ -912,7 +963,14 @@ export default function DashboardPage() {
                 )
               }
               valueClass={d.positions.length ? signClass(d.dayChangeEur) : undefined}
-              sub={d.dayChangePct != null ? `${fmtPct(d.dayChangePct)} zum Vortag` : undefined}
+              sub={
+                d.dayChangePct != null ? (
+                  <>
+                    {fmtPct(d.dayChangePct)} zum Vortag
+                    <PrepostSumme d={d} />
+                  </>
+                ) : undefined
+              }
               delay={120}
             />
           </div>
