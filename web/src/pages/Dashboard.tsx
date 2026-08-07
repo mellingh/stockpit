@@ -325,7 +325,10 @@ function HeuteZelle({
       <span title={`Vorbörslicher Kurs — letzter Handelstag: ${fmtPct(tagesPct)}`}>
         <span className="text-ink3">Pre</span> {fmtPct(ab.pct)}
         {preisK != null && (
-          <span className="block text-micro text-ink3 tnum">{fmtMoney(preisK, k)}</span>
+          /* „jetzt" davor (Runde 45): ein nackter Euro-Betrag unter einem Prozentwert
+             las sich wie ein Geldgewinn — er ist der aktuelle Kurs, im Gegensatz zum
+             Schlusskurs in der Kurs-Spalte */
+          <span className="block text-micro text-ink3 tnum">jetzt {fmtMoney(preisK, k)}</span>
         )}
       </span>
     );
