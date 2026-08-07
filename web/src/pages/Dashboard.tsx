@@ -290,69 +290,23 @@ function PrepostSumme({ d }: { d: Dashboard }) {
 }
 
 /**
- * Heute-Spalte (Runde 41): Während der VORBÖRSE ist die "Tagesbewegung" noch
- * die von gestern — dann steht stattdessen "Pre x %" in voller Größe (Tooltip
- * nennt gestern); ab Markteröffnung fällt das automatisch weg. Nachbörslich
- * bleiben beide sichtbar (Tages-% ist dann die heutige Session).
+ * Heute-Spalte — EINE Zeile, immer nur ein Prozentwert (Micha, Runde 46):
+ * außerhalb der Handelszeit „Pre"/„Post" + die außerbörsliche Bewegung,
+ * während des Handels nur die Tagesbewegung. Kein Kurs, kein Geldbetrag —
+ * beides wurde als Gewinn/Verlust missverstanden.
  */
-function HeuteZelle({
-  tagesPct,
-  ab,
-  waehrung,
-  kauf,
-  fx,
-}: {
-  tagesPct: number | null;
-  ab: Ausserboerslich | null;
-  waehrung: string | null;
-  /** Kaufwährung — bestimmt wie in der Kurs-Spalte die Anzeige-Währung (Runde 42) */
-  kauf?: string | null;
-  fx: Record<string, number | null>;
-}) {
-  if (ab?.phase === 'pre' && ab.pct != null) {
-    const k = kauf || waehrung;
-    const rN = rateEur(fx, waehrung);
-    const rK = rateEur(fx, k);
-    const preisK =
-      ab.preis == null || !k
-        ? null
-        : k === waehrung
-          ? ab.preis
-          : rN != null && rK != null
-            ? (ab.preis * rN) / rK
-            : null;
+function HeuteZelle({ tagesPct, ab }: { tagesPct: number | null; ab: Ausserboerslich | null }) {
+  if (ab?.pct != null) {
+    const vor = ab.phase === 'pre';
     return (
-      <span title={`Vorbörslicher Kurs — letzter Handelstag: ${fmtPct(tagesPct)}`}>
-        <span className="text-ink3">Pre</span> {fmtPct(ab.pct)}
-        {preisK != null && (
-          /* „jetzt" davor (Runde 45): ein nackter Euro-Betrag unter einem Prozentwert
-             las sich wie ein Geldgewinn — er ist der aktuelle Kurs, im Gegensatz zum
-             Schlusskurs in der Kurs-Spalte */
-          <span className="block text-micro text-ink3 tnum">jetzt {fmtMoney(preisK, k)}</span>
-        )}
+      <span
+        title={`${vor ? 'Vorbörslich' : 'Nachbörslich'} — letzter Handelstag: ${fmtPct(tagesPct)}`}
+      >
+        <span className="text-ink3">{vor ? 'Pre' : 'Post'}</span> {fmtPct(ab.pct)}
       </span>
     );
   }
-  return (
-    <>
-      {fmtPct(tagesPct)}
-      <PrepostMini ab={ab} />
-    </>
-  );
-}
-
-// ---------- Pre-/After-Market-Mini ----------
-
-function PrepostMini({ ab }: { ab: Ausserboerslich | null }) {
-  if (!ab || ab.pct == null) return null;
-  return (
-    <span
-      className={cn('block text-micro opacity-90 tnum', signClass(ab.pct))}
-      title={ab.phase === 'pre' ? 'Vorbörslicher Handel (Pre-Market)' : 'Nachbörslicher Handel (After-Hours)'}
-    >
-      {ab.phase === 'pre' ? 'Pre' : 'Post'} {fmtPct(ab.pct)}
-    </span>
-  );
+  return <>{fmtPct(tagesPct)}</>;
 }
 
 // ---------- Position hinzufügen / bearbeiten ----------
@@ -678,8 +632,8 @@ function Positionen({ d }: { d: Dashboard }) {
                 <td className="py-3 text-right font-mono text-small tnum">
                   <KursKauf p={p} fx={d.fx} />
                 </td>
-                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.ausserboerslich?.phase === 'pre' && p.ausserboerslich.pct != null ? p.ausserboerslich.pct : p.tagesPct))}>
-                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} waehrung={p.waehrung} kauf={p.buyCurrency} fx={d.fx} />
+                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.ausserboerslich?.pct ?? p.tagesPct))}>
+                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} />
                 </td>
                 <td className="py-3 text-right font-mono text-small text-ink2 tnum">
                   <OKaufZelle p={p} fx={d.fx} />
@@ -792,8 +746,8 @@ function Watchlist({ d }: { d: Dashboard }) {
                   {fmtMoney(w.preis, w.waehrung)}
                   <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                 </td>
-                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.ausserboerslich?.phase === 'pre' && w.ausserboerslich.pct != null ? w.ausserboerslich.pct : w.tagesPct))}>
-                  <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} waehrung={w.waehrung} fx={d.fx} />
+                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
+                  <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                 </td>
                 <td aria-hidden />
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
