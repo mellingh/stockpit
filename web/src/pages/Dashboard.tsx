@@ -577,7 +577,12 @@ function Positionen({ d }: { d: Dashboard }) {
                   raus (Micha, Runde 31: sagte nichts aus, was „Heute" nicht zeigt) —
                   dafür Ø Kauf und mehr Luft für Wert/G/V/Aktionen. */}
               <TH><span className="sr-only">Wert</span></TH>
-              <TH className="w-[104px] text-right">Kurs</TH>
+              <TH
+                className="w-[104px] cursor-help text-right"
+                title="Aktueller Börsenkurs in deiner Kaufwährung, darunter die Umrechnung"
+              >
+                Kurs
+              </TH>
               <TH
                 className="w-[116px] cursor-help text-right"
                 title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
@@ -700,7 +705,12 @@ function Watchlist({ d }: { d: Dashboard }) {
                   ersetzt Ø Kauf + Wert + G/V, damit Kurs/Heute exakt
                   untereinander stehen. */}
               <TH><span className="sr-only">Wert</span></TH>
-              <TH className="w-[104px] text-right">Kurs</TH>
+              <TH
+                className="w-[104px] cursor-help text-right"
+                title="Aktueller Börsenkurs in deiner Kaufwährung, darunter die Umrechnung"
+              >
+                Kurs
+              </TH>
               <TH
                 className="w-[116px] cursor-help text-right"
                 title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
