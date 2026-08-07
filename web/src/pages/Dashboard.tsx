@@ -118,13 +118,16 @@ function TerminMarkt({ t }: { t: Termin }) {
     >
       <span className="w-[96px] shrink-0 font-mono text-micro text-ink3">{wannVon(t)}</span>
       <span className="w-[56px] shrink-0 whitespace-nowrap" title={t.waehrung ?? ''}><span className="mr-1.5 text-lg leading-none">{flagge(t.land)}</span>{t.land ?? t.waehrung}</span>
-      <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-        {kurzTitel}
-        {t.prognose && <span className="font-mono text-micro text-ink2 tnum">Prog. {t.prognose}</span>}
+      {/* nicht umbrechen: lange Titel („Beschäftigte außerhalb der Landwirtschaft")
+          machten die Zeile höher als ihre Nachbarn — stattdessen kürzt der Titel
+          mit … ab (voller Text im Tooltip), die Werte bleiben immer sichtbar */}
+      <span className="flex min-w-0 flex-1 items-center gap-x-3">
+        <span className="truncate">{kurzTitel}</span>
+        {t.prognose && <span className="shrink-0 font-mono text-micro text-ink2 tnum">Prog. {t.prognose}</span>}
         {t.aktuell && (
           <span
             className={cn(
-              'border-l border-line-strong pl-3 font-mono text-micro tnum',
+              'shrink-0 border-l border-line-strong pl-3 font-mono text-micro tnum',
               t.aktuellTrend === 'gut' ? 'text-up' : t.aktuellTrend === 'schlecht' ? 'text-down' : 'text-ink2'
             )}
           >

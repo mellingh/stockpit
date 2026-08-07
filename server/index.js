@@ -679,18 +679,23 @@ app.get(
         }
       } catch {}
     }
-    // Plus: die allerwichtigsten Markt-Termine der Woche (Fed, EZB, Inflation,
-    // Arbeitsmarkt …) — nur ★★★-Events in USD/EUR, damit das Panel den
-    // Kalender ergänzt statt ihn zu doppeln
-    const MARKT_EVENTS =
-      /(zinsentscheid|zinssatz|fed|fomc|ezb|leitzins|verbraucherpreis|cpi|pce|inflation|arbeitsmarkt|arbeitslosen|nonfarm|payroll|beschäftigung|bip\b|gdp|pressekonferenz|geldpolitik)/i;
+    // Plus: die wichtigsten Markt-Termine der Woche — ★★★ aus den Märkten, in
+    // denen Micha tatsächlich investiert ist (Runde 48): die Notierungswährungen
+    // der Positionen entscheiden (USD → US-Daten, EUR → Euroraum). Ohne Depot
+    // bleiben USD+EUR als Standard, sonst wäre das Panel leer.
+    // KEINE Stichwort-Whitelist mehr: die Titel kommen aus calendar.js übersetzt,
+    // dadurch fiel ausgerechnet der Monats-Höhepunkt „Beschäftigte außerhalb der
+    // Landwirtschaft" (Nonfarm Payrolls) durch das Regex-Raster, ebenso ISM und
+    // JOLTs. Die ★★★-Einstufung IST der Filter — dieselbe Schwelle wie im Kalender.
     try {
       const kal = await getCalendar();
+      const depotWaehrungen = new Set(positions.map((p) => p.waehrung).filter(Boolean));
+      const maerkte = depotWaehrungen.size ? depotWaehrungen : new Set(['USD', 'EUR']);
       // Varianten derselben Kennzahl (Monat/Jahr/Quartal) auf einen Eintrag
       // eindampfen — sonst steht viermal fast dasselbe im Panel
       const gesehen = new Set();
       const marktTermine = (kal.events || [])
-        .filter((e) => e.wichtigkeit === 'High' && (e.waehrung === 'USD' || e.waehrung === 'EUR') && MARKT_EVENTS.test(e.titel))
+        .filter((e) => e.wichtigkeit === 'High' && maerkte.has(e.waehrung))
         .map((e) => ({ ...e, days: Math.floor((new Date(e.zeit) - new Date(new Date().toDateString())) / DAY) }))
         .filter((e) => e.days >= 0)
         .filter((e) => {
@@ -699,7 +704,8 @@ app.get(
           gesehen.add(`${e.waehrung}:${kern}`);
           return true;
         })
-        .slice(0, 4)
+        // das Panel scrollt seit Runde 32 — mehr als die alten 4 sind kein Problem
+        .slice(0, 12)
         .map((e) => ({
           typ: 'Markt',
           symbol: null,
