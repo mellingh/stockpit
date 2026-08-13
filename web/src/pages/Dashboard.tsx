@@ -219,7 +219,7 @@ function KursKauf({
         )}
       </span>
       {/* feste Breite: sonst wandert der Kurs je nach Länge der Prozentzahl */}
-      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-right">{bewegung}</span>}
+      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-left">{bewegung}</span>}
     </span>
   );
 }
@@ -619,11 +619,11 @@ function Positionen({ d }: { d: Dashboard }) {
               >
                 Aktuell
               </TH>
-              <TH className="w-[96px] cursor-help text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
+              <TH className="w-[100px] cursor-help text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
                 Ø Kauf
               </TH>
-              <TH className="w-[124px] cursor-help text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
-              <TH className="w-[172px] text-right">G/V</TH>
+              <TH className="w-[112px] cursor-help text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
+              <TH className="w-[184px] text-right">G/V</TH>
               <TH className="w-[64px]" />
             </tr>
           </thead>
@@ -747,7 +747,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               >
                 Aktuell
               </TH>
-              <TH className="w-[96px]" />
+              <TH className="w-[100px]" />
               <TH className="w-[296px]" />
               <TH className="w-[64px]" />
             </tr>
@@ -790,7 +790,7 @@ function Watchlist({ d }: { d: Dashboard }) {
                       {fmtMoney(w.preis, w.waehrung)}
                       <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                     </span>
-                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-right', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
+                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-left', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
                       <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                     </span>
                   </span>

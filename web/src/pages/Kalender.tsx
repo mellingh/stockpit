@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@/lib/router';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
@@ -258,25 +259,51 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
   const navigate = useNavigate();
   const markt = params.get('markt') ?? 'us';
   const setMarkt = (v: string) => setParam('markt', v === 'us' ? null : v);
+  const [suche, setSuche] = useState('');
   const [von, bis] = zeitfenster(tag);
   const { data, isLoading, error } = useEarnings(markt, von, bis);
-  // Kein Suchfeld mehr (Micha, Runde 54): die anderen Kalender-Tabs filtern
-  // ausschließlich über Pills — ein Textfilter fiel dort aus dem Muster.
-  const events = data?.events ?? [];
+  // Suchfeld wieder da (Micha, Runde 55): bei „Diese Woche" × USA sind es hunderte
+  // Termine — dort ist ein Textfilter das einzige, was schnell zum Ziel führt.
+  // Es sitzt jetzt IN der Filter-Zeile rechts, damit es zum Pill-Muster gehört.
+  const events = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    const alle = data?.events ?? [];
+    if (!q) return alle;
+    return alle.filter((e) => e.ticker.toLowerCase().includes(q) || e.name.toLowerCase().includes(q));
+  }, [data, suche]);
 
   const heuteKey = dayKey(new Date());
   let letzterTag: string | null = null;
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <TagesPills tag={tag} setTag={setTag} />
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          {MAERKTE.map(([key, label]) => (
-            <FilterPill key={key} aktiv={markt === key} onClick={() => setMarkt(key)}>
-              {label}
-            </FilterPill>
-          ))}
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {MAERKTE.map(([key, label]) => (
+              <FilterPill key={key} aktiv={markt === key} onClick={() => setMarkt(key)}>
+                {label}
+              </FilterPill>
+            ))}
+          </div>
+          {/* Textfilter rechts außen in derselben Zeile — 32er-Reihe, Lupe links */}
+          <div className="relative w-[200px]">
+            <Search
+              size={14}
+              aria-hidden
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink3"
+            />
+            <Input
+              className="h-control-sm pl-8 text-small"
+              placeholder="Symbol oder Name …"
+              aria-label="Earnings nach Symbol oder Name filtern"
+              autoComplete="off"
+              spellCheck={false}
+              value={suche}
+              onChange={(e) => setSuche(e.target.value)}
+            />
+          </div>
         </div>
       </div>
       {isLoading && (
@@ -287,7 +314,7 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
       {error && <Empty role="status" aria-live="polite">Earnings nicht erreichbar: {(error as Error).message}</Empty>}
       {data &&
         (events.length === 0 ? (
-          <Empty>Keine Quartalszahlen-Termine in diesem Zeitraum.</Empty>
+          <Empty>Keine Quartalszahlen-Termine in diesem Zeitraum{suche ? ' mit diesem Filter' : ''}.</Empty>
         ) : (
           <table className="lange-liste w-full border-collapse">
             <thead>
@@ -361,10 +388,34 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
   );
 }
 
+/** Länder-Pills der Feiertage — dieselben Labels wie die Earnings-Märkte (Runde 55) */
+const FEIERTAG_LAENDER = [
+  ['alle', 'Alle'],
+  ['US', 'USA'],
+  ['DE', 'Deutschland'],
+  ['GB', 'UK'],
+  ['JP', 'Japan'],
+  ['CA', 'Kanada'],
+  ['CN', 'China'],
+] as const;
+
 function FeiertageTab() {
+  const params = useSearchParams();
+  const setParam = useSetParam();
+  const land = params.get('land') ?? 'alle';
+  const setLand = (v: string) => setParam('land', v === 'alle' ? null : v);
   const { data, isLoading, error } = useFeiertage();
+  const events = (data?.events ?? []).filter((e) => land === 'alle' || e.land === land);
   return (
     <>
+      {/* Länder-Filter rechts wie bei Earnings (Micha, Runde 55 — Konstanz) */}
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-1.5">
+        {FEIERTAG_LAENDER.map(([key, label]) => (
+          <FilterPill key={key} aktiv={land === key} onClick={() => setLand(key)}>
+            {label}
+          </FilterPill>
+        ))}
+      </div>
       {isLoading && (
         <div role="status" aria-label="Feiertage werden geladen">
           <SkeletonRows zeilen={5} />
@@ -372,8 +423,8 @@ function FeiertageTab() {
       )}
       {error && <Empty role="status" aria-live="polite">Feiertage nicht erreichbar: {(error as Error).message}</Empty>}
       {data &&
-        (data.events.length === 0 ? (
-          <Empty>Keine Börsenfeiertage mehr bis Jahresende.</Empty>
+        (events.length === 0 ? (
+          <Empty>Keine Börsenfeiertage mehr bis Jahresende{land === 'alle' ? '' : ' für dieses Land'}.</Empty>
         ) : (
           <table className="w-full border-collapse">
             <thead>
@@ -385,7 +436,7 @@ function FeiertageTab() {
               </tr>
             </thead>
             <tbody>
-              {data.events.map((f, i) => (
+              {events.map((f, i) => (
                 <tr key={`${f.land}-${f.zeit}-${i}`} className="border-b border-line last:border-b-0">
                   {/* gleiche Optik wie die Zeit-Spalte im Wirtschaftskalender (Konstanz) */}
                   <td className="py-2.5 font-mono text-micro text-ink3 tnum">
@@ -409,10 +460,30 @@ function FeiertageTab() {
   );
 }
 
+/** IPO-Filter: der Status ist hier die einzige sinnvolle Achse (Runde 55) */
+const IPO_STATUS = [
+  ['alle', 'Alle'],
+  ['gepreist', 'Abgeschlossen'],
+  ['erwartet', 'Geplant'],
+] as const;
+
 function IposTab() {
+  const params = useSearchParams();
+  const setParam = useSetParam();
+  const status = params.get('status') ?? 'alle';
+  const setStatus = (v: string) => setParam('status', v === 'alle' ? null : v);
   const { data, isLoading, error } = useIpos();
+  const events = (data?.events ?? []).filter((e) => status === 'alle' || e.status === status);
   return (
     <>
+      {/* Filter rechts wie bei Earnings/Feiertagen — Konstanz über alle Tabs */}
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-1.5">
+        {IPO_STATUS.map(([key, label]) => (
+          <FilterPill key={key} aktiv={status === key} onClick={() => setStatus(key)}>
+            {label}
+          </FilterPill>
+        ))}
+      </div>
       {isLoading && (
         <div role="status" aria-label="IPOs werden geladen">
           <SkeletonRows zeilen={5} />
@@ -420,7 +491,7 @@ function IposTab() {
       )}
       {error && <Empty role="status" aria-live="polite">IPOs nicht erreichbar: {(error as Error).message}</Empty>}
       {data &&
-        (data.events.length === 0 ? (
+        (events.length === 0 ? (
           <Empty>Keine Börsengänge im laufenden und nächsten Monat gelistet.</Empty>
         ) : (
           <table className="w-full border-collapse">
@@ -443,7 +514,7 @@ function IposTab() {
               </tr>
             </thead>
             <tbody>
-              {data.events.map((e, i) => (
+              {events.map((e, i) => (
                 <tr key={`${e.symbol}-${i}`} className="border-b border-line last:border-b-0">
                   <td className="py-2.5 font-mono text-micro text-ink3 tnum">
                     {e.zeit ? new Date(e.zeit).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '–'}
