@@ -191,22 +191,32 @@ function rateEur(fx: Record<string, number | null>, w: string | null | undefined
  * EUR-Käufen fremdnotierter Werte die Notierungswährung. So decken sich die
  * Zahlen mit dem Broker-Depot.
  */
-function KursKauf({ p, fx }: { p: Position; fx: Record<string, number | null> }) {
+function KursKauf({
+  p,
+  fx,
+  bewegung,
+}: {
+  p: Position;
+  fx: Record<string, number | null>;
+  /** Prozent-Block rechts neben dem Kurs (zusammengeführte Spalte, Runde 51) */
+  bewegung?: React.ReactNode;
+}) {
   const k = p.buyCurrency || p.waehrung;
   const rN = rateEur(fx, p.waehrung);
   const rK = rateEur(fx, k);
-  if (p.preis != null && k && k !== p.waehrung && rN != null && rK != null) {
-    return (
-      <>
-        {fmtMoney((p.preis * rN) / rK, k)}
-        <span className="block text-micro text-ink3 tnum">≈ {fmtMoney(p.preis, p.waehrung)}</span>
-      </>
-    );
-  }
+  const umgerechnet = p.preis != null && k && k !== p.waehrung && rN != null && rK != null;
   return (
     <>
-      {fmtMoney(p.preis, p.waehrung)}
-      <KursInEur preis={p.preis} waehrung={p.waehrung} fx={fx} />
+      <span className="flex items-baseline justify-end gap-3">
+        <span>{umgerechnet ? fmtMoney((p.preis! * rN!) / rK!, k) : fmtMoney(p.preis, p.waehrung)}</span>
+        {/* feste Breite: sonst wandert der Kurs je nach Länge der Prozentzahl */}
+        {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-right">{bewegung}</span>}
+      </span>
+      {umgerechnet ? (
+        <span className="block text-micro text-ink3 tnum">≈ {fmtMoney(p.preis, p.waehrung)}</span>
+      ) : (
+        <KursInEur preis={p.preis} waehrung={p.waehrung} fx={fx} />
+      )}
     </>
   );
 }
@@ -595,27 +605,22 @@ function Positionen({ d }: { d: Dashboard }) {
           <thead className="sticky top-0 z-10 bg-panel">
             <tr>
               {/* Feste Breiten: Positionen und Watchlist teilen sich dasselbe
-                  Spaltenraster. Reihenfolge (Micha, Runde 49): „Aktuell" und
-                  „Ø Kauf" stehen NEBENEINANDER, damit man Kurs und Einstand direkt
-                  vergleichen kann; „% heute" rückt dahinter. */}
+                  Spaltenraster. „Aktuell" führt Kurs UND Tagesbewegung in einer
+                  Spalte (Micha, Runde 51 — zwei Spalten für denselben „jetzt\"-Zustand
+                  waren doppelt gemoppelt): Zeile 1 Kurs + Prozent (Prozentblock mit
+                  fester Breite, damit die Kurse fluchten), Zeile 2 die Umrechnung. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
-                className="w-[104px] cursor-help text-right"
-                title="Aktueller Börsenkurs in deiner Kaufwährung, darunter die Umrechnung"
+                className="w-[180px] cursor-help text-right"
+                title="Aktueller Kurs in deiner Kaufwährung mit der Tagesbewegung; in der Vorbörse der vorbörsliche Stand. Darunter die Umrechnung."
               >
                 Aktuell
               </TH>
-              <TH className="w-[104px] cursor-help text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
+              <TH className="w-[96px] cursor-help text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
                 Ø Kauf
               </TH>
-              <TH
-                className="w-[116px] cursor-help text-right"
-                title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
-              >
-                % heute
-              </TH>
-              <TH className="w-[130px] cursor-help text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
-              <TH className="w-[188px] text-right">G/V</TH>
+              <TH className="w-[124px] cursor-help text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
+              <TH className="w-[172px] text-right">G/V</TH>
               <TH className="w-[64px]" />
             </tr>
           </thead>
@@ -634,7 +639,7 @@ function Positionen({ d }: { d: Dashboard }) {
                   <tr className="border-b border-line">
                     {/* Luft über der Gruppe: erste Gruppe knapp, alle weiteren deutlich
                         abgesetzt (Micha, Runde 25 — „sehen, wo sich die Gruppen trennen") */}
-                    <td colSpan={7} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
+                    <td colSpan={6} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
                       {p.sektor ?? 'Sonstige'}
                     </td>
                   </tr>
@@ -657,13 +662,18 @@ function Positionen({ d }: { d: Dashboard }) {
                   </div>
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
-                  <KursKauf p={p} fx={d.fx} />
+                  <KursKauf
+                    p={p}
+                    fx={d.fx}
+                    bewegung={
+                      <span className={signClass(p.ausserboerslich?.pct ?? p.tagesPct)}>
+                        <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} />
+                      </span>
+                    }
+                  />
                 </td>
                 <td className="py-3 text-right font-mono text-small text-ink2 tnum">
                   <OKaufZelle p={p} fx={d.fx} />
-                </td>
-                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.ausserboerslich?.pct ?? p.tagesPct))}>
-                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} />
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
                   <BetragKauf eur={p.valueEur} p={p} fx={d.fx} />
@@ -726,22 +736,16 @@ function Watchlist({ d }: { d: Dashboard }) {
               {/* Gleiches Spaltenraster wie die Positionen-Tabelle. Die Ø-Kauf-Spalte
                   gibt es hier NICHT (beobachtete Werte besitzt man nicht, Micha
                   Runde 50) — sie bleibt als reiner Platzhalter ohne Kopf und Inhalt
-                  stehen, damit „% heute" exakt unter der Positionen-Spalte sitzt. */}
+                  stehen, damit die Spalten der beiden Tabellen fluchten. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
-                className="w-[104px] cursor-help text-right"
-                title="Aktueller Börsenkurs in deiner Kaufwährung, darunter die Umrechnung"
+                className="w-[180px] cursor-help text-right"
+                title="Aktueller Kurs mit der Tagesbewegung; in der Vorbörse der vorbörsliche Stand. Darunter die Umrechnung."
               >
                 Aktuell
               </TH>
-              <TH className="w-[104px]" />
-              <TH
-                className="w-[116px] cursor-help text-right"
-                title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
-              >
-                % heute
-              </TH>
-              <TH className="w-[318px]" />
+              <TH className="w-[96px]" />
+              <TH className="w-[296px]" />
               <TH className="w-[64px]" />
             </tr>
           </thead>
@@ -757,7 +761,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               <Fragment key={w.symbol}>
                 {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
                   <tr className="border-b border-line">
-                    <td colSpan={6} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
+                    <td colSpan={5} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
                       {w.sektor ?? 'Sonstige'}
                     </td>
                   </tr>
@@ -777,14 +781,16 @@ function Watchlist({ d }: { d: Dashboard }) {
                   <div className="font-mono text-micro tracking-wide text-ink3">{w.symbol}</div>
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
-                  {fmtMoney(w.preis, w.waehrung)}
+                  <span className="flex items-baseline justify-end gap-3">
+                    <span>{fmtMoney(w.preis, w.waehrung)}</span>
+                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-right', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
+                      <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
+                    </span>
+                  </span>
                   <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                 </td>
                 {/* Platzhalter für die Ø-Kauf-Spalte der Positionen-Tabelle */}
                 <td aria-hidden />
-                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
-                  <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
-                </td>
                 <td aria-hidden />
                 <td className="whitespace-nowrap py-3 pl-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <span className="flex justify-end opacity-30 transition-opacity group-hover:opacity-100">
