@@ -219,7 +219,7 @@ function KursKauf({
         )}
       </span>
       {/* feste Breite: sonst wandert der Kurs je nach Länge der Prozentzahl */}
-      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-left">{bewegung}</span>}
+      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-right">{bewegung}</span>}
     </span>
   );
 }
@@ -790,7 +790,7 @@ function Watchlist({ d }: { d: Dashboard }) {
                       {fmtMoney(w.preis, w.waehrung)}
                       <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                     </span>
-                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-left', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
+                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-right', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
                       <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                     </span>
                   </span>
