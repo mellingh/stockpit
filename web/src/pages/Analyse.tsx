@@ -1,14 +1,12 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams, useSetParam, useTitel } from '@/lib/router';
-import { Check, Search } from 'lucide-react';
+import { useEffect } from 'react';
+import { Link, useNavigate, useSearchParams, useSetParam, useTitel } from '@/lib/router';
+import { Check } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Skeleton, SkeletonPills, SkeletonRows } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { SymbolSearch } from '@/components/symbol-search';
 import { lazy, Suspense } from 'react';
 const StockChart = lazy(() =>
   import('@/components/stock-chart').then((m) => ({ default: m.StockChart }))
@@ -18,7 +16,7 @@ import { ScrollListe } from '@/components/scroll-liste';
 import { RadarChart } from '@/components/radar';
 import { NewsItem } from '@/components/news';
 import { api, type Analyse, type Rating, type SnowflakePunkt } from '@/lib/api';
-import { useAnalyse, useDashboard, useHistory, usePortfolioMutation, useTrending } from '@/lib/queries';
+import { useAnalyse, useDashboard, useHistory, usePortfolioMutation } from '@/lib/queries';
 import { fmtCompact, fmtDate, fmtEps, fmtMoney, fmtNum, fmtPct, fmtPctFrac, signClass } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -31,146 +29,6 @@ const RANGES: [string, string][] = [
   ['5y', '5J'],
   ['max', 'Max'],
 ];
-
-// ---------- Suche ----------
-
-function SucheDialog({ onPick }: { onPick: (symbol: string) => void }) {
-  const [offen, setOffen] = useState(false);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setOffen(true);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-  return (
-    <>
-      <button
-        onClick={() => setOffen(true)}
-        className="flex h-control-lg w-full max-w-[560px] cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel px-4 text-base text-ink3 transition-colors hover:border-ink3 focus-visible:ring-2 focus-visible:ring-accent/40 outline-none"
-      >
-        <Search size={16} />
-        Aktie oder ETF suchen …
-        <kbd className="ml-auto rounded border border-line-strong bg-panel2 px-1.5 py-0.5 font-mono text-micro text-ink3">
-          Strg K
-        </kbd>
-      </button>
-      <Dialog open={offen} onOpenChange={setOffen}>
-        <DialogContent ohneSchliessen className="max-w-[560px] px-3 pb-3 pt-3.5">
-          <SymbolSearch
-            onPick={(r) => {
-              setOffen(false);
-              onPick(r.symbol);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// ---------- Startansicht ----------
-
-function StartChip({
-  symbol,
-  name,
-  tagesPct,
-  onPick,
-}: {
-  symbol: string;
-  name: string;
-  tagesPct: number | null;
-  onPick: (s: string) => void;
-}) {
-  return (
-    <button
-      onClick={() => onPick(symbol)}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line-strong bg-panel2 px-3.5 py-2.5 text-left text-small transition-colors duration-150 hover:border-accent hover:bg-accent-soft"
-    >
-      <b className="min-w-[56px] font-mono text-small">{symbol}</b>
-      <span className="flex-1 truncate text-ink2">{name}</span>
-      <span className={cn('shrink-0 font-mono text-small tnum', signClass(tagesPct))}>{fmtPct(tagesPct)}</span>
-    </button>
-  );
-}
-
-function Startansicht({ onPick }: { onPick: (s: string) => void }) {
-  const { data: d } = useDashboard();
-  const { data: trending, isLoading: trendLaedt } = useTrending();
-
-  // Nach Sektor gruppiert — gleiche Gruppierung wie die Dashboard-Tabellen
-  const eigene = useMemo(() => {
-    if (!d) return [];
-    const gesehen = new Set<string>();
-    return [
-      ...d.positions.map((p) => ({ symbol: p.symbol, name: p.name, tagesPct: p.tagesPct, sektor: p.sektor })),
-      ...d.watchlist.map((w) => ({ symbol: w.symbol, name: w.name, tagesPct: w.tagesPct, sektor: w.sektor })),
-    ]
-      .filter((w) => !gesehen.has(w.symbol) && gesehen.add(w.symbol))
-      .sort(
-        (a, b) =>
-          (a.sektor ?? 'Sonstige').localeCompare(b.sektor ?? 'Sonstige') || a.name.localeCompare(b.name)
-      );
-  }, [d]);
-
-  return (
-    <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2 animate-rise">
-      <Panel>
-        <PanelTitle>Deine Werte</PanelTitle>
-        {!d ? (
-          <SkeletonRows zeilen={4} />
-        ) : eigene.length === 0 ? (
-          <Empty>Noch keine Positionen oder Watchlist-Werte — im Dashboard anlegen.</Empty>
-        ) : (
-          <div className="grid gap-2">
-            {eigene.map((w, i, arr) => (
-              <Fragment key={w.symbol}>
-                {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
-                  <div className={cn('text-micro font-bold uppercase tracking-[0.14em] text-accent', i > 0 && 'mt-4')}>
-                    {w.sektor ?? 'Sonstige'}
-                  </div>
-                )}
-                <StartChip symbol={w.symbol} name={w.name} tagesPct={w.tagesPct} onPick={onPick} />
-              </Fragment>
-            ))}
-          </div>
-        )}
-      </Panel>
-      <Panel>
-        <PanelTitle>Gerade im Trend</PanelTitle>
-        {trendLaedt ? (
-          <SkeletonRows zeilen={4} />
-        ) : !trending?.length ? (
-          <Empty>Gerade keine Trend-Daten verfügbar.</Empty>
-        ) : (
-          <div className="grid gap-2">
-            {/* gleiche Sektor-Gruppierung wie „Deine Werte" (Micha, Runde 30) —
-                die Gruppen wechseln mit den Trend-Tickern dynamisch mit */}
-            {[...trending]
-              .sort(
-                (a, b) =>
-                  (a.sektor ?? 'Sonstige').localeCompare(b.sektor ?? 'Sonstige') ||
-                  a.name.localeCompare(b.name)
-              )
-              .map((t, i, arr) => (
-                <Fragment key={t.symbol}>
-                  {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (t.sektor ?? 'Sonstige')) && (
-                    <div className={cn('text-micro font-bold uppercase tracking-[0.14em] text-accent', i > 0 && 'mt-4')}>
-                      {t.sektor ?? 'Sonstige'}
-                    </div>
-                  )}
-                  <StartChip symbol={t.symbol} name={t.name} tagesPct={t.tagesPct} onPick={onPick} />
-                </Fragment>
-              ))}
-          </div>
-        )}
-      </Panel>
-    </div>
-  );
-}
 
 // ---------- Watchlist-Schnellzugriff im Report-Kopf ----------
 
@@ -1087,21 +945,29 @@ export default function AnalysePage() {
   const symbol = params.get('symbol');
   // im Report zählt das Symbol im Tab-Titel, sonst der Seitenname
   useTitel(symbol || 'Analyse');
-  const waehlen = (s: string) => navigate(`/analyse?symbol=${encodeURIComponent(s)}`);
+
+  // Ohne Symbol gibt es hier nichts mehr zu sehen: die Startansicht (eigene Werte
+  // + Trend-Ticker) doppelte das Dashboard und ist raus (Micha, Runde 52) — die
+  // Suche sitzt jetzt global in der Topbar. Direktaufruf von /analyse landet
+  // deshalb wieder auf dem Dashboard.
+  useEffect(() => {
+    if (!symbol) navigate('/', { replace: true });
+  }, [symbol, navigate]);
+  if (!symbol) return null;
 
   return (
     <div className="grid gap-6">
       <header className="animate-rise">
         <div className="flex items-center gap-3 font-mono text-micro uppercase tracking-[0.14em] text-ink3">
+          <Link to="/" className="transition-colors hover:text-accent">
+            Dashboard
+          </Link>
+          <span aria-hidden>›</span>
           Aktien-Analyse
           <span aria-hidden className="h-px flex-1 bg-line" />
         </div>
-        <h1 className="mb-5 mt-1.5 font-display text-display-md font-bold tracking-tight text-balance">
-          Ticker rein, <em className="not-italic text-accent">Einschätzung raus.</em>
-        </h1>
-        <SucheDialog onPick={waehlen} />
       </header>
-      {symbol ? <Report symbol={symbol} /> : <Startansicht onPick={waehlen} />}
+      <Report symbol={symbol} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Link, usePathname } from '@/lib/router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { TopbarSuche } from '@/components/topbar-suche';
 import DashboardPage from '@/pages/Dashboard';
 import AnalysePage from '@/pages/Analyse';
 import KalenderPage from '@/pages/Kalender';
@@ -34,9 +35,10 @@ function KiStatus() {
   );
 }
 
+// „Analyse" ist kein Nav-Punkt mehr (Micha, Runde 52): der Report öffnet sich über
+// die Topbar-Suche oder einen Klick auf einen Wert; die Route bleibt bestehen.
 const NAV = [
   { to: '/', label: 'Dashboard' },
-  { to: '/analyse', label: 'Analyse' },
   { to: '/kalender', label: 'Kalender' },
 ];
 
@@ -85,7 +87,8 @@ export default function App() {
               </Link>
             ))}
           </nav>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-5">
+            <TopbarSuche />
             <KiStatus />
           </div>
         </div>
