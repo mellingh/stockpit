@@ -31,10 +31,11 @@ export function TopbarSuche() {
       <button
         onClick={() => setOffen(true)}
         aria-label="Aktie oder ETF suchen"
-        // 32er-Reihe wie die übrigen kompakten Bedienelemente; Hover/Fokus wie Inputs
-        className="flex h-control-sm w-[280px] cursor-pointer items-center gap-2.5 rounded-md border border-line-strong bg-panel px-3 text-small text-ink3 transition-colors hover:border-ink3 focus-visible:ring-2 focus-visible:ring-accent/40 outline-none"
+        // 40er-Reihe wie die Standard-Eingabefelder (Runde 53: 32 war zu zierlich,
+        // 48 wie die alte Analyse-Suche zu wuchtig für die Topbar)
+        className="flex h-control-md w-[320px] cursor-pointer items-center gap-2.5 rounded-md border border-line-strong bg-panel px-3 text-small text-ink3 transition-colors hover:border-ink3 focus-visible:ring-2 focus-visible:ring-accent/40 outline-none"
       >
-        <Search size={14} aria-hidden />
+        <Search size={16} aria-hidden />
         Aktie oder ETF suchen …
         <kbd className="ml-auto rounded border border-line-strong bg-panel2 px-1.5 font-mono text-micro text-ink3">
           Strg K

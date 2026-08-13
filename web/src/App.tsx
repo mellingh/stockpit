@@ -18,15 +18,13 @@ function KiStatus() {
     refetchInterval: (q) => (q.state.data?.sentiment?.status === 'ready' ? false : 4000),
   });
   const state = data?.sentiment?.status;
-  const text =
-    state === 'ready' ? 'lokale KI bereit'
-    : state === 'loading' ? 'KI-Modell lädt …'
-    : state === 'error' ? 'KI nicht verfügbar'
-    : 'lokale KI';
-  const dot =
-    state === 'ready' ? 'bg-up shadow-[0_0_8px_rgba(47,209,141,0.7)]'
-    : state === 'error' ? 'bg-down'
-    : 'bg-accent animate-pulse';
+  // Nur zeigen, wenn es etwas zu sagen gibt (Micha, Runde 53): im Normalfall stand
+  // dauerhaft „lokale KI bereit" in der Topbar — dass alles lokal läuft, sagt schon
+  // der Footer, und der Platz gehört der Suche. Beim Erststart (Modell lädt) bleibt
+  // die Meldung sichtbar, damit fehlende News-Einordnungen erklärt sind.
+  if (!state || state === 'ready') return null;
+  const text = state === 'loading' ? 'KI-Modell lädt …' : 'KI nicht verfügbar';
+  const dot = state === 'error' ? 'bg-down' : 'bg-accent animate-pulse';
   return (
     <div className="flex items-center gap-2 font-mono text-micro tracking-wide text-ink3">
       <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />

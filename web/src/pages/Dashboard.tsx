@@ -1040,30 +1040,26 @@ export default function DashboardPage() {
                   sichtbar sind ~5 Zeilen (5 × 45px), der Rest scrollt (Micha, Runde 32) */}
               <div className="grid grid-cols-1 gap-x-10 gap-y-4 lg:grid-cols-2">
                 <div>
-                  {/* „Deine Werte" ist raus (Micha, Runde 34) — die Gruppen Positionen |
-                      Watchlist stehen direkt in der Markt-Events-Optik (grau statt accent),
-                      jede für sich streng nach Zeit sortiert, das Nächste zuerst */}
+                  {/* EINE Überschrift für beide Quellen (Micha, Runde 53) — die
+                      Untergruppen „Positionen"/„Watchlist" zerstückelten die Liste;
+                      jetzt alles streng nach Zeit untereinander wie bei Markt-Events */}
+                  <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">
+                    Positionen &amp; Watchlist
+                  </div>
                   {d.termine.filter((t) => t.typ !== 'Markt').length ? (
                     <ScrollListe className="max-h-[270px]">
-                      {(['Positionen', 'Watchlist'] as const).map((gruppe) => {
-                        const imDepot = new Set(d.positions.map((p) => p.symbol));
+                      {d.termine
+                        .filter((t) => t.typ !== 'Markt')
                         // maximal 1 Tag zurück (Micha, Runde 37) — Älteres fliegt raus
-                        const gestern0 = new Date(new Date().setHours(0, 0, 0, 0)) .getTime() - 86_400_000;
-                        const eintraege = d.termine
-                          .filter((t) => t.typ !== 'Markt')
-                          .filter((t) => (gruppe === 'Positionen') === imDepot.has(t.symbol ?? ''))
-                          .filter((t) => +new Date(t.date) >= gestern0)
-                          .sort((a, b) => +new Date(a.date) - +new Date(b.date));
-                        if (!eintraege.length) return null;
-                        return (
-                          <Fragment key={gruppe}>
-                            <div className="mb-1.5 pt-4 text-micro font-bold uppercase tracking-[0.14em] text-ink3 first:pt-0">
-                              {gruppe}
-                            </div>
-                            {eintraege.map((t, i) => <TerminWert key={i} t={t} />)}
-                          </Fragment>
-                        );
-                      })}
+                        .filter(
+                          (t) =>
+                            +new Date(t.date) >=
+                            new Date(new Date().setHours(0, 0, 0, 0)).getTime() - 86_400_000
+                        )
+                        .sort((a, b) => +new Date(a.date) - +new Date(b.date))
+                        .map((t, i) => (
+                          <TerminWert key={i} t={t} />
+                        ))}
                     </ScrollListe>
                   ) : (
                     <p className="py-2 text-small text-ink3">Keine Termine deiner Werte.</p>
