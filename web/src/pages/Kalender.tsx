@@ -1,8 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@/lib/router';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
@@ -259,16 +258,11 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
   const navigate = useNavigate();
   const markt = params.get('markt') ?? 'us';
   const setMarkt = (v: string) => setParam('markt', v === 'us' ? null : v);
-  const [suche, setSuche] = useState('');
   const [von, bis] = zeitfenster(tag);
   const { data, isLoading, error } = useEarnings(markt, von, bis);
-
-  const events = useMemo(() => {
-    const q = suche.trim().toLowerCase();
-    const alle = data?.events ?? [];
-    if (!q) return alle;
-    return alle.filter((e) => e.ticker.toLowerCase().includes(q) || e.name.toLowerCase().includes(q));
-  }, [data, suche]);
+  // Kein Suchfeld mehr (Micha, Runde 54): die anderen Kalender-Tabs filtern
+  // ausschließlich über Pills — ein Textfilter fiel dort aus dem Muster.
+  const events = data?.events ?? [];
 
   const heuteKey = dayKey(new Date());
   let letzterTag: string | null = null;
@@ -285,24 +279,6 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
           ))}
         </div>
       </div>
-      {/* gleiche Optik wie die anderen Suchfelder: Lupe links, 32er-Reihe, Basis-Schrift.
-          Die Liste filtert live beim Tippen — das sind die "Vorschläge". */}
-      <div className="relative mb-4 max-w-[300px]">
-        <Search
-          size={15}
-          aria-hidden
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink3"
-        />
-        <Input
-          className="h-control-sm pl-9"
-          placeholder="Symbol oder Name suchen …"
-          aria-label="Earnings nach Symbol oder Name filtern"
-          autoComplete="off"
-          spellCheck={false}
-          value={suche}
-          onChange={(e) => setSuche(e.target.value)}
-        />
-      </div>
       {isLoading && (
         <div role="status" aria-label="Earnings werden geladen">
           <SkeletonRows zeilen={8} />
@@ -311,7 +287,7 @@ function EarningsTab({ tag, setTag }: { tag: string; setTag: (v: string) => void
       {error && <Empty role="status" aria-live="polite">Earnings nicht erreichbar: {(error as Error).message}</Empty>}
       {data &&
         (events.length === 0 ? (
-          <Empty>Keine Quartalszahlen-Termine in diesem Zeitraum{suche ? ' mit diesem Filter' : ''}.</Empty>
+          <Empty>Keine Quartalszahlen-Termine in diesem Zeitraum.</Empty>
         ) : (
           <table className="lange-liste w-full border-collapse">
             <thead>

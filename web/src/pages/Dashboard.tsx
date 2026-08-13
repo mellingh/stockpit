@@ -205,19 +205,22 @@ function KursKauf({
   const rN = rateEur(fx, p.waehrung);
   const rK = rateEur(fx, k);
   const umgerechnet = p.preis != null && k && k !== p.waehrung && rN != null && rK != null;
+  // Kurs + ≈-Umrechnung sind EIN Block — die Umrechnung gehört unter den Kurs, nicht
+  // unter den Prozentwert (Micha, Runde 54). Die Tagesbewegung steht rechts daneben
+  // und ist vertikal zwischen den beiden Zeilen zentriert.
   return (
-    <>
-      <span className="flex items-baseline justify-end gap-3">
-        <span>{umgerechnet ? fmtMoney((p.preis! * rN!) / rK!, k) : fmtMoney(p.preis, p.waehrung)}</span>
-        {/* feste Breite: sonst wandert der Kurs je nach Länge der Prozentzahl */}
-        {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-right">{bewegung}</span>}
+    <span className="flex items-center justify-end gap-3">
+      <span className="text-right">
+        {umgerechnet ? fmtMoney((p.preis! * rN!) / rK!, k) : fmtMoney(p.preis, p.waehrung)}
+        {umgerechnet ? (
+          <span className="block text-micro text-ink3 tnum">≈ {fmtMoney(p.preis, p.waehrung)}</span>
+        ) : (
+          <KursInEur preis={p.preis} waehrung={p.waehrung} fx={fx} />
+        )}
       </span>
-      {umgerechnet ? (
-        <span className="block text-micro text-ink3 tnum">≈ {fmtMoney(p.preis, p.waehrung)}</span>
-      ) : (
-        <KursInEur preis={p.preis} waehrung={p.waehrung} fx={fx} />
-      )}
-    </>
+      {/* feste Breite: sonst wandert der Kurs je nach Länge der Prozentzahl */}
+      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-right">{bewegung}</span>}
+    </span>
   );
 }
 
@@ -781,13 +784,16 @@ function Watchlist({ d }: { d: Dashboard }) {
                   <div className="font-mono text-micro tracking-wide text-ink3">{w.symbol}</div>
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
-                  <span className="flex items-baseline justify-end gap-3">
-                    <span>{fmtMoney(w.preis, w.waehrung)}</span>
+                  {/* wie bei den Positionen: Kurs + Umrechnung als Block, Prozent daneben */}
+                  <span className="flex items-center justify-end gap-3">
+                    <span className="text-right">
+                      {fmtMoney(w.preis, w.waehrung)}
+                      <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
+                    </span>
                     <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-right', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
                       <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                     </span>
                   </span>
-                  <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                 </td>
                 {/* Platzhalter für die Ø-Kauf-Spalte der Positionen-Tabelle */}
                 <td aria-hidden />
