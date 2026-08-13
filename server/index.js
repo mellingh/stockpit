@@ -630,6 +630,16 @@ app.get(
       return s + p.valueEur - p.valueEur / (1 + p.tagesPct / 100);
     }, 0);
 
+    // Zu welchem Handelstag gehört dayChangeEur? Vor Börsenöffnung ist das noch
+    // GESTERN, montags sogar Freitag — die „Heute"-Kachel beschriftet sich danach
+    // (Micha, Runde 49). Jüngster regulärer Kurszeitpunkt über alle Positionen.
+    const letzterHandelstag =
+      positions.reduce((max, p) => {
+        const ts = quotes[p.symbol]?.regularMarketTime;
+        const t = ts ? new Date(ts).getTime() : 0;
+        return t > max ? t : max;
+      }, 0) || null;
+
     // Termin-Radar: nahende Quartalszahlen und Ex-Dividenden-Termine (14 Tage)
     const upcoming = [];
     const daysUntil = (d) => Math.round((new Date(d) - Date.now()) / DAY);
@@ -744,6 +754,7 @@ app.get(
       gewinnPct: costEur ? ((totalEur - costEur) / costEur) * 100 : null,
       dayChangeEur,
       dayChangePct: totalEur ? (dayChangeEur / (totalEur - dayChangeEur)) * 100 : null,
+      letzterHandelstag,
       positions,
       watchlist,
       termine: upcoming,

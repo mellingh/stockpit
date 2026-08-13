@@ -79,6 +79,8 @@ export interface Dashboard {
   gewinnPct: number | null;
   dayChangeEur: number;
   dayChangePct: number | null;
+  /** Handelstag, auf den sich dayChangeEur bezieht (vor Börsenstart = gestern) */
+  letzterHandelstag?: number | null;
   positions: Position[];
   watchlist: WatchItem[];
   termine: Termin[];

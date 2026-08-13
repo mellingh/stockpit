@@ -53,6 +53,25 @@ function StatCard({
   );
 }
 
+/**
+ * Label der Tagesbewegungs-Kachel (Micha, Runde 49): Vor Börsenöffnung gehört
+ * die Bewegung noch zu GESTERN, montags zu Freitag — dann hieß die Kachel
+ * fälschlich „Heute". Gleiche Kalendertags-Logik wie `wannVon()` bei den
+ * Terminen; ab Handelsstart steht wieder „Heute" da.
+ */
+function tagesLabel(ts?: number | null) {
+  if (!ts) return 'Heute';
+  const d = new Date(ts);
+  const heute0 = new Date();
+  heute0.setHours(0, 0, 0, 0);
+  const d0 = new Date(d);
+  d0.setHours(0, 0, 0, 0);
+  const tage = Math.round((+d0 - +heute0) / 86_400_000);
+  if (tage >= 0) return 'Heute';
+  if (tage === -1) return 'Gestern';
+  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+}
+
 // ---------- Wichtige Termine ----------
 
 function wannVon(t: Termin) {
@@ -576,15 +595,18 @@ function Positionen({ d }: { d: Dashboard }) {
           <thead className="sticky top-0 z-10 bg-panel">
             <tr>
               {/* Feste Breiten: Positionen und Watchlist teilen sich dasselbe
-                  Spaltenraster — Kurs steht unter Kurs. Die Verlauf-Sparkline ist
-                  raus (Micha, Runde 31: sagte nichts aus, was „Heute" nicht zeigt) —
-                  dafür Ø Kauf und mehr Luft für Wert/G/V/Aktionen. */}
+                  Spaltenraster. Reihenfolge (Micha, Runde 49): „Aktuell" und
+                  „Ø Kauf" stehen NEBENEINANDER, damit man Kurs und Einstand direkt
+                  vergleichen kann; „% heute" rückt dahinter. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
                 className="w-[104px] cursor-help text-right"
                 title="Aktueller Börsenkurs in deiner Kaufwährung, darunter die Umrechnung"
               >
-                Kurs
+                Aktuell
+              </TH>
+              <TH className="w-[104px] cursor-help text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
+                Ø Kauf
               </TH>
               <TH
                 className="w-[116px] cursor-help text-right"
@@ -592,10 +614,7 @@ function Positionen({ d }: { d: Dashboard }) {
               >
                 % heute
               </TH>
-              <TH className="w-[104px] text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
-                Ø Kauf
-              </TH>
-              <TH className="w-[130px] text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
+              <TH className="w-[130px] cursor-help text-right" title="Aktueller Positionswert in deiner Kaufwährung, darunter die Umrechnung">Wert</TH>
               <TH className="w-[188px] text-right">G/V</TH>
               <TH className="w-[64px]" />
             </tr>
@@ -640,11 +659,11 @@ function Positionen({ d }: { d: Dashboard }) {
                 <td className="py-3 text-right font-mono text-small tnum">
                   <KursKauf p={p} fx={d.fx} />
                 </td>
-                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.ausserboerslich?.pct ?? p.tagesPct))}>
-                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} />
-                </td>
                 <td className="py-3 text-right font-mono text-small text-ink2 tnum">
                   <OKaufZelle p={p} fx={d.fx} />
+                </td>
+                <td className={cn('py-3 text-right font-mono text-small tnum', signClass(p.ausserboerslich?.pct ?? p.tagesPct))}>
+                  <HeuteZelle tagesPct={p.tagesPct} ab={p.ausserboerslich} />
                 </td>
                 <td className="py-3 text-right font-mono text-small tnum">
                   <BetragKauf eur={p.valueEur} p={p} fx={d.fx} />
@@ -704,15 +723,19 @@ function Watchlist({ d }: { d: Dashboard }) {
         <table className="w-full table-fixed border-collapse text-small">
           <thead className="sticky top-0 z-10 bg-panel">
             <tr>
-              {/* Gleiches Spaltenraster wie die Positionen-Tabelle; der Füller
-                  ersetzt Ø Kauf + Wert + G/V, damit Kurs/Heute exakt
-                  untereinander stehen. */}
+              {/* Gleiches Spaltenraster wie die Positionen-Tabelle. „Ø Kauf" ist
+                  hier zwangsläufig leer (die Watchlist besitzt man nicht) — die
+                  Zellen zeigen „–", damit keine Lücke entsteht und Aktuell/% heute
+                  exakt unter den Positionen stehen. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
                 className="w-[104px] cursor-help text-right"
                 title="Aktueller Börsenkurs in deiner Kaufwährung, darunter die Umrechnung"
               >
-                Kurs
+                Aktuell
+              </TH>
+              <TH className="w-[104px] cursor-help text-right" title="Nur bei eigenen Positionen — beobachtete Werte haben keinen Kaufkurs">
+                Ø Kauf
               </TH>
               <TH
                 className="w-[116px] cursor-help text-right"
@@ -720,7 +743,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               >
                 % heute
               </TH>
-              <TH className="w-[422px]" />
+              <TH className="w-[318px]" />
               <TH className="w-[64px]" />
             </tr>
           </thead>
@@ -736,7 +759,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               <Fragment key={w.symbol}>
                 {(i === 0 || (arr[i - 1].sektor ?? 'Sonstige') !== (w.sektor ?? 'Sonstige')) && (
                   <tr className="border-b border-line">
-                    <td colSpan={5} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
+                    <td colSpan={6} className={cn('pb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1' : 'pt-7')}>
                       {w.sektor ?? 'Sonstige'}
                     </td>
                   </tr>
@@ -759,6 +782,8 @@ function Watchlist({ d }: { d: Dashboard }) {
                   {fmtMoney(w.preis, w.waehrung)}
                   <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                 </td>
+                {/* kein Kaufkurs bei beobachteten Werten — „–" statt Leerraum */}
+                <td className="py-3 text-right font-mono text-small text-ink3 tnum">–</td>
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
                   <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                 </td>
@@ -987,7 +1012,7 @@ export default function DashboardPage() {
               delay={60}
             />
             <StatCard
-              label="Heute"
+              label={tagesLabel(d.letzterHandelstag)}
               value={
                 d.positions.length ? (
                   <>
