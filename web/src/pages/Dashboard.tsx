@@ -219,7 +219,7 @@ function KursKauf({
         )}
       </span>
       {/* feste Breite: sonst wandert der Kurs je nach Länge der Prozentzahl */}
-      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-right">{bewegung}</span>}
+      {bewegung != null && <span className="w-[92px] shrink-0 whitespace-nowrap text-left">{bewegung}</span>}
     </span>
   );
 }
@@ -614,10 +614,13 @@ function Positionen({ d }: { d: Dashboard }) {
                   fester Breite, damit die Kurse fluchten), Zeile 2 die Umrechnung. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
-                className="w-[180px] cursor-help text-right"
+                className="w-[180px] cursor-help"
                 title="Aktueller Kurs in deiner Kaufwährung mit der Tagesbewegung; in der Vorbörse der vorbörsliche Stand. Darunter die Umrechnung."
               >
-                Aktuell
+                {/* Kopf beginnt exakt über dem Vorzeichen der Prozentzahl (Runde 57) */}
+                <span className="flex justify-end">
+                  <span className="w-[92px] text-left">Aktuell</span>
+                </span>
               </TH>
               <TH className="w-[100px] cursor-help text-right" title="Dein Ø-Kaufkurs je Stück, in der Währung, in der du gekauft hast">
                 Ø Kauf
@@ -742,10 +745,12 @@ function Watchlist({ d }: { d: Dashboard }) {
                   stehen, damit die Spalten der beiden Tabellen fluchten. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
-                className="w-[180px] cursor-help text-right"
+                className="w-[180px] cursor-help"
                 title="Aktueller Kurs mit der Tagesbewegung; in der Vorbörse der vorbörsliche Stand. Darunter die Umrechnung."
               >
-                Aktuell
+                <span className="flex justify-end">
+                  <span className="w-[92px] text-left">Aktuell</span>
+                </span>
               </TH>
               <TH className="w-[100px]" />
               <TH className="w-[296px]" />
@@ -790,7 +795,7 @@ function Watchlist({ d }: { d: Dashboard }) {
                       {fmtMoney(w.preis, w.waehrung)}
                       <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                     </span>
-                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-right', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
+                    <span className={cn('w-[92px] shrink-0 whitespace-nowrap text-left', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
                       <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                     </span>
                   </span>
