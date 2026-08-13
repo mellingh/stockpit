@@ -723,10 +723,10 @@ function Watchlist({ d }: { d: Dashboard }) {
         <table className="w-full table-fixed border-collapse text-small">
           <thead className="sticky top-0 z-10 bg-panel">
             <tr>
-              {/* Gleiches Spaltenraster wie die Positionen-Tabelle. „Ø Kauf" ist
-                  hier zwangsläufig leer (die Watchlist besitzt man nicht) — die
-                  Zellen zeigen „–", damit keine Lücke entsteht und Aktuell/% heute
-                  exakt unter den Positionen stehen. */}
+              {/* Gleiches Spaltenraster wie die Positionen-Tabelle. Die Ø-Kauf-Spalte
+                  gibt es hier NICHT (beobachtete Werte besitzt man nicht, Micha
+                  Runde 50) — sie bleibt als reiner Platzhalter ohne Kopf und Inhalt
+                  stehen, damit „% heute" exakt unter der Positionen-Spalte sitzt. */}
               <TH><span className="sr-only">Wert</span></TH>
               <TH
                 className="w-[104px] cursor-help text-right"
@@ -734,9 +734,7 @@ function Watchlist({ d }: { d: Dashboard }) {
               >
                 Aktuell
               </TH>
-              <TH className="w-[104px] cursor-help text-right" title="Nur bei eigenen Positionen — beobachtete Werte haben keinen Kaufkurs">
-                Ø Kauf
-              </TH>
+              <TH className="w-[104px]" />
               <TH
                 className="w-[116px] cursor-help text-right"
                 title="Kursbewegung gegenüber dem letzten Schlusskurs; in der Vorbörse die vorbörsliche Bewegung"
@@ -782,8 +780,8 @@ function Watchlist({ d }: { d: Dashboard }) {
                   {fmtMoney(w.preis, w.waehrung)}
                   <KursInEur preis={w.preis} waehrung={w.waehrung} fx={d.fx} />
                 </td>
-                {/* kein Kaufkurs bei beobachteten Werten — „–" statt Leerraum */}
-                <td className="py-3 text-right font-mono text-small text-ink3 tnum">–</td>
+                {/* Platzhalter für die Ø-Kauf-Spalte der Positionen-Tabelle */}
+                <td aria-hidden />
                 <td className={cn('py-3 text-right font-mono text-small tnum', signClass(w.ausserboerslich?.pct ?? w.tagesPct))}>
                   <HeuteZelle tagesPct={w.tagesPct} ab={w.ausserboerslich} />
                 </td>
