@@ -135,6 +135,14 @@ const INDIKATOR_DE = [
   [/^Corporate Profits/i, 'Unternehmensgewinne'],
   [/^Industrial Profits/i, 'Industriegewinne'],
   // Reden und Berichte: „BoJ Gov Ueda Speech" → „BoJ-Chef Ueda spricht"
+  [/^(?:US )?President Trump (?:Speaks?|Speech)$/i, 'US-Präsident Trump spricht'],
+  [/^(?:US )?President ([A-Z][\w-]+) (?:Speaks?|Speech)$/i, 'US-Präsident $1 spricht'],
+  [/^ECB President ([A-Z][\w-]+) (?:Speaks?|Speech)$/i, 'EZB-Chefin $1 spricht'],
+  [/^Fed Chair ([A-Z][\w-]+) (?:Speaks?|Testimony)$/i, 'Fed-Chef $1 spricht'],
+  [/^(\w+) (?:Deputy )?Gov(?:ernor)? ([A-Z][\w-]+) (?:Speaks|Speech)$/i, '$1-Notenbank: $2 spricht'],
+  [/^(\w+) (?:MPC |FOMC )?Member ([A-Z][\w-]+) (?:Speaks|Speech)$/i, '$1-Mitglied $2 spricht'],
+  [/^(\w{2,5}) ([A-Z][\w-]+) (?:Speaks|Speech)$/, '$1: $2 spricht'],
+  [/Speaks$/i, 'spricht'],
   [/^(\w+) Gov(?:ernor)? ([A-Z][\w-]+) Speech$/i, '$1-Chef $2 spricht'],
   [/^(\w+) (?:MPC |FOMC )?Member ([A-Z][\w-]+) Speech$/i, '$1-Mitglied $2 spricht'],
   [/^(\w+) Quarterly Outlook Report$/i, '$1-Quartalsbericht'],
@@ -339,6 +347,81 @@ async function fromForexFactory() {
   return { quelle: 'ForexFactory (ohne Aktuell-Werte)', events };
 }
 
+// ---------- Ergänzung: Reden & Auftritte (Micha, Runde 59) ----------
+// TradingView führt AUSSCHLIESSLICH statistische Indikatoren — Termine wie
+// „President Trump Speaks" fehlen dort komplett (geprüft: alle 67 US-Events der
+// Woche hatten ein indicator-Feld). Der ForexFactory-Feed hat sie, dafür keine
+// Ist-Werte. Deshalb bleibt TradingView Hauptquelle und wir mischen NUR die
+// Personen-Termine dazu.
+const REDE_RE = /speaks|speech|testimony|press conference|pressekonferenz/i;
+// Chef-Auftritte bewegen die Märkte am stärksten — investing.com stuft sie als
+// ★★★ ein, ForexFactory oft nur als „Medium". Wir folgen investing.
+const CHEF_RE = /president|chair|gov\b|governor|pr(ä|ae)sident|chef/i;
+
+// Der FF-Feed hat ein Rate-Limit (HTTP 429 bei häufigen Abrufen) und ändert sich
+// nur, wenn neue Wochentermine erscheinen → 3 h Cache. Zusätzlich merkt sich das
+// Modul den letzten Erfolg: bei 429 bleiben die Reden im Kalender stehen, statt zu
+// verschwinden (Micha würde sonst denken, der Termin fehlt wieder).
+let redenStand = [];
+
+function redenTermine() {
+  return cached('calendar:reden', 3 * 60 * MINUTE, async () => {
+    const { events } = await fromForexFactory();
+    redenStand = events
+      .filter((e) => REDE_RE.test(e.titelEn))
+      .map((e) => ({
+        ...e,
+        titel: titelDeutsch(e.titelEn, null),
+        wichtigkeit: CHEF_RE.test(e.titelEn) ? 'High' : e.wichtigkeit,
+      }));
+    return redenStand;
+  }).catch((err) => {
+    console.warn('[kalender] Reden-Feed nicht erreichbar:', err.message, '— nutze letzten Stand');
+    return redenStand;
+  });
+}
+
+/**
+ * Personen-Kern eines Rede-Titels: Rollen- und Verb-Wörter raus, Rest sortiert.
+ * „ECB President Lagarde Speech" und „ECB President Lagarde Speaks" ergeben beide
+ * „ecb+lagarde" — so werden Dubletten erkannt, ohne zwei verschiedene Redner zur
+ * gleichen Minute zu verwechseln (Zeit+Land allein warf Trump mit raus).
+ */
+const ROLLEN_RE =
+  /^(speaks?|speech|testimony|press|conference|president|chair|chairman|gov|governor|member|deputy|mpc|fomc|the|of|and)\.?$/i;
+function redeKern(titelEn) {
+  return String(titelEn || "")
+    .toLowerCase()
+    .replace(/[^a-zäöüß ]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !ROLLEN_RE.test(w))
+    .sort()
+    .join("+");
+}
+
+/**
+ * Reden zur Indikator-Liste mischen. TradingView führt für einige Länder (EU, AU)
+ * doch Reden, für die USA aber nicht — entdoppelt wird deshalb über Minute + Person.
+ * Chef-Auftritte werden quellenübergreifend auf ★★★ gehoben, damit dieselbe Rede
+ * nicht je nach Quelle unterschiedlich wichtig aussieht (investing stuft sie so ein).
+ */
+async function mitReden(basis) {
+  const chefStufe = (e) =>
+    REDE_RE.test(e.titelEn ?? '') && CHEF_RE.test(e.titelEn ?? '')
+      ? { ...e, wichtigkeit: 'High' }
+      : e;
+  const reden = await redenTermine();
+  const schluessel = (e) => e.zeit.slice(0, 16) + '|' + redeKern(e.titelEn);
+  const vorhanden = new Set(
+    basis.events.filter((e) => REDE_RE.test(e.titelEn ?? '')).map(schluessel)
+  );
+  const neu = reden.filter((e) => !vorhanden.has(schluessel(e)));
+  const events = [...basis.events.map(chefStufe), ...neu].sort(
+    (a, b) => new Date(a.zeit) - new Date(b.zeit)
+  );
+  return { ...basis, events };
+}
+
 // 15 Min Cache: "Aktuell"-Werte laufen über den Tag ein
 export function getCalendar() {
   return cached('calendar:week', 15 * MINUTE, () =>
@@ -351,5 +434,7 @@ export function getCalendar() {
         console.warn('[kalender] investing nicht verfügbar, nutze Fallback:', err.message);
         return fromForexFactory();
       })
+      // Reden/Auftritte ergänzen — die Hauptquelle kennt nur Indikatoren
+      .then(mitReden)
   );
 }
