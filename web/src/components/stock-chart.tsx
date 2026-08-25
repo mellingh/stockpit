@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createChart,
   LineStyle,
@@ -7,8 +7,10 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Ausserboerslich, Candle, ChartData } from '@/lib/api';
-import { fmtNum, fmtPct } from '@/lib/format';
+import { X } from 'lucide-react';
+import type { Ausserboerslich, Candle, ChartData, EarningsMarke } from '@/lib/api';
+import { fmtCompact, fmtEps, fmtNum, fmtPct } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 /**
  * TradingView-artiger Kurs-Chart — 1:1-Portierung des v1-Verhaltens:
@@ -21,11 +23,18 @@ export function StockChart({
   data,
   vortag,
   ausserboerslich,
+  earnings = [],
+  waehrung,
 }: {
   data: ChartData;
   vortag: number | null;
   ausserboerslich: Ausserboerslich | null;
+  /** Quartalsberichte → „E"-Marker unter der Kerze, Klick öffnet die Details */
+  earnings?: EarningsMarke[];
+  waehrung?: string;
 }) {
+  // angeklickter Bericht → Detailkarte im Chart (Muster wie TradingView)
+  const [offen, setOffen] = useState<EarningsMarke | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -355,6 +364,64 @@ export function StockChart({
     }
   }, [vortag, ausserboerslich, data]);
 
+  // „E"-Marker für Quartalsberichte (Micha, Runde 60). Der Marker sitzt auf dem
+  // Handelstag der Veröffentlichung; im Intraday-Chart gibt es ihn nicht, weil
+  // dort nur ein einzelner Tag zu sehen ist.
+  useEffect(() => {
+    const candle = candleRef.current;
+    if (!candle) return;
+    if (data.intraday || !earnings.length) {
+      candle.setMarkers([]);
+      return;
+    }
+    // Tage des Charts als Set — ein Marker braucht eine Kerze, sonst zeichnet
+    // lightweight-charts ihn nicht (Meldung nach Börsenschluss = nächster Tag)
+    const tage = data.candles.map((c) => String(c.time));
+    const tagFuer = (iso: string) => {
+      const d = iso.slice(0, 10);
+      return tage.includes(d) ? d : tage.find((t) => t >= d) ?? null;
+    };
+    candle.setMarkers(
+      earnings
+        .map((e) => ({ e, tag: tagFuer(e.gemeldet) }))
+        .filter((x) => x.tag)
+        .map(({ e, tag }) => ({
+          time: tag as unknown as UTCTimestamp,
+          position: 'belowBar' as const,
+          // grün/rot nach Überraschung — auf den ersten Blick erkennbar
+          color:
+            e.ueberraschungPct == null
+              ? '#6ba5ff'
+              : e.ueberraschungPct > 0
+                ? '#35d99a'
+                : '#ff6b78',
+          shape: 'circle' as const,
+          text: 'E',
+          id: e.gemeldet,
+        }))
+    );
+  }, [earnings, data]);
+
+  // Klick auf einen Marker → Detailkarte. Lightweight Charts meldet nur die
+  // angeklickte Zeit, also suchen wir den Bericht mit dem passenden Handelstag.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const onClick = (param: { time?: unknown }) => {
+      if (!param?.time || data.intraday) return;
+      const tag = String(param.time).slice(0, 10);
+      const treffer = earnings.find((e) => {
+        const d = e.gemeldet.slice(0, 10);
+        // Meldung nach Börsenschluss erscheint auf dem Folgetag → 4 Tage Toleranz
+        const diff = (new Date(tag).getTime() - new Date(d).getTime()) / 86_400_000;
+        return diff >= 0 && diff <= 4;
+      });
+      setOffen(treffer ?? null);
+    };
+    chart.subscribeClick(onClick);
+    return () => chart.unsubscribeClick(onClick);
+  }, [earnings, data]);
+
   return (
     <div ref={containerRef} className="relative h-[400px] w-full">
       {/* OHLC-Zeile transparent über dem Chart wie bei TradingView (Micha, Runde 28):
@@ -365,6 +432,88 @@ export function StockChart({
         className="pointer-events-none absolute left-2.5 top-2 z-10 flex gap-2.5 font-mono text-micro text-ink3 tnum"
         style={{ textShadow: '0 1px 4px rgba(11, 14, 20, 0.9)' }}
       />
+      {offen && <EarningsKarte e={offen} waehrung={waehrung} onClose={() => setOffen(null)} />}
+    </div>
+  );
+}
+
+/**
+ * Detailkarte zu einem Quartalsbericht (Klick auf den „E"-Marker, Runde 60).
+ * Rechts oben im Chart, damit sie die letzten Kerzen nicht verdeckt. Eine
+ * Umsatz-SCHÄTZUNG gibt es historisch nicht — dann steht dort nichts statt
+ * einer geratenen Zahl.
+ */
+function EarningsKarte({
+  e,
+  waehrung,
+  onClose,
+}: {
+  e: EarningsMarke;
+  waehrung?: string;
+  onClose: () => void;
+}) {
+  const datum = new Date(e.gemeldet).toLocaleDateString('de-DE', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: '2-digit',
+  });
+  const ende = e.zeitraumEnde
+    ? new Date(e.zeitraumEnde).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+    : null;
+  const ueb = e.ueberraschungPct;
+  const uebCls = ueb == null ? 'text-ink2' : ueb > 0 ? 'text-up' : ueb < 0 ? 'text-down' : 'text-ink2';
+  const Zeile = ({ label, wert, cls }: { label: string; wert: string; cls?: string }) => (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-micro text-ink3">{label}</span>
+      <span className={cn('font-mono text-small tnum', cls ?? 'text-ink')}>{wert}</span>
+    </div>
+  );
+  return (
+    <div className="absolute right-2.5 top-2 z-20 w-[248px] rounded-lg border border-line-strong bg-panel p-3.5 shadow-lg">
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="flex size-5 items-center justify-center rounded-full border border-accent/60 font-mono text-micro font-bold text-accent">
+          E
+        </span>
+        <b className="text-small font-semibold">Quartalszahlen</b>
+        <button
+          onClick={onClose}
+          aria-label="Schließen"
+          className="ml-auto cursor-pointer rounded-sm text-ink3 transition-colors hover:text-ink"
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <div className="grid gap-1.5">
+        <Zeile label="Gemeldet am" wert={datum} />
+        {ende && <Zeile label="Zeitraumende" wert={ende} />}
+        {e.quartal && <Zeile label="Quartal" wert={e.quartal} />}
+      </div>
+      <div className="mt-3 border-t border-line pt-2.5">
+        <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Ergebnis je Aktie</div>
+        <div className="grid gap-1.5">
+          <Zeile label="Erwartet" wert={e.epsErwartet == null ? '–' : fmtEps(e.epsErwartet)} cls="text-ink2" />
+          <Zeile label="Gemeldet" wert={e.epsIst == null ? '–' : fmtEps(e.epsIst)} />
+          {ueb != null && (
+            <Zeile
+              label="Überraschung"
+              wert={`${ueb > 0 ? '+' : ''}${String(ueb).replace('.', ',')} %`}
+              cls={uebCls}
+            />
+          )}
+        </div>
+      </div>
+      {e.umsatz != null && (
+        <div className="mt-3 border-t border-line pt-2.5">
+          <div className="mb-1.5 text-micro font-bold uppercase tracking-[0.14em] text-ink3">Quartal</div>
+          <div className="grid gap-1.5">
+            <Zeile label="Umsatz" wert={`${fmtCompact(e.umsatz)} ${waehrung ?? ''}`.trim()} />
+            {e.gewinn != null && (
+              <Zeile label="Gewinn" wert={`${fmtCompact(e.gewinn)} ${waehrung ?? ''}`.trim()} />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

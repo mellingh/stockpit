@@ -175,6 +175,18 @@ export interface Zahlen {
   ueberraschungPct: number | null;
 }
 
+/** Vergangener Quartalsbericht für die „E"-Marker im Chart (Runde 60) */
+export interface EarningsMarke {
+  /** Veröffentlichungszeitpunkt (ISO) — dort sitzt der Marker */
+  gemeldet: string;
+  quartal: string | null;
+  zeitraumEnde: string | null;
+  epsIst: number | null;
+  epsErwartet: number | null;
+  ueberraschungPct: number | null;
+  umsatz: number | null;
+  gewinn: number | null;
+}
 export interface Trial {
   title: string;
   link: string;
@@ -250,6 +262,7 @@ export interface Analyse {
   snowflake: Snowflake | null;
   termine: { earnings: string | number | null; earningsEpsErwartet?: number | null; exDividende: string | number | null; dividende: string | number | null };
   zahlen: Zahlen | null;
+  earningsMarker?: EarningsMarke[];
   etf: EtfInfo | null;
   trials: Trial[] | null;
   news: NewsItem[];

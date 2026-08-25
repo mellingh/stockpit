@@ -900,6 +900,8 @@ function Report({ symbol }: { symbol: string }) {
                 data={chartData}
                 vortag={a.kurs.vortag}
                 ausserboerslich={a.kurs.ausserboerslich}
+                earnings={a.earningsMarker}
+                waehrung={a.currency}
               />
             </Suspense>
           )}

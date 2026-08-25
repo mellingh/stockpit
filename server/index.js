@@ -194,6 +194,35 @@ async function getAusserboerslich(symbol, quote) {
   return ausserboerslich(quote) ?? (await prepostFallback(symbol, quote));
 }
 
+/**
+ * Quartalsberichte der Vergangenheit für die „E"-Marker im Chart (Micha, Runde 60).
+ * Entscheidend ist `reportedDate` aus earningsChart.quarterly — das ist der Tag der
+ * VERÖFFENTLICHUNG (earningsHistory kennt nur das Quartalsende, der Marker stünde
+ * dort Wochen zu früh). Der Umsatz kommt aus financialsChart, gematcht über das
+ * Fiskalquartal. Eine Umsatz-SCHÄTZUNG liefert Yahoo nur für den nächsten Termin —
+ * historisch gibt es sie nicht, deshalb bleibt das Feld dort leer statt geraten.
+ */
+function earningsMarker(summary) {
+  const quartale = summary?.earnings?.earningsChart?.quarterly ?? [];
+  const fin = summary?.earnings?.financialsChart?.quarterly ?? [];
+  return quartale
+    .filter((q) => q?.reportedDate)
+    .map((q) => {
+      const f = fin.find((x) => x.fiscalQuarter === q.fiscalQuarter);
+      const pct = q.surprisePct != null ? Number(q.surprisePct) : null;
+      return {
+        gemeldet: new Date(q.reportedDate).toISOString(),
+        quartal: q.fiscalQuarter ?? q.date ?? null,
+        zeitraumEnde: q.periodEndDate ? new Date(q.periodEndDate).toISOString() : null,
+        epsIst: q.actual ?? null,
+        epsErwartet: q.estimate ?? null,
+        ueberraschungPct: Number.isFinite(pct) ? pct : null,
+        umsatz: f?.revenue ?? null,
+        gewinn: f?.earnings ?? null,
+      };
+    })
+    .sort((a, b) => new Date(a.gemeldet) - new Date(b.gemeldet));
+}
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
     console.error(`[api] ${req.path}:`, err.message);
@@ -523,6 +552,7 @@ app.get(
       snowflake,
       termine,
       zahlen: frischeZahlen(summary, quote),
+      earningsMarker: earningsMarker(summary),
       etf,
       trials,
       news,
