@@ -402,25 +402,49 @@ export function StockChart({
     );
   }, [earnings, data]);
 
-  // Klick auf einen Marker → Detailkarte. Lightweight Charts meldet nur die
-  // angeklickte Zeit, also suchen wir den Bericht mit dem passenden Handelstag.
+  // Marker-Interaktion wie bei TradingView (Micha, Runde 61):
+  // • Maus über dem „E" → Zeiger wird zur Hand (hoveredObjectId = Marker-ID)
+  // • Klick auf das „E" öffnet die Karte, Klick daneben schließt sie wieder
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
-    const onClick = (param: { time?: unknown }) => {
-      if (!param?.time || data.intraday) return;
-      const tag = String(param.time).slice(0, 10);
-      const treffer = earnings.find((e) => {
-        const d = e.gemeldet.slice(0, 10);
-        // Meldung nach Börsenschluss erscheint auf dem Folgetag → 4 Tage Toleranz
-        const diff = (new Date(tag).getTime() - new Date(d).getTime()) / 86_400_000;
-        return diff >= 0 && diff <= 4;
-      });
-      setOffen(treffer ?? null);
+    const container = containerRef.current;
+    if (!chart || !container) return;
+    const markeVon = (id: unknown) =>
+      typeof id === 'string' ? earnings.find((e) => e.gemeldet === id) ?? null : null;
+
+    const onMove = (param: { hoveredObjectId?: unknown }) => {
+      container.style.cursor = markeVon(param?.hoveredObjectId) ? 'pointer' : '';
     };
+    const onClick = (param: { hoveredObjectId?: unknown }) => {
+      // Klick ins Leere schließt die Karte — kein Zwang zum ✕
+      setOffen(markeVon(param?.hoveredObjectId));
+    };
+    chart.subscribeCrosshairMove(onMove);
     chart.subscribeClick(onClick);
-    return () => chart.unsubscribeClick(onClick);
+    return () => {
+      chart.unsubscribeCrosshairMove(onMove);
+      chart.unsubscribeClick(onClick);
+      container.style.cursor = '';
+    };
   }, [earnings, data]);
+
+  // Escape und Klick außerhalb des Charts schließen die Karte ebenfalls
+  useEffect(() => {
+    if (!offen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOffen(null);
+    };
+    const onDown = (e: PointerEvent) => {
+      const ziel = e.target as Node;
+      if (!containerRef.current?.contains(ziel)) setOffen(null);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [offen]);
 
   return (
     <div ref={containerRef} className="relative h-[400px] w-full">
@@ -463,6 +487,8 @@ function EarningsKarte({
     : null;
   const ueb = e.ueberraschungPct;
   const uebCls = ueb == null ? 'text-ink2' : ueb > 0 ? 'text-up' : ueb < 0 ? 'text-down' : 'text-ink2';
+  // Akzentfarbe = Marker-Farbe: die Karte gehört sichtbar zum angeklickten „E"
+  const akzent = ueb == null ? 'var(--color-accent)' : ueb > 0 ? 'var(--color-up)' : 'var(--color-down)';
   const Zeile = ({ label, wert, cls }: { label: string; wert: string; cls?: string }) => (
     <div className="flex items-baseline justify-between gap-4">
       <span className="text-micro text-ink3">{label}</span>
@@ -470,9 +496,18 @@ function EarningsKarte({
     </div>
   );
   return (
-    <div className="absolute right-2.5 top-2 z-20 w-[248px] rounded-lg border border-line-strong bg-panel p-3.5 shadow-lg">
+    <div
+      // eigene Karte mit farbigem Balken links (TradingView-Muster, Micha Runde 61);
+      // der Klick darin darf nicht zum Chart durchfallen, sonst schließt sie sofort
+      onPointerDown={(ev) => ev.stopPropagation()}
+      className="absolute right-2.5 top-2 z-20 w-[248px] overflow-hidden rounded-lg border border-line-strong bg-panel py-3.5 pl-4 pr-3.5 shadow-[0_8px_24px_rgba(11,14,20,0.55)]"
+    >
+      <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: akzent }} />
       <div className="mb-2.5 flex items-center gap-2">
-        <span className="flex size-5 items-center justify-center rounded-full border border-accent/60 font-mono text-micro font-bold text-accent">
+        <span
+          className="flex size-5 items-center justify-center rounded-full font-mono text-micro font-bold"
+          style={{ border: `1px solid ${akzent}`, color: akzent }}
+        >
           E
         </span>
         <b className="text-small font-semibold">Quartalszahlen</b>
