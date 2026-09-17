@@ -75,6 +75,9 @@ const STOCK_MODULES = [
   // earningsChart.quarterly trägt das Ist-EPS nach einem Report oft Stunden
   // früher nach als earningsHistory — zweite Quelle für "Frische Zahlen"
   'earnings',
+  // Analysten-Umsatz- und Gewinnschätzungen für die kommenden Jahre samt
+  // Anzahl der Analysten — Grundlage der Wachstumsannahme in der Bewertung
+  'earningsTrend',
 ];
 
 export function getSummary(symbol) {

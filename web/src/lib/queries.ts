@@ -15,9 +15,8 @@ import {
   type SearchResult,
   type TrendingItem,
   type WebLink,
-  type BewertungsErgebnis,
-  type BewertungsModell,
   type BewertungsEintrag,
+  type BewertungsAntwort,
 } from './api';
 
 export const useDashboard = () =>
@@ -132,7 +131,7 @@ export const useBewertungStart = (symbol: string | null, verfahren?: string) =>
   useQuery({
     queryKey: ['bewertung', symbol, verfahren ?? null],
     queryFn: () =>
-      api.get<BewertungsErgebnis>(
+      api.get<BewertungsAntwort>(
         `/api/bewertung/${encodeURIComponent(symbol!)}` + (verfahren ? `?verfahren=${verfahren}` : ''),
       ),
     enabled: !!symbol,
@@ -142,15 +141,11 @@ export const useBewertungStart = (symbol: string | null, verfahren?: string) =>
     refetchOnWindowFocus: false,
   });
 
-/** Neu rechnen mit eigenen Annahmen — zustandslos, speichert nichts. */
-export const rechneBewertung = (modell: BewertungsModell, markt?: Record<string, unknown>) =>
-  api.post<BewertungsErgebnis>('/api/bewertung/rechnen', { modell, markt });
-
 /** Gespeicherte Bewertung öffnen — gleiche Antwortform wie der Startaufruf. */
 export const useBewertungGespeichert = (id: string | null) =>
   useQuery({
     queryKey: ['bewertung-gespeichert', id],
-    queryFn: () => api.get<BewertungsErgebnis>(`/api/bewertungen/${encodeURIComponent(id!)}`),
+    queryFn: () => api.get<BewertungsAntwort>(`/api/bewertungen/${encodeURIComponent(id!)}`),
     enabled: !!id,
     refetchOnWindowFocus: false,
   });

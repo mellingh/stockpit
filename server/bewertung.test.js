@@ -170,13 +170,29 @@ test('DCF weist den Endwertanteil aus', () => {
   assert.ok(Math.abs(r.barwertExplizit + r.endwert - r.enterpriseValue) < 1e-6);
 });
 
-test('DCF liefert keinen Endwert, wenn das ewige Wachstum die Kapitalkosten erreicht', () => {
+test('Kapitalkosten werden auf Mindestabstand zur ewigen Wachstumsrate geklemmt', () => {
+  // Ohne Klemme waere der Endwert FCF/(0,02-0,02) = unendlich; mit Klemme
+  // rechnet das Modell mit 5 % statt 2 % Kapitalkosten und weist das aus.
   const w = { 'dcf.jahre': 5, 'dcf.umsatz': 1000, 'dcf.wachstum': 0.05, 'dcf.marge': 0.2, 'dcf.kapitalkosten': 0.02, 'dcf.ewigesWachstum': 0.02 };
   const r = rechneDcf(w);
-  assert.equal(r.endwert, null);
-  assert.equal(r.endwertUndefiniert, true);
+  assert.equal(r.waccGeklemmt, true);
+  assert.ok(Math.abs(r.wacc - 0.05) < 1e-12);
+  assert.ok(r.endwert > 0);
 });
 
+test('Wachstum schmilzt auf die ewige Rate ab statt konstant zu bleiben', () => {
+  const w = { 'dcf.jahre': 10, 'dcf.umsatz': 1000, 'dcf.wachstum': 0.60, 'dcf.marge': 0.2,
+    'dcf.steuerquote': 0.25, 'dcf.kapitalkosten': 0.09, 'dcf.ewigesWachstum': 0.02 };
+  const r = rechneDcf(w);
+  assert.ok(Math.abs(r.wachstumStart - 0.60) < 1e-12);
+  assert.ok(Math.abs(r.wachstumEnde - 0.02) < 1e-12);
+  // dazwischen streng fallend
+  for (let i = 1; i < r.jahresreihe.length; i++) {
+    assert.ok(r.jahresreihe[i].wachstum < r.jahresreihe[i - 1].wachstum);
+  }
+  // und deutlich unter der Fortschreibung mit konstant 60 %
+  assert.ok(r.jahresreihe[9].umsatz < 1000 * Math.pow(1.6, 10) / 5);
+});
 test('Residualgewinn bildet das faire KBV aus ROE und Eigenkapitalkosten', () => {
   const w = { 'res.eigenkapital': 1000, 'res.roe': 0.15, 'res.eigenkapitalkosten': 0.10, 'res.wachstum': 0.03 };
   const r = rechneResidual(w);

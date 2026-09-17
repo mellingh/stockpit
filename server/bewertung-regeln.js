@@ -67,6 +67,13 @@ export const VORGABEN = {
   marktrisikopraemie: 0.055,
   risikofreierZins: 0.04,
   prognoseJahre: 10,
+  // Mindestabstand der Kapitalkosten zur ewigen Wachstumsrate. Darunter wird
+  // der Endwert (FCF / (WACC - g)) zur Fantasiezahl.
+  mindestAbstandWacc: 0.03,
+  // Ab diesem erwarteten Wachstum wird ein DCF nicht mehr angeboten: der
+  // Endwert reagiert dann so stark auf das Abschmelzen, dass das Ergebnis
+  // beliebig wird. Solche Firmen bewertet man ueber die Vergleichsgruppe.
+  maxWachstumFuerDcf: 0.25,
   monteCarloLaeufe: 10000,
   sensitivitaetSchritt: 0.10,
 };

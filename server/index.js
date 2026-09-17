@@ -20,7 +20,8 @@ import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
 import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
 import { gesamtergebnis } from './bewertung-analyse.js';
-import { rohdatenVon, verfahrenVorschlag, baueModell } from './bewertung-daten.js';
+import { rohdatenVon, anwendbareVerfahren, MANUELLE_VERFAHREN, baueModell } from './bewertung-daten.js';
+import { getPeers } from './bewertung-peers.js';
 import { VERFAHREN, POS_PHASEN, POS_GEBIETE, RNPV_MULTIPLE } from './bewertung-regeln.js';
 import { listeBewertungen, holeBewertung, speichereVersion, loescheBewertung } from './bewertung-speicher.js';
 
@@ -1188,11 +1189,19 @@ function marktwerteVon(roh, summary) {
 }
 
 /** Rohdaten + Startmodell für ein Symbol — die Grundlage jeder Bewertung. */
-async function bewertungsGrundlage(symbol, verfahrenWunsch) {
-  const [summary, fts, quote] = await Promise.all([
+/**
+ * Grundlage einer Bewertung: Rohdaten, Peer-Gruppe und ein Modell JE
+ * anwendbarem Verfahren. Es wird nicht mehr ein Verfahren „vorgeschlagen" —
+ * gerechnet wird alles, wofür die Daten reichen, und daraus entsteht ein
+ * Gesamtwert. Verfahren, die Handeingaben brauchen (rNPV, SOTP), laufen nie
+ * automatisch mit: ein rNPV ohne Spitzenumsätze zeigt nur den Kassenbestand.
+ */
+async function bewertungsGrundlage(symbol) {
+  const [summary, fts, quote, peers] = await Promise.all([
     yahoo.getSummary(symbol),
     yahoo.getFundamentals(symbol),
     yahoo.getQuote(symbol),
+    getPeers(symbol),
   ]);
   if (!summary?.price) throw new Error('Unbekanntes Symbol');
 
@@ -1201,43 +1210,88 @@ async function bewertungsGrundlage(symbol, verfahrenWunsch) {
   const marker = earningsMarker(summary);
   const letzteZahlen = marker.length ? marker[marker.length - 1].gemeldet : null;
 
-  const roh = rohdatenVon(summary, fts, { letzteZahlen });
-  const vorschlag = verfahrenVorschlag(roh);
-  const verfahren = verfahrenWunsch && VERFAHREN[verfahrenWunsch] ? verfahrenWunsch : vorschlag.verfahren;
+  const roh = rohdatenVon(summary, fts, { letzteZahlen, peers });
+  const name = displayName(summary.price, symbol);
+  const kurs = quote?.regularMarketPrice ?? null;
+  const kursStand = quote?.regularMarketTime ?? new Date();
 
-  // Studien nur holen, wenn sie gebraucht werden (rNPV-Zeilen).
-  let trials = [];
-  if (verfahren === 'rnpv') {
-    trials = await getTrials(summary?.price?.longName || summary?.price?.shortName || symbol).catch(() => []);
-  }
-
-  const modell = baueModell({
-    symbol,
-    name: summary.price.longName || summary.price.shortName || symbol,
-    kurs: quote?.regularMarketPrice ?? null,
-    kursStand: quote?.regularMarketTime ?? new Date(),
-    verfahren,
-    roh,
-    extras: { trials },
-  });
-
-  return { modell, roh, vorschlag, markt: marktwerteVon(roh, summary) };
+  return { summary, roh, peers, name, kurs, kursStand, markt: marktwerteVon(roh, summary) };
 }
 
-// Startpunkt: Kürzel rein, fertig vorbefülltes Modell samt Ergebnis raus.
+/** Median einer Zahlenreihe (für den Gesamtwert über mehrere Verfahren). */
+function medianVon(werte) {
+  const s = werte.filter((v) => typeof v === 'number' && Number.isFinite(v)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Startpunkt: Kürzel rein, alle rechenbaren Verfahren raus — plus ein
+// zusammengefasster Wert, damit man nicht drei Zahlen vergleichen muss.
 app.get('/api/bewertung/:symbol', async (req, res) => {
   try {
-    const { modell, roh, vorschlag, markt } = await bewertungsGrundlage(
-      req.params.symbol.toUpperCase(),
-      req.query.verfahren,
-    );
-    const ergebnis = gesamtergebnis(modell, { markt });
-    // Regeltabellen mitliefern: das Frontend baut neue Zeilen mit denselben
-    // Vorgaben, statt eine zweite Kopie der Tabelle zu pflegen.
+    const symbol = req.params.symbol.toUpperCase();
+    const { summary, roh, peers, name, kurs, kursStand, markt } = await bewertungsGrundlage(symbol);
+
+    const { anwendbar, abgelehnt } = anwendbareVerfahren(roh);
+    // Zusätzlich angefordertes Handeingabe-Verfahren (rNPV/SOTP) mitrechnen,
+    // damit man es befüllen kann — es zählt aber nicht in den Gesamtwert.
+    const extraId = MANUELLE_VERFAHREN[req.query.verfahren] ? req.query.verfahren : null;
+
+    let trials = [];
+    if (extraId === 'rnpv') {
+      trials = await getTrials(name || symbol).catch(() => []);
+    }
+
+    const bauen = (id, basis) => {
+      const modell = baueModell({
+        symbol, name, kurs, kursStand, verfahren: id, roh,
+        extras: { basis, trials },
+      });
+      return { modell, ergebnis: gesamtergebnis(modell, { markt }) };
+    };
+
+    const verfahren = anwendbar.map((v) => {
+      const { modell, ergebnis } = bauen(v.id, v.basis);
+      return { id: v.id, basis: v.basis ?? null, grund: v.grund, automatisch: true, modell, ergebnis };
+    });
+    if (extraId) {
+      const { modell, ergebnis } = bauen(extraId, null);
+      verfahren.push({ id: extraId, basis: null, grund: MANUELLE_VERFAHREN[extraId], automatisch: false, modell, ergebnis });
+    }
+
+    // Gesamtwert: Median über die automatisch gerechneten Verfahren. Der Median
+    // ist robuster als der Mittelwert — ein einzelnes Verfahren mit Ausreißer
+    // verschiebt die Aussage nicht.
+    const auto = verfahren.filter((v) => v.automatisch);
+    const je = (fall) => medianVon(auto.map((v) => v.ergebnis.szenarien[fall].wertJeAktie));
+    const base = je('base');
+    const gesamt = {
+      worst: je('worst'),
+      base,
+      best: je('best'),
+      abweichung: kurs && base != null ? (base - kurs) / kurs : null,
+      verfahren: auto.map((v) => v.id),
+      einzelwerte: auto.map((v) => ({ id: v.id, basis: v.basis, wertJeAktie: v.ergebnis.szenarien.base.wertJeAktie })),
+    };
+
+    // Umrechnungskurs für die Zweitanzeige in Euro (wie im Dashboard).
+    const eurKurs = roh.waehrung && roh.waehrung !== 'EUR'
+      ? await yahoo.getFxRate(roh.waehrung, 'EUR').catch(() => null)
+      : 1;
+
     res.json({
-      ...ergebnis,
+      symbol, name, kurs, kursStand, waehrung: roh.waehrung, eurKurs,
+      stand: new Date().toISOString().slice(0, 10),
+      gesamt,
+      verfahren,
+      abgelehnt,
+      manuell: Object.entries(MANUELLE_VERFAHREN)
+        .filter(([id]) => !verfahren.some((v) => v.id === id))
+        .map(([id, grund]) => ({ id, grund })),
       rohdaten: roh,
-      vorschlag,
+      peerGruppe: peers ? { branche: peers.branche, peers: peers.peers } : null,
+      markt,
       verfahrenListe: VERFAHREN,
       regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },
     });
@@ -1246,54 +1300,34 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
   }
 });
 
-// Neu rechnen mit eigenen Annahmen — zustandslos, speichert nichts.
-app.post('/api/bewertung/rechnen', (req, res) => {
-  const modell = req.body?.modell;
-  if (!modell?.verfahren || !Array.isArray(modell.annahmen)) {
-    return res.status(400).json({ error: 'Modell mit Verfahren und Annahmen erwartet' });
-  }
-  try {
-    res.json(gesamtergebnis(modell, { markt: req.body.markt ?? {} }));
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
 app.get('/api/bewertungen', (req, res) => {
   res.json(listeBewertungen());
 });
 
-// Gespeicherte Bewertung öffnen. Antwortform ist bewusst dieselbe wie beim
-// Start über das Kürzel — das Frontend arbeitet mit einer Struktur, egal ob
-// eine Bewertung frisch vorbefüllt oder aus der Datei geladen wurde.
+// Gespeicherte Bewertung öffnen — liefert exakt den damaligen Stand zurück,
+// inklusive Annahmen und Vergleichsgruppe von damals.
 app.get('/api/bewertungen/:id', (req, res) => {
   const b = holeBewertung(req.params.id, req.query.version);
   if (!b) return res.status(404).json({ error: 'Bewertung nicht gefunden' });
   const v = b.versionen[b.versionen.length - 1];
   res.json({
-    ...gesamtergebnis(v.modell, { markt: v.markt ?? {} }),
+    ...v.auswertung,
     id: b.id,
-    // Versionsliste ohne die Modelle — die Übersicht braucht nur die Köpfe.
-    versionen: b.versionen.map((x) => ({ version: x.version, zeit: x.zeit, notiz: x.notiz, wertJeAktie: x.wertJeAktie })),
-    verfahrenListe: VERFAHREN,
-    regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },
+    gespeichertAm: v.zeit,
+    versionen: b.versionen.map((x) => ({ version: x.version, zeit: x.zeit, notiz: x.notiz })),
   });
 });
 
 // Speichern legt IMMER eine neue Version an — alte werden nie überschrieben.
 app.post('/api/bewertungen', (req, res) => {
-  const { id, modell, notiz } = req.body ?? {};
-  if (!modell?.symbol || !modell?.verfahren) {
-    return res.status(400).json({ error: 'Modell mit Symbol und Verfahren erwartet' });
-  }
+  const { id, auswertung, notiz } = req.body ?? {};
+  if (!auswertung?.symbol) return res.status(400).json({ error: 'Auswertung mit Symbol erwartet' });
   try {
-    const ergebnis = gesamtergebnis(modell, { markt: req.body.markt ?? {}, laeufe: 2000 });
-    res.json(speichereVersion({ id, modell, notiz, markt: req.body.markt ?? {}, wertJeAktie: ergebnis.szenarien.base.wertJeAktie }));
+    res.json(speichereVersion({ id, auswertung, notiz }));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
-
 app.delete('/api/bewertungen/:id', (req, res) => {
   if (!loescheBewertung(req.params.id)) return res.status(404).json({ error: 'Bewertung nicht gefunden' });
   res.json({ ok: true });

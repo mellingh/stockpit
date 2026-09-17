@@ -39,13 +39,13 @@ export function listeBewertungen() {
       id: b.id,
       symbol: b.symbol,
       name: b.name,
-      verfahren: letzte?.modell?.verfahren ?? null,
+      verfahren: letzte?.auswertung?.gesamt?.verfahren ?? [],
       erstellt: b.erstellt,
       geaendert: letzte?.zeit ?? b.erstellt,
       versionen: b.versionen.length,
-      wertJeAktie: letzte?.wertJeAktie ?? null,
-      kurs: letzte?.modell?.kurs ?? null,
-      waehrung: letzte?.modell?.waehrung ?? null,
+      wertJeAktie: letzte?.auswertung?.gesamt?.base ?? null,
+      kurs: letzte?.auswertung?.kurs ?? null,
+      waehrung: letzte?.auswertung?.waehrung ?? null,
     };
   }).sort((a, b) => String(b.geaendert).localeCompare(String(a.geaendert)));
 }
@@ -64,7 +64,7 @@ export function holeBewertung(id, version) {
  * `wertJeAktie` wird für die Übersichtsliste mitgeschrieben, damit sie sich
  * ohne Nachrechnen anzeigen lässt.
  */
-export function speichereVersion({ id, modell, notiz, markt, wertJeAktie }) {
+export function speichereVersion({ id, auswertung, notiz }) {
   const daten = load();
   const jetzt = new Date().toISOString();
   let eintrag = id ? daten.bewertungen.find((x) => x.id === id) : null;
@@ -72,8 +72,8 @@ export function speichereVersion({ id, modell, notiz, markt, wertJeAktie }) {
   if (!eintrag) {
     eintrag = {
       id: id ?? neueId(),
-      symbol: modell.symbol,
-      name: modell.name,
+      symbol: auswertung.symbol,
+      name: auswertung.name,
       erstellt: jetzt,
       versionen: [],
     };
@@ -84,11 +84,10 @@ export function speichereVersion({ id, modell, notiz, markt, wertJeAktie }) {
     version: (eintrag.versionen[eintrag.versionen.length - 1]?.version ?? 0) + 1,
     zeit: jetzt,
     notiz: notiz ?? null,
-    wertJeAktie: wertJeAktie ?? null,
-    // Marktwerte zum Zeitpunkt der Bewertung — sonst laufen die
-    // Konsistenzpruefungen beim spaeteren Oeffnen ins Leere.
-    markt: markt ?? {},
-    modell,
+    // Die vollstaendige Auswertung inklusive Annahmen, Peer-Gruppe und
+    // Marktwerten. Beim spaeteren Oeffnen steht damit exakt der Stand da, auf
+    // dessen Grundlage entschieden wurde.
+    auswertung,
   };
   eintrag.versionen.push(version);
   save(daten);

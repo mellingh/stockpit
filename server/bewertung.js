@@ -155,15 +155,29 @@ export function rechneDcf(w) {
   const steuer = zahl(w['dcf.steuerquote']) ?? 0;
   const investitionen = zahl(w['dcf.investitionen']) ?? 0; // Anteil vom Umsatz
   const workingCapital = zahl(w['dcf.workingCapital']) ?? 0; // Anteil vom Umsatzzuwachs
-  const wacc = zahl(w['dcf.kapitalkosten']) ?? 0;
   const g = zahl(w['dcf.ewigesWachstum']) ?? 0;
+
+  // Kapitalkosten dürfen dem ewigen Wachstum nicht beliebig nahe kommen: der
+  // Endwert ist FCF/(WACC − g), bei einem Abstand von 1 Prozentpunkt also das
+  // Hundertfache. Im Best Case (WACC −1 Punkt, g 2,5 %) entstand so ein Wert,
+  // der das Zehnfache des Base Case betrug — keine Bewertung, ein Rechenartefakt.
+  const waccRoh = zahl(w['dcf.kapitalkosten']) ?? 0;
+  const wacc = Math.max(waccRoh, g + VORGABEN.mindestAbstandWacc);
+  const waccGeklemmt = wacc > waccRoh;
+
+  // Wachstum schmilzt linear auf die ewige Rate ab („fade to terminal growth").
+  // Ohne das wächst eine Firma zehn Jahre lang mit ihrem aktuellen Tempo —
+  // bei NVIDIA wären das 106 % jährlich, was den Endwert ins Absurde treibt.
+  const wachstumImJahr = (j) =>
+    jahre <= 1 ? wachstum : wachstum + (g - wachstum) * ((j - 1) / (jahre - 1));
 
   const jahresreihe = [];
   let umsatz = umsatz0;
   let barwerte = 0;
   for (let j = 1; j <= jahre; j++) {
     const vorher = umsatz;
-    umsatz = umsatz * (1 + wachstum);
+    const wj = wachstumImJahr(j);
+    umsatz = umsatz * (1 + wj);
     const ebit = umsatz * marge;
     const nopat = ebit * (1 - steuer);
     const capex = umsatz * investitionen;
@@ -172,7 +186,7 @@ export function rechneDcf(w) {
     const diskont = Math.pow(1 + wacc, j);
     const barwert = fcf / diskont;
     barwerte += barwert;
-    jahresreihe.push({ jahr: j, umsatz, ebit, fcf, barwert });
+    jahresreihe.push({ jahr: j, umsatz, ebit, fcf, barwert, wachstum: wj });
   }
 
   // Endwert nach Gordon Growth. Bei g >= wacc ist die Formel nicht definiert —
@@ -190,6 +204,10 @@ export function rechneDcf(w) {
     endwert,
     endwertUndefiniert: endwert == null,
     endwertAnteil: endwert != null && enterpriseValue > 0 ? endwert / enterpriseValue : null,
+    wacc,
+    waccGeklemmt,
+    wachstumStart: wachstumImJahr(1),
+    wachstumEnde: wachstumImJahr(jahre),
     beitraege: [
       { id: 'dcf.explizit', label: 'Prognosezeitraum (' + jahre + ' Jahre)', wert: barwerte },
       { id: 'dcf.endwert', label: 'Endwert', wert: endwert ?? 0 },
@@ -197,16 +215,28 @@ export function rechneDcf(w) {
   };
 }
 
-/** Peer-Multiples: Enterprise Value aus Kennzahl × Multiple. */
+/**
+ * Peer-Multiples: Kennzahl × Multiple.
+ *
+ * Zwei Spielarten, weil nicht jedes Multiple auf denselben Wert führt:
+ *  - auf den Enterprise Value (EV/Umsatz, EV/EBITDA) — danach läuft die Equity
+ *    Bridge, die Schulden abzieht und Cash addiert;
+ *  - direkt auf das Eigenkapital (KGV auf den Gewinn, KBV auf den Buchwert) —
+ *    dort ist der Wert schon der Marktwert des Eigenkapitals, eine Bridge würde
+ *    Schulden ein zweites Mal abziehen. Für Banken ist das die einzig
+ *    zulässige Variante, weil es dort keinen sinnvollen Enterprise Value gibt.
+ */
 export function rechneMultiples(w) {
   const kennzahl = zahl(w['mult.kennzahl']) ?? 0;
   const multiple = zahl(w['mult.multiple']) ?? 0;
-  const enterpriseValue = kennzahl * multiple;
+  const aufEquity = (zahl(w['mult.aufEquity']) ?? 0) === 1;
+  const wert = kennzahl * multiple;
   return {
-    enterpriseValue,
+    aufEquity,
     kennzahl,
     multiple,
-    beitraege: [{ id: 'mult.basis', label: 'Bewertete Kennzahl × Multiple', wert: enterpriseValue }],
+    ...(aufEquity ? { equityValue: wert } : { enterpriseValue: wert }),
+    beitraege: [{ id: 'mult.basis', label: 'Bewertete Kennzahl × Multiple', wert }],
   };
 }
 
@@ -308,15 +338,24 @@ export function rechne(modell, w) {
   let kern;
   let equity;
 
-  if (modell.verfahren === 'residual') {
-    kern = rechneResidual(w);
-    // Beim Residualgewinn gibt es keine Equity Bridge über den Enterprise
-    // Value — der Wert IST bereits Eigenkapital. Verwässerung gilt trotzdem.
+  // Multiples auf das Eigenkapital (KGV, KBV) führen direkt zum Equity Value —
+  // dieselbe Behandlung wie beim Residualgewinn, nur mit anderer Herleitung.
+  const direktAufEquity =
+    modell.verfahren === 'residual'
+    || (modell.verfahren === 'multiples' && (zahl(w['mult.aufEquity']) ?? 0) === 1);
+
+  if (direktAufEquity) {
+    kern = modell.verfahren === 'residual' ? rechneResidual(w) : rechneMultiples(w);
+    // Hier gibt es keine Equity Bridge über den Enterprise Value — der Wert IST
+    // bereits Eigenkapital. Die Verwässerung gilt trotzdem.
     const basisAktien = zahl(w['bridge.aktien']) ?? 0;
     const verwaesserung = zahl(w['bridge.verwaesserung']) ?? 0;
     const aktien = basisAktien * (1 + verwaesserung);
+    const herleitung = modell.verfahren === 'residual'
+      ? 'Equity Value (Eigenkapital × faires KBV)'
+      : 'Equity Value (Kennzahl × Multiple)';
     equity = {
-      posten: [{ id: 'res.equity', label: 'Equity Value (Eigenkapital × faires KBV)', betrag: kern.equityValue, vorzeichen: 1 }],
+      posten: [{ id: 'res.equity', label: herleitung, betrag: kern.equityValue, vorzeichen: 1 }],
       equityValue: kern.equityValue,
       aktienBasis: basisAktien,
       aktien,

@@ -26,17 +26,15 @@ ohne Abos, ohne API-Keys, ohne Login, ohne Kosten.
   werden aussortiert. Eine **lokale KI** stuft jede Schlagzeile als positiv/negativ/neutral ein, und
   jede News bekommt eine Einordnung: **worum es geht** (Artikel-Teaser) und **was der Kurs daraus
   gemacht hat** (Bewegung vs. übliche Schwankung, Volumen, Folgetag)
-- **Bewertung**: Kürzel eingeben → Stockpit zieht die Zahlen aus Yahoo, wählt ein passendes Verfahren
-  und rechnet sofort eine Spanne (Worst/Base/Best). Fünf Verfahren decken jeden Markt ab: **DCF**
-  (reife Firmen), **Peer-Multiples** (Wachstum), **SOTP** (Segmente), **rNPV** (Biotech-Pipeline),
-  **Residualgewinn** (Banken/Kreditgeber — dort sind Enterprise Value und Free Cashflow keine
-  sinnvollen Kennzahlen). Danach lässt sich jede Annahme nachschärfen; jede trägt **Quelle und Stand**,
-  veraltete werden farbig markiert. Dazu **Equity Bridge** (Enterprise Value → Wert je Aktie, inklusive
-  verwässerter Aktienanzahl und Royalty-Financing), **Sensitivitätstabelle** (woran das Ergebnis hängt),
-  **Monte-Carlo-Simulation** über 10.000 Durchläufe und automatische Prüfungen gegen die üblichen
-  Denkfehler (Konzentration auf eine Position, Endwert über 75 %, doppelt gezählte Indikationen,
-  Zirkelschluss beim Multiple). Bewertungen werden **versioniert** gespeichert — so lässt sich später
-  nachvollziehen, welche Annahme danebenlag. Export als JSON und CSV.
+- **Bewertung**: Kürzel eingeben — Stockpit rechnet selbst. Es wählt die Verfahren, die zu dieser Firma
+  passen und für die es belastbare Zahlen gibt, rechnet sie alle durch und fasst sie zu einer Spanne
+  zusammen (pessimistisch / realistisch / optimistisch, in Notierungswährung und Euro). Darunter steht,
+  wie die Zahl zustande kam: jedes Verfahren mit einem Erklärsatz in Alltagssprache, aufklappbar bis zu
+  den einzelnen Annahmen samt Quelle und Stand. Auch was NICHT gerechnet wurde, steht mit Begründung da.
+  Datenquellen sind der Geschäftsbericht (über Yahoo), die Umsatzschätzungen der Analysten und eine echte
+  **Vergleichsgruppe**: Wettbewerber derselben Branche in ähnlicher Größe, aus deren Kennzahlen das
+  Multiple gebildet wird. Jede Bewertung lässt sich **festhalten** und wird versioniert gespeichert —
+  so ist in einem halben Jahr nachvollziehbar, welche Annahme getragen hat und welche nicht.
 - **Wirtschaftskalender**: Zinsentscheide, Inflationsdaten, Notenbank-Reden der Woche —
   nach Marktwirkung gefiltert, Zeiten in deiner Zeitzone
 - **Termin-Radar**: Quartalszahlen und Ex-Dividenden deiner Werte + die wichtigsten Markt-Events
@@ -98,12 +96,11 @@ Der Empfänger startet mit leerem Portfolio und kann eigene X-Accounts für die 
 - Das KI-Modell versteht Englisch am besten (Finanz-News sind überwiegend englisch);
   für deutsche Feeds nutzt es ein mehrsprachiges Zweitmodell.
 
-- **Bewertungen sind Modellrechnungen, keine Wahrheit.** Ein DCF reagiert so stark auf Wachstum, Marge
-  und Kapitalkosten, dass zwischen Worst und Best leicht ein Faktor 5 liegt — die App sagt das offen und
-  weist aus, woran das Ergebnis hängt. Spitzenumsätze einzelner Medikamente und Segmentumsätze liefert
-  keine kostenlose Quelle; die trägst du selbst ein. Ohne eigene Peer-Gruppe rechnet ein Multiple-Modell
-  mit dem Marktmultiple der Aktie und gibt näherungsweise den heutigen Kurs zurück — auch darauf weist die App hin.
-
+- **Bewertungen sind Modellrechnungen, keine Wahrheit.** Sie hängen an Annahmen über die Zukunft, und die
+  App macht offen, an welchen. Wo ein Verfahren nicht trägt, wird es weggelassen statt geschönt: ein
+  Cashflow-Modell etwa bekommt eine Firma, die gerade 60 % im Jahr wächst, nicht sinnvoll abgebildet —
+  dort zählt der Branchenvergleich. Für Biotech-Pipelines und Segmentbewertungen gibt es keine kostenlose
+  Datenquelle; diese Verfahren stehen bereit, brauchen aber eigene Eingaben.
 **Keine Anlageberatung.** Alle Angaben ohne Gewähr — die App ist ein Recherche-Werkzeug, keine Empfehlung. Gewinn/Verlust sind **Bruttowerte**: Steuern und Ordergebühren werden nicht abgezogen.
 
 ## Technik (für Neugierige)

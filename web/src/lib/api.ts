@@ -483,6 +483,47 @@ export interface BewertungsErgebnis {
   };
 }
 
+/** Antwort der Bewertungs-Route: alle rechenbaren Verfahren plus Gesamtwert. */
+export interface BewertungsAntwort {
+  symbol: string;
+  name: string;
+  kurs: number | null;
+  kursStand: string | number | null;
+  waehrung: string | null;
+  /** Umrechnungsfaktor Notierungswährung → EUR (1, wenn schon EUR) */
+  eurKurs: number | null;
+  stand: string;
+  gesamt: {
+    worst: number | null;
+    base: number | null;
+    best: number | null;
+    abweichung: number | null;
+    verfahren: Verfahren[];
+    einzelwerte: { id: Verfahren; basis: string | null; wertJeAktie: number | null }[];
+  };
+  verfahren: {
+    id: Verfahren;
+    basis: string | null;
+    grund: string;
+    automatisch: boolean;
+    modell: BewertungsModell;
+    ergebnis: BewertungsErgebnis;
+  }[];
+  /** Verfahren, die für diesen Wert nicht taugen — mit Begründung */
+  abgelehnt: { id: Verfahren; grund: string }[];
+  /** Verfahren, die Handeingaben brauchen */
+  manuell: { id: Verfahren; grund: string }[];
+  rohdaten: Record<string, unknown>;
+  peerGruppe: { branche: string; peers: { symbol: string; name: string; marktkap: number | null; evUmsatz: number | null; evEbitda: number | null; kgv: number | null }[] } | null;
+  markt: Record<string, number | string | null>;
+  verfahrenListe: Record<Verfahren, { label: string; lang: string; fuer: string }>;
+  regeln: {
+    phasen: { id: string; label: string; pos: number }[];
+    gebiete: { id: string; label: string; faktor: number }[];
+    rnpvMultiple: { patentgeschuetzt: number; reif: number };
+  };
+}
+
 export interface BewertungsEintrag {
   id: string;
   symbol: string;
