@@ -967,6 +967,14 @@ export default function AnalysePage() {
           <span aria-hidden>›</span>
           Aktien-Analyse
           <span aria-hidden className="h-px flex-1 bg-line" />
+          {/* Nimmt den angezeigten Wert direkt mit — das Kürzel muss nicht
+              zweimal getippt werden. */}
+          <Link
+            to={`/bewertung?symbol=${encodeURIComponent(symbol)}`}
+            className="shrink-0 normal-case tracking-normal text-ink3 transition-colors hover:text-accent"
+          >
+            Bewerten →
+          </Link>
         </div>
       </header>
       <Report symbol={symbol} />

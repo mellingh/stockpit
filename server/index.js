@@ -19,6 +19,10 @@ import { getEarnings, getFeiertage, getIpos, EARNINGS_MAERKTE } from './kalender
 import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
 import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
+import { gesamtergebnis } from './bewertung-analyse.js';
+import { rohdatenVon, verfahrenVorschlag, baueModell } from './bewertung-daten.js';
+import { VERFAHREN, POS_PHASEN, POS_GEBIETE, RNPV_MULTIPLE } from './bewertung-regeln.js';
+import { listeBewertungen, holeBewertung, speichereVersion, loescheBewertung } from './bewertung-speicher.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PORT = process.env.PORT || 3001;
@@ -1162,6 +1166,137 @@ app.delete('/api/weblinks', (req, res) => {
   const url = String(req.query.url || '');
   if (!url) return res.status(400).json({ error: 'url fehlt' });
   res.json(store.removeWebLink(url));
+});
+
+// ---------- Bewertung ----------
+
+// Marktwerte, gegen die die Pflichtprüfungen laufen (Konsistenz, Konzentration,
+// Verwässerungsvorschlag). Bewusst getrennt von den Annahmen des Nutzers.
+function marktwerteVon(roh, summary) {
+  return {
+    enterpriseValue: roh.enterpriseValue,
+    marktkapitalisierung: roh.marktkapitalisierung,
+    umsatz: roh.umsatz,
+    nettoergebnis: roh.nettoergebnis,
+    operativesErgebnis: roh.operativerCashflow,
+    liquiditaetMonate: roh.liquiditaetMonate,
+    letzteZahlen: roh.letzteZahlen,
+    naechsteZahlen: summary?.calendarEvents?.earnings?.earningsDate?.[0]
+      ? new Date(summary.calendarEvents.earnings.earningsDate[0]).toISOString()
+      : null,
+  };
+}
+
+/** Rohdaten + Startmodell für ein Symbol — die Grundlage jeder Bewertung. */
+async function bewertungsGrundlage(symbol, verfahrenWunsch) {
+  const [summary, fts, quote] = await Promise.all([
+    yahoo.getSummary(symbol),
+    yahoo.getFundamentals(symbol),
+    yahoo.getQuote(symbol),
+  ]);
+  if (!summary?.price) throw new Error('Unbekanntes Symbol');
+
+  // Meldedatum der letzten Quartalszahlen: dient als „Stand" der Bilanzposten
+  // UND als Auslöser der Warnung „seit dieser Annahme kamen neue Zahlen".
+  const marker = earningsMarker(summary);
+  const letzteZahlen = marker.length ? marker[marker.length - 1].gemeldet : null;
+
+  const roh = rohdatenVon(summary, fts, { letzteZahlen });
+  const vorschlag = verfahrenVorschlag(roh);
+  const verfahren = verfahrenWunsch && VERFAHREN[verfahrenWunsch] ? verfahrenWunsch : vorschlag.verfahren;
+
+  // Studien nur holen, wenn sie gebraucht werden (rNPV-Zeilen).
+  let trials = [];
+  if (verfahren === 'rnpv') {
+    trials = await getTrials(summary?.price?.longName || summary?.price?.shortName || symbol).catch(() => []);
+  }
+
+  const modell = baueModell({
+    symbol,
+    name: summary.price.longName || summary.price.shortName || symbol,
+    kurs: quote?.regularMarketPrice ?? null,
+    kursStand: quote?.regularMarketTime ?? new Date(),
+    verfahren,
+    roh,
+    extras: { trials },
+  });
+
+  return { modell, roh, vorschlag, markt: marktwerteVon(roh, summary) };
+}
+
+// Startpunkt: Kürzel rein, fertig vorbefülltes Modell samt Ergebnis raus.
+app.get('/api/bewertung/:symbol', async (req, res) => {
+  try {
+    const { modell, roh, vorschlag, markt } = await bewertungsGrundlage(
+      req.params.symbol.toUpperCase(),
+      req.query.verfahren,
+    );
+    const ergebnis = gesamtergebnis(modell, { markt });
+    // Regeltabellen mitliefern: das Frontend baut neue Zeilen mit denselben
+    // Vorgaben, statt eine zweite Kopie der Tabelle zu pflegen.
+    res.json({
+      ...ergebnis,
+      rohdaten: roh,
+      vorschlag,
+      verfahrenListe: VERFAHREN,
+      regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },
+    });
+  } catch (err) {
+    res.status(err.message === 'Unbekanntes Symbol' ? 404 : 500).json({ error: err.message });
+  }
+});
+
+// Neu rechnen mit eigenen Annahmen — zustandslos, speichert nichts.
+app.post('/api/bewertung/rechnen', (req, res) => {
+  const modell = req.body?.modell;
+  if (!modell?.verfahren || !Array.isArray(modell.annahmen)) {
+    return res.status(400).json({ error: 'Modell mit Verfahren und Annahmen erwartet' });
+  }
+  try {
+    res.json(gesamtergebnis(modell, { markt: req.body.markt ?? {} }));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/bewertungen', (req, res) => {
+  res.json(listeBewertungen());
+});
+
+// Gespeicherte Bewertung öffnen. Antwortform ist bewusst dieselbe wie beim
+// Start über das Kürzel — das Frontend arbeitet mit einer Struktur, egal ob
+// eine Bewertung frisch vorbefüllt oder aus der Datei geladen wurde.
+app.get('/api/bewertungen/:id', (req, res) => {
+  const b = holeBewertung(req.params.id, req.query.version);
+  if (!b) return res.status(404).json({ error: 'Bewertung nicht gefunden' });
+  const v = b.versionen[b.versionen.length - 1];
+  res.json({
+    ...gesamtergebnis(v.modell, { markt: v.markt ?? {} }),
+    id: b.id,
+    // Versionsliste ohne die Modelle — die Übersicht braucht nur die Köpfe.
+    versionen: b.versionen.map((x) => ({ version: x.version, zeit: x.zeit, notiz: x.notiz, wertJeAktie: x.wertJeAktie })),
+    verfahrenListe: VERFAHREN,
+    regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },
+  });
+});
+
+// Speichern legt IMMER eine neue Version an — alte werden nie überschrieben.
+app.post('/api/bewertungen', (req, res) => {
+  const { id, modell, notiz } = req.body ?? {};
+  if (!modell?.symbol || !modell?.verfahren) {
+    return res.status(400).json({ error: 'Modell mit Symbol und Verfahren erwartet' });
+  }
+  try {
+    const ergebnis = gesamtergebnis(modell, { markt: req.body.markt ?? {}, laeufe: 2000 });
+    res.json(speichereVersion({ id, modell, notiz, markt: req.body.markt ?? {}, wertJeAktie: ergebnis.szenarien.base.wertJeAktie }));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/bewertungen/:id', (req, res) => {
+  if (!loescheBewertung(req.params.id)) return res.status(404).json({ error: 'Bewertung nicht gefunden' });
+  res.json({ ok: true });
 });
 
 // ---------- SPA-Fallback (nach allen API-Routen) ----------

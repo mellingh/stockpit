@@ -92,6 +92,25 @@ export function getSummary(symbol) {
   );
 }
 
+// Jahresabschluss-Zeitreihe für die Bewertung. quoteSummary liefert die
+// Bilanz-Submodule seit Ende 2024 praktisch leer — hier stehen die Posten, die
+// es sonst nirgends kostenlos gibt: verwässerte Aktienanzahl, Minderheits-
+// anteile, Leasingverbindlichkeiten, echte Steuerquote, Working Capital.
+export function getFundamentals(symbol) {
+  return cached(`fts:${symbol}`, DAY, async () => {
+    try {
+      const reihe = await yahooFinance.fundamentalsTimeSeries(symbol, {
+        period1: '2019-01-01',
+        module: 'all',
+        type: 'annual',
+      });
+      return Array.isArray(reihe) && reihe.length ? reihe[reihe.length - 1] : null;
+    } catch {
+      return null; // Ohne Zeitreihe läuft die Bewertung mit quoteSummary weiter
+    }
+  });
+}
+
 // ETF-Details (Kostenquote, Kategorie, Top-Positionen)
 export function getEtfDetails(symbol) {
   return cached(`etf:${symbol}`, DAY, () =>

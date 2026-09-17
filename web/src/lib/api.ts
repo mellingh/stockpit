@@ -344,6 +344,158 @@ export interface WebLink {
   url: string;
 }
 
+// ---------- Bewertung ----------
+
+export type Verfahren = 'dcf' | 'multiples' | 'sotp' | 'rnpv' | 'residual';
+export type Quelle =
+  | 'management_guidance'
+  | 'analystenkonsens'
+  | 'geschaeftsbericht'
+  | 'eigene_schaetzung'
+  | 'peer_gruppe';
+export type Fall = 'worst' | 'base' | 'best';
+
+/** Eine einzelne Stellschraube mit Herkunft und Stand — die Kerneinheit des Modells. */
+export interface Annahme {
+  id: string;
+  label: string;
+  wert: number | null;
+  einheit?: 'geld' | 'prozent' | 'faktor' | 'anzahl' | 'jahre';
+  quelle: Quelle;
+  stand: string | null;
+  regel?: string;
+  herkunft: 'auto' | 'manuell';
+  peers?: number[];
+  gruppe?: string | null;
+  notiz?: string | null;
+  bernoulli?: boolean;
+  ueberschrieben?: Partial<Record<Fall, number>>;
+}
+
+/** Segment (SOTP) bzw. Produkt/Indikation (rNPV). */
+export interface BewertungsZeile {
+  id: string;
+  name: string;
+  indikation?: string | null;
+  phase?: string;
+  basis?: 'umsatz' | 'ebitda';
+  begruendung?: string;
+  quelle?: string;
+  ueberschneidetMit?: string | null;
+  ueberschneidungPct?: number | null;
+}
+
+export interface BewertungsModell {
+  symbol: string;
+  name: string;
+  verfahren: Verfahren;
+  waehrung: string | null;
+  kurs: number | null;
+  kursStand: string | null;
+  stand: string;
+  annahmen: Annahme[];
+  zeilen: BewertungsZeile[];
+}
+
+export interface Beitrag {
+  id: string;
+  label: string;
+  wert: number;
+  anteil: number | null;
+}
+
+export interface Warnung {
+  stufe: 'rot' | 'gelb' | 'info';
+  id: string;
+  text: string;
+  hinweis: string | null;
+}
+
+export interface SensZeile {
+  id: string;
+  label: string;
+  gruppe: string | null;
+  gemessen: boolean;
+  basis: number;
+  hoch: number;
+  runter: number;
+  spanne: number;
+  wirkungPct: number | null;
+}
+
+export interface MonteCarlo {
+  laeufe: number;
+  seed: number;
+  p10: number | null;
+  p25: number | null;
+  median: number | null;
+  p75: number | null;
+  p90: number | null;
+  min: number | null;
+  max: number | null;
+  mittel: number | null;
+  histogramm: { von: number; bis: number; anzahl: number }[];
+}
+
+export interface BewertungsErgebnis {
+  modell: BewertungsModell;
+  stand: string;
+  kurs: number | null;
+  waehrung: string | null;
+  szenarien: Record<Fall, { wertJeAktie: number | null; abweichung: number | null }>;
+  beitraege: Beitrag[];
+  equity: {
+    posten: { id: string; label: string; betrag: number | null; vorzeichen: number }[];
+    equityValue: number | null;
+    aktienBasis: number;
+    aktien: number;
+    verwaesserung: number;
+    wertJeAktie: number | null;
+  };
+  kern: {
+    enterpriseValue?: number;
+    endwertAnteil?: number | null;
+    endwertUndefiniert?: boolean;
+    barwertExplizit?: number;
+    endwert?: number | null;
+    brutto?: number;
+    abschlag?: number;
+    fairesKbv?: number | null;
+    jahresreihe?: { jahr: number; umsatz: number; ebit: number; fcf: number; barwert: number }[];
+  };
+  monteCarlo: MonteCarlo;
+  sensitivitaet: { basisWert: number | null; schritt: number; zeilen: SensZeile[]; treiber: SensZeile[] };
+  warnungen: Warnung[];
+  begruendungen: { regel: string; text: string }[];
+  ueberschreibungen: Record<Fall, number>;
+  markt: Record<string, number | string | null>;
+  /** nur bei einer gespeicherten Bewertung */
+  id?: string;
+  versionen?: { version: number; zeit: string; notiz: string | null; wertJeAktie: number | null }[];
+  /** nur bei der Startabfrage: die unveränderten Yahoo-Werte + Verfahrensvorschlag */
+  rohdaten?: Record<string, number | string | null>;
+  vorschlag?: { verfahren: Verfahren; grund: string };
+  verfahrenListe?: Record<Verfahren, { label: string; lang: string; fuer: string }>;
+  regeln?: {
+    phasen: { id: string; label: string; pos: number }[];
+    gebiete: { id: string; label: string; faktor: number }[];
+    rnpvMultiple: { patentgeschuetzt: number; reif: number };
+  };
+}
+
+export interface BewertungsEintrag {
+  id: string;
+  symbol: string;
+  name: string;
+  verfahren: Verfahren | null;
+  erstellt: string;
+  geaendert: string;
+  versionen: number;
+  wertJeAktie: number | null;
+  kurs: number | null;
+  waehrung: string | null;
+}
+
 // ---------- Client ----------
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

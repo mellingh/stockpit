@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Panel, Empty } from '@/components/panel';
+import { FilterPill } from '@/components/filter-pill';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { BulletListe } from '@/components/news';
 import { useSearchParams, useSetParam, useTitel } from '@/lib/router';
@@ -56,31 +57,6 @@ const WICHTIGKEIT = [
 
 const dayKey = (d: string | Date) => new Date(d).toLocaleDateString('de-DE');
 const offsetDay = (n: number) => dayKey(new Date(Date.now() + n * 86400000));
-
-function FilterPill({
-  aktiv,
-  onClick,
-  children,
-}: {
-  aktiv: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex h-control-xs cursor-pointer items-center gap-1.5 rounded-full border px-3 font-mono text-micro transition-colors',
-        aktiv
-          // Sterne im aktiven Pill mitfärben, sonst leuchten sie auf dem Hellblau
-          ? 'border-accent bg-accent font-semibold text-[#0b1524] [&_.stern]:text-[#0b1524] [&_.stern-leer]:text-[#0b1524]/35'
-          : 'border-line-strong text-ink2 hover:border-ink3 hover:bg-panel2 hover:text-ink'
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 function EventZeile({ e, autoOffen = false }: { e: KalenderEvent; autoOffen?: boolean }) {
   const [offen, setOffen] = useState(autoOffen);

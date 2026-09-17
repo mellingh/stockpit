@@ -6,6 +6,7 @@ import { TopbarSuche } from '@/components/topbar-suche';
 import DashboardPage from '@/pages/Dashboard';
 import AnalysePage from '@/pages/Analyse';
 import KalenderPage from '@/pages/Kalender';
+import BewertungPage from '@/pages/Bewertung';
 
 interface Status {
   sentiment?: { status?: string };
@@ -38,6 +39,7 @@ function KiStatus() {
 const NAV = [
   { to: '/', label: 'Dashboard' },
   { to: '/kalender', label: 'Kalender' },
+  { to: '/bewertung', label: 'Bewertung' },
 ];
 
 /** Seite anhand des Pfads wählen — alte v1-URLs (.html) bleiben gültig */
@@ -45,6 +47,7 @@ function Seite() {
   const pfad = usePathname();
   if (pfad.startsWith('/analyse')) return <AnalysePage />;
   if (pfad.startsWith('/kalender')) return <KalenderPage />;
+  if (pfad.startsWith('/bewertung')) return <BewertungPage />;
   return <DashboardPage />;
 }
 

@@ -26,6 +26,17 @@ ohne Abos, ohne API-Keys, ohne Login, ohne Kosten.
   werden aussortiert. Eine **lokale KI** stuft jede Schlagzeile als positiv/negativ/neutral ein, und
   jede News bekommt eine Einordnung: **worum es geht** (Artikel-Teaser) und **was der Kurs daraus
   gemacht hat** (Bewegung vs. übliche Schwankung, Volumen, Folgetag)
+- **Bewertung**: Kürzel eingeben → Stockpit zieht die Zahlen aus Yahoo, wählt ein passendes Verfahren
+  und rechnet sofort eine Spanne (Worst/Base/Best). Fünf Verfahren decken jeden Markt ab: **DCF**
+  (reife Firmen), **Peer-Multiples** (Wachstum), **SOTP** (Segmente), **rNPV** (Biotech-Pipeline),
+  **Residualgewinn** (Banken/Kreditgeber — dort sind Enterprise Value und Free Cashflow keine
+  sinnvollen Kennzahlen). Danach lässt sich jede Annahme nachschärfen; jede trägt **Quelle und Stand**,
+  veraltete werden farbig markiert. Dazu **Equity Bridge** (Enterprise Value → Wert je Aktie, inklusive
+  verwässerter Aktienanzahl und Royalty-Financing), **Sensitivitätstabelle** (woran das Ergebnis hängt),
+  **Monte-Carlo-Simulation** über 10.000 Durchläufe und automatische Prüfungen gegen die üblichen
+  Denkfehler (Konzentration auf eine Position, Endwert über 75 %, doppelt gezählte Indikationen,
+  Zirkelschluss beim Multiple). Bewertungen werden **versioniert** gespeichert — so lässt sich später
+  nachvollziehen, welche Annahme danebenlag. Export als JSON und CSV.
 - **Wirtschaftskalender**: Zinsentscheide, Inflationsdaten, Notenbank-Reden der Woche —
   nach Marktwirkung gefiltert, Zeiten in deiner Zeitzone
 - **Termin-Radar**: Quartalszahlen und Ex-Dividenden deiner Werte + die wichtigsten Markt-Events
@@ -86,6 +97,12 @@ Der Empfänger startet mit leerem Portfolio und kann eigene X-Accounts für die 
   Werten zeigt die App die Konsens-Spanne (Tief/Ø/Hoch) und die Yahoo-Rating-Historie.
 - Das KI-Modell versteht Englisch am besten (Finanz-News sind überwiegend englisch);
   für deutsche Feeds nutzt es ein mehrsprachiges Zweitmodell.
+
+- **Bewertungen sind Modellrechnungen, keine Wahrheit.** Ein DCF reagiert so stark auf Wachstum, Marge
+  und Kapitalkosten, dass zwischen Worst und Best leicht ein Faktor 5 liegt — die App sagt das offen und
+  weist aus, woran das Ergebnis hängt. Spitzenumsätze einzelner Medikamente und Segmentumsätze liefert
+  keine kostenlose Quelle; die trägst du selbst ein. Ohne eigene Peer-Gruppe rechnet ein Multiple-Modell
+  mit dem Marktmultiple der Aktie und gibt näherungsweise den heutigen Kurs zurück — auch darauf weist die App hin.
 
 **Keine Anlageberatung.** Alle Angaben ohne Gewähr — die App ist ein Recherche-Werkzeug, keine Empfehlung. Gewinn/Verlust sind **Bruttowerte**: Steuern und Ordergebühren werden nicht abgezogen.
 

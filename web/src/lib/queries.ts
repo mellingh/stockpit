@@ -15,6 +15,9 @@ import {
   type SearchResult,
   type TrendingItem,
   type WebLink,
+  type BewertungsErgebnis,
+  type BewertungsModell,
+  type BewertungsEintrag,
 } from './api';
 
 export const useDashboard = () =>
@@ -119,5 +122,47 @@ export function useLinksMutation<TInput>(fn: (input: TInput) => Promise<unknown>
       void qc.invalidateQueries({ queryKey: ['xusers'] });
       void qc.invalidateQueries({ queryKey: ['weblinks'] });
     },
+  });
+}
+
+// ---------- Bewertung ----------
+
+/** Startpunkt: Kürzel rein, vorbefülltes Modell samt Ergebnis raus. */
+export const useBewertungStart = (symbol: string | null, verfahren?: string) =>
+  useQuery({
+    queryKey: ['bewertung', symbol, verfahren ?? null],
+    queryFn: () =>
+      api.get<BewertungsErgebnis>(
+        `/api/bewertung/${encodeURIComponent(symbol!)}` + (verfahren ? `?verfahren=${verfahren}` : ''),
+      ),
+    enabled: !!symbol,
+    // Rohdaten ändern sich nur mit neuen Quartalszahlen — nicht bei jedem Fokus
+    // neu laden, sonst überschreibt ein Refetch die begonnene Eingabe.
+    staleTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+/** Neu rechnen mit eigenen Annahmen — zustandslos, speichert nichts. */
+export const rechneBewertung = (modell: BewertungsModell, markt?: Record<string, unknown>) =>
+  api.post<BewertungsErgebnis>('/api/bewertung/rechnen', { modell, markt });
+
+/** Gespeicherte Bewertung öffnen — gleiche Antwortform wie der Startaufruf. */
+export const useBewertungGespeichert = (id: string | null) =>
+  useQuery({
+    queryKey: ['bewertung-gespeichert', id],
+    queryFn: () => api.get<BewertungsErgebnis>(`/api/bewertungen/${encodeURIComponent(id!)}`),
+    enabled: !!id,
+    refetchOnWindowFocus: false,
+  });
+
+export const useBewertungsListe = () =>
+  useQuery({ queryKey: ['bewertungen'], queryFn: () => api.get<BewertungsEintrag[]>('/api/bewertungen') });
+
+/** Speichern legt immer eine neue Version an — alte bleiben unverändert. */
+export function useBewertungMutation<TInput>(fn: (input: TInput) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['bewertungen'] }),
   });
 }

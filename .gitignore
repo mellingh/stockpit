@@ -6,6 +6,7 @@ web/dist/
 
 # Persönliche Daten — bleiben lokal, landen NIE auf GitHub
 data/portfolio.json
+data/bewertungen.json
 
 # Lokal gecachte KI-Modelle (werden beim ersten Start automatisch geladen)
 models/

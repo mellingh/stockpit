@@ -8,7 +8,8 @@
     "start": "node server/index.js",
     "build": "npm run build --prefix web",
     "web:install": "npm install --prefix web --no-audit --no-fund",
-    "dev:web": "npm run dev --prefix web"
+    "dev:web": "npm run dev --prefix web",
+    "test": "node --test server/*.test.js"
   },
   "engines": {
     "node": ">=20"
