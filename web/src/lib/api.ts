@@ -492,6 +492,8 @@ export interface BewertungsAntwort {
   waehrung: string | null;
   /** Umrechnungsfaktor Notierungswährung → EUR (1, wenn schon EUR) */
   eurKurs: number | null;
+  /** Kursziel der Analysten als Referenz neben der eigenen Rechnung */
+  analysten?: { kursziel: number | null; tief: number | null; hoch: number | null; anzahl: number | null };
   stand: string;
   gesamt: {
     worst: number | null;

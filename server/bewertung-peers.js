@@ -46,10 +46,10 @@ async function scan(markt, body) {
   return (await res.json()).data ?? [];
 }
 
-const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm'];
+const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy'];
 
 function zeileZuObjekt(row) {
-  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum] = row.d ?? [];
+  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet] = row.d ?? [];
   return {
     symbol: String(row.s ?? '').split(':').pop(),
     boerse: String(row.s ?? '').split(':')[0],
@@ -57,7 +57,10 @@ function zeileZuObjekt(row) {
     // Umsatzwachstum in Prozent — macht sichtbar, ob die Gruppe ueberhaupt
     // vergleichbar waechst (Insmed 186 %, die Pharma-Riesen 3 %)
     wachstum: typeof wachstum === 'number' ? wachstum / 100 : null,
+    umsatzErwartet: typeof umsatzErwartet === 'number' ? umsatzErwartet : null,
     evUmsatz: ev > 0 && umsatz > 0 ? ev / umsatz : null,
+    // auf den ERWARTETEN Umsatz — so vergleichen Analysten wachsende Firmen
+    evUmsatzErwartet: ev > 0 && umsatzErwartet > 0 ? ev / umsatzErwartet : null,
     evEbitda: ev > 0 && ebitda > 0 ? ev / ebitda : null,
   };
 }

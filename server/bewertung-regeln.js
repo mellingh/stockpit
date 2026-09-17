@@ -74,6 +74,9 @@ export const VORGABEN = {
   // Endwert reagiert dann so stark auf das Abschmelzen, dass das Ergebnis
   // beliebig wird. Solche Firmen bewertet man ueber die Vergleichsgruppe.
   maxWachstumFuerDcf: 0.25,
+  // Ab diesem Wachstum wird das Multiple auf den ERWARTETEN Umsatz gerechnet
+  // statt auf den heutigen.
+  wachstumFuerForward: 0.20,
   monteCarloLaeufe: 10000,
   sensitivitaetSchritt: 0.10,
 };

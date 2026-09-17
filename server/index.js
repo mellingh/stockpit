@@ -1283,6 +1283,15 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
     res.json({
       symbol, name, kurs, kursStand, waehrung: roh.waehrung, eurKurs,
       stand: new Date().toISOString().slice(0, 10),
+      // Referenz neben der eigenen Rechnung: Weicht sie stark vom Kursziel der
+      // Analysten ab, rechnen die meist etwas anderes — bei Insmed etwa eine
+      // Pipeline über zehn Jahre statt eines Vielfachen des heutigen Umsatzes.
+      analysten: {
+        kursziel: roh.kursziel,
+        tief: roh.kurszielTief,
+        hoch: roh.kurszielHoch,
+        anzahl: roh.kurszielAnalysten,
+      },
       gesamt,
       verfahren,
       abgelehnt,

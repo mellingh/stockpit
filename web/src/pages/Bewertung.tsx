@@ -136,6 +136,68 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
 }
 
 /**
+ * Zerlegt den Kurs in das, was die Rechnung trägt, und den Rest.
+ *
+ * Das ist die ehrlichste Antwort auf die Frage, warum ein Modell 24 USD sagt,
+ * während Analysten bei 200 stehen: Beide beantworten verschiedene Fragen. Das
+ * Modell bewertet das HEUTIGE Geschäft im Branchenvergleich; im Kurs steckt
+ * zusätzlich die Erwartung an ein Geschäft, das es noch nicht gibt. Diese
+ * Differenz ist keine Ungenauigkeit — sie ist die eigentliche Aussage.
+ */
+function KursZerlegung({ d }: { d: BewertungsAntwort }) {
+  const { kurs, waehrung, gesamt, analysten } = d;
+  if (kurs == null || gesamt.base == null) return null;
+  const heute = Math.max(0, Math.min(gesamt.base, kurs));
+  const erwartung = kurs - heute;
+  const anteilHeute = (heute / kurs) * 100;
+  const zielAbw = analysten?.kursziel && kurs ? (analysten.kursziel - kurs) / kurs : null;
+
+  return (
+    <div className="mt-4 grid gap-3 border-t border-line pt-4">
+      <div>
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span className="font-mono text-micro uppercase tracking-[0.14em] text-accent">Woraus der Kurs besteht</span>
+          <span className="font-mono text-small text-ink3">Kurs {jeAktie(kurs, waehrung)}</span>
+        </div>
+        {/* Zwei Balken: was die Rechnung trägt, und was an Erwartung darüber liegt */}
+        <div className="flex h-2 overflow-hidden rounded-full bg-panel2" role="img"
+          aria-label={`${Math.round(anteilHeute)} Prozent des Kurses deckt die Rechnung ab`}>
+          <span className="bg-accent" style={{ width: anteilHeute + '%' }} />
+          <span className="flex-1 bg-line-strong" />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-small">
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+            <span className="text-ink2">Heutiges Geschäft</span>
+            <span className="font-mono tabular-nums text-ink">{jeAktie(heute, waehrung)}</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-line-strong" />
+            <span className="text-ink2">Erwartung an die Zukunft</span>
+            <span className="font-mono tabular-nums text-ink">{jeAktie(erwartung, waehrung)}</span>
+          </span>
+        </div>
+      </div>
+
+      {analysten?.kursziel != null && (
+        <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
+          <span className="font-bold text-ink">Was Analysten sagen: </span>
+          Ihr durchschnittliches Kursziel liegt bei{' '}
+          <span className="font-mono tabular-nums text-ink">{jeAktie(analysten.kursziel, waehrung)}</span>
+          {analysten.anzahl ? ` (${analysten.anzahl} Häuser)` : ''}
+          {zielAbw != null && `, also ${fmtPct(zielAbw * 100)} zum Kurs`}.
+          {gesamt.base != null && analysten.kursziel > gesamt.base * 1.5 && (
+            <> Dass sie deutlich höher liegen, heißt nicht, dass eine Seite falsch rechnet: Analysten
+              modellieren bei solchen Firmen die Entwicklung über zehn Jahre, dieses Verfahren bewertet
+              das Geschäft von heute im Branchenvergleich.</>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Erklärt die drei Spalten. Ohne diesen Absatz ist unklar, woher „pessimistisch"
  * kommt — man könnte es für frei gesetzte Zahlen halten, was den Zweck des
  * Regelwerks zunichte machen würde.
@@ -630,6 +692,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
               ))}
             </div>
             {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}
+            <KursZerlegung d={d} />
             <SzenarienErklaert anzahl={gesamt.verfahren.length} />
           </>
         )}

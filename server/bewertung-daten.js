@@ -95,6 +95,9 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     marktkapitalisierung: zahl(sd.marketCap) ?? zahl(ks.marketCap),
     enterpriseValue: zahl(ks.enterpriseValue),
     kursziel: zahl(fd.targetMeanPrice),
+    kurszielTief: zahl(fd.targetLowPrice),
+    kurszielHoch: zahl(fd.targetHighPrice),
+    kurszielAnalysten: zahl(fd.numberOfAnalystOpinions),
     cash,
     schulden: zahl(fd.totalDebt),
     leasing: zahl(f.capitalLeaseObligations),
@@ -108,12 +111,16 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     letzteZahlen: isoTag(zusatz.letzteZahlen),
     risikofreierZins: zahl(zusatz.risikofreierZins) ?? VORGABEN.risikofreierZins,
     schaetzung,
+    // Erwarteter Umsatz aus DERSELBEN Quelle wie die Peer-Multiples —
+    // sonst vergleicht man eine Yahoo-Schaetzung mit TradingView-Multiples.
+    umsatzErwartet: peers?.ziel?.umsatzErwartet ?? null,
     peerGruppe: peers
       ? {
         branche: peers.branche,
         anzahl: peers.peers.length,
         namen: peers.peers.map((p) => p.symbol),
         evUmsatz: peerWerte('evUmsatz'),
+        evUmsatzErwartet: peerWerte('evUmsatzErwartet'),
         evEbitda: peerWerte('evEbitda'),
         kgv: peerWerte('kgv'),
         kbv: peerWerte('kbv'),
@@ -196,9 +203,20 @@ export function anwendbareVerfahren(roh) {
     });
   }
 
-  // Multiples brauchen eine echte Vergleichsgruppe.
+  // Multiples brauchen eine echte Vergleichsgruppe. Reihenfolge nach
+  // Aussagekraft:
+  //  1. EV/EBITDA, wenn die Firma profitabel ist — die Kennzahl nimmt die Marge
+  //     mit und nicht nur die Umsatzgröße.
+  //  2. Sonst, bei deutlichem Wachstum, der ERWARTETE Umsatz: ein Vielfaches des
+  //     heutigen unterschätzt eine Firma, die sich gerade verdoppelt (Insmed kam
+  //     so auf 5,5 Mrd, während der Markt 26,5 Mrd zahlt).
+  //  3. Sonst der heutige Umsatz.
+  const waechstDeutlich = (zahl(wachstum) ?? 0) > VORGABEN.wachstumFuerForward;
   if ((peers?.evEbitda?.length ?? 0) >= 3 && zahl(roh.ebitda) > 0) {
     raus.push({ id: 'multiples', basis: 'ebitda', grund: `EV/EBITDA im Vergleich zu ${peers.anzahl} Wettbewerbern derselben Branche.` });
+  } else if (waechstDeutlich && (peers?.evUmsatzErwartet?.length ?? 0) >= 3 && zahl(roh.umsatzErwartet) > 0) {
+    raus.push({ id: 'multiples', basis: 'umsatzErwartet',
+      grund: `Vielfaches des für nächstes Jahr erwarteten Umsatzes, verglichen mit ${peers.anzahl} Wettbewerbern — bei ${pz(wachstum)} Wachstum ist der heutige Umsatz die falsche Basis.` });
   } else if ((peers?.evUmsatz?.length ?? 0) >= 3 && zahl(roh.umsatz) > 0) {
     raus.push({ id: 'multiples', basis: 'umsatz', grund: `EV/Umsatz im Vergleich zu ${peers.anzahl} Wettbewerbern derselben Branche.` });
   } else {
@@ -302,6 +320,8 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
         info: 'Operatives Ergebnis vor Zinsen, Steuern und Abschreibungen — was das Kerngeschäft erwirtschaftet.' },
       umsatz: { label: 'Umsatz, letzte 12 Monate (Revenue TTM)', wert: roh.umsatz, multiple: 'EV/Revenue', reihe: peers?.evUmsatz,
         info: 'Umsatz der letzten zwölf Monate (trailing twelve months).' },
+      umsatzErwartet: { label: 'Umsatz nächstes Jahr, erwartet (Forward Revenue)', wert: roh.umsatzErwartet, multiple: 'EV/Revenue (Forward)', reihe: peers?.evUmsatzErwartet,
+        info: 'Der für das nächste Geschäftsjahr erwartete Umsatz. Bei wachsenden Firmen die ehrlichere Basis — der heutige Umsatz bildet das Geschäft von morgen nicht ab.' },
       gewinn: { label: 'Nettogewinn (Net Income)', wert: roh.nettoergebnis, multiple: 'P/E (KGV)', reihe: peers?.kgv,
         info: 'Nettogewinn nach Steuern — was für die Aktionäre übrig bleibt.' },
       buchwert: { label: 'Eigenkapital, Buchwert (Book Value)', wert: roh.eigenkapital, multiple: 'P/B (KBV)', reihe: peers?.kbv,
