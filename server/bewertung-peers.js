@@ -137,7 +137,13 @@ export function getPeers(symbol) {
       ? peers
       : brauchbar.sort((a, b) => abstand(a) - abstand(b)).slice(0, 15);
 
-    return { markt, ziel, branche: ziel.branche, sektor: ziel.sektor, peers: ergaenzt };
+    // Manche Firmen landen bei der Quelle in einer Sammelkategorie — Klarna
+    // etwa unter „Miscellaneous Commercial Services" statt bei den
+    // Finanzdienstleistern. Die Vergleichsgruppe ist dann schwächer, und das
+    // gehört gesagt statt kaschiert.
+    const sammelkategorie = /miscellaneous|other|diversified/i.test(ziel.branche);
+
+    return { markt, ziel, branche: ziel.branche, sektor: ziel.sektor, sammelkategorie, peers: ergaenzt };
   }).catch(() => null);
 }
 

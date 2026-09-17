@@ -1292,7 +1292,7 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       rohdaten: roh,
       // `ziel` aus derselben Quelle wie die Peers — nur so ist das Wachstum
       // des Unternehmens mit dem der Gruppe vergleichbar (Yahoo misst es anders).
-      peerGruppe: peers ? { branche: peers.branche, ziel: peers.ziel, peers: peers.peers } : null,
+      peerGruppe: peers ? { branche: peers.branche, sammelkategorie: peers.sammelkategorie, ziel: peers.ziel, peers: peers.peers } : null,
       markt,
       verfahrenListe: VERFAHREN,
       regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },

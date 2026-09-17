@@ -8,7 +8,7 @@
 // KEIN Kauf- oder Verkaufsurteil: die Seite liefert Zahlen und sagt, woher sie
 // kommen. Die Entscheidung trifft der Nutzer.
 
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Info, Save, Search, Trash2 } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { ScrollListe } from '@/components/scroll-liste';
@@ -27,6 +27,15 @@ import { cn } from '@/lib/utils';
 // ---------- Beschriftungen ----------
 
 const VERFAHREN_NAME: Record<Verfahren, string> = {
+  dcf: 'Zahlungsstrom-Modell (Discounted Cash Flow)',
+  multiples: 'Branchenvergleich (Peer Multiples)',
+  sotp: 'Bereiche einzeln (Sum of the Parts)',
+  rnpv: 'Pipeline-Modell (rNPV)',
+  residual: 'Eigenkapital-Modell (Residual Income)',
+};
+
+/** Kurzform ohne Klammer — für Fließtext und Listen. */
+const VERFAHREN_KURZ: Record<Verfahren, string> = {
   dcf: 'Zahlungsstrom-Modell',
   multiples: 'Branchenvergleich',
   sotp: 'Bereiche einzeln',
@@ -36,10 +45,10 @@ const VERFAHREN_NAME: Record<Verfahren, string> = {
 
 /** Ein Satz in Alltagssprache — keine Fachbegriffe ohne Übersetzung. */
 const VERFAHREN_ERKLAERT: Record<Verfahren, string> = {
-  dcf: 'Schätzt, wie viel Geld das Unternehmen in den nächsten zehn Jahren erwirtschaftet, und rechnet das auf heute zurück. Fachbegriff: Discounted Cash Flow.',
-  multiples: 'Schaut, was Anleger für vergleichbare Firmen derselben Branche zahlen — etwa das Achtfache des Umsatzes — und überträgt das auf diese Aktie. Fachbegriff: Peer-Multiples.',
-  sotp: 'Bewertet jeden Geschäftsbereich einzeln und zählt zusammen, abzüglich eines Abschlags dafür, dass die Bereiche nicht einzeln verkäuflich sind. Fachbegriff: Sum of the Parts.',
-  rnpv: 'Für Biotech: jedes Medikament mit seinem möglichen Spitzenumsatz, multipliziert mit der Wahrscheinlichkeit, dass es zugelassen wird. Fachbegriff: risikoadjustierter Barwert (rNPV).',
+  dcf: 'Schätzt, wie viel Geld das Unternehmen in den nächsten zehn Jahren erwirtschaftet, und rechnet das auf heute zurück.',
+  multiples: 'Schaut, was Anleger für vergleichbare Firmen derselben Branche zahlen — etwa das Achtfache des Umsatzes — und überträgt das auf diese Aktie.',
+  sotp: 'Bewertet jeden Geschäftsbereich einzeln und zählt zusammen, abzüglich eines Abschlags dafür, dass die Bereiche nicht einzeln verkäuflich sind.',
+  rnpv: 'Für Biotech: jedes Medikament mit seinem möglichen Spitzenumsatz, multipliziert mit der Wahrscheinlichkeit, dass es zugelassen wird.',
   residual: 'Für Banken und Kreditgeber: bewertet das Eigenkapital danach, wie viel Rendite darauf erwirtschaftet wird. Cashflow-Modelle führen dort in die Irre.',
 };
 
@@ -114,7 +123,7 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
   const abw = (gesamt.base - kurs) / kurs;
   const anzahl = gesamt.verfahren.length;
   const wie = anzahl === 1
-    ? `Gerechnet mit einem Verfahren (${VERFAHREN_NAME[gesamt.verfahren[0]]})`
+    ? `Gerechnet mit einem Verfahren (${VERFAHREN_KURZ[gesamt.verfahren[0]]})`
     : `Mittelwert aus ${anzahl} Verfahren`;
 
   if (Math.abs(abw) < 0.1) {
@@ -233,7 +242,43 @@ function WarnZeile({ w }: { w: BewertungsAntwort['verfahren'][number]['ergebnis'
   );
 }
 
-function AnnahmenTabelle({ annahmen, waehrung }: { annahmen: Annahme[]; waehrung: string | null }) {
+/** Erklärungen zu den Abschnitts-Überschriften — Fachbegriff bleibt, Erklärung deutsch. */
+const GRUPPEN_INFO: Record<string, string> = {
+  'Equity Bridge':
+    'Rechnet den Wert des ganzen Unternehmens in den Wert je Aktie um: Kasse dazu, Schulden und ähnliche Verpflichtungen ab, dann durch die Anzahl der Aktien teilen.',
+  Prognose: 'Die geschätzte Geschäftsentwicklung der kommenden Jahre.',
+  Abzinsung:
+    'Geld in zehn Jahren ist weniger wert als Geld heute. Diese Werte bestimmen, wie stark künftige Beträge auf heute heruntergerechnet werden.',
+  Vergleich: 'Die eigene Kennzahl und das Vielfache, das die Vergleichsgruppe dafür bekommt.',
+  Ertragskraft: 'Wie viel Ertrag das Eigenkapital abwirft — die Grundlage dieses Verfahrens.',
+};
+
+/** Abschnitts-Überschrift im Detailbereich: eine Ebene, hellblau, mit Erklärung. */
+function Abschnitt({ titel, info, children }: { titel: string; info?: string; children: ReactNode }) {
+  return (
+    <section>
+      <h4 className="mb-2.5 flex items-center gap-1.5 font-mono text-micro font-bold uppercase tracking-[0.14em] text-accent">
+        {titel}
+        {info && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help text-ink3" aria-label={`Erklärung zu ${titel}`}><Info size={12} /></span>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="start" className="max-w-[360px]">{info}</TooltipContent>
+          </Tooltip>
+        )}
+      </h4>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Annahmen je Abschnitt. Die Gruppen sind selbst die Überschriften — vorher
+ * stand „Womit gerechnet wurde" (grau) direkt über „Vergleich" (blau), also
+ * zwei Überschriften ohne Inhalt dazwischen.
+ */
+function AnnahmenBloecke({ annahmen, waehrung }: { annahmen: Annahme[]; waehrung: string | null }) {
   const gruppen = useMemo(() => {
     const m = new Map<string, Annahme[]>();
     for (const a of annahmen) {
@@ -246,20 +291,15 @@ function AnnahmenTabelle({ annahmen, waehrung }: { annahmen: Annahme[]; waehrung
   }, [annahmen]);
 
   return (
-    <ScrollListe className="max-h-[420px]">
-      <table className="w-full table-fixed">
-        <colgroup><col /><col className="w-[140px]" /><col className="w-[150px]" /></colgroup>
-        <tbody>
-          {gruppen.map(([gruppe, liste], i) => (
-            <Fragment key={gruppe}>
-              <tr>
-                <td colSpan={3} className={cn('font-mono text-micro font-bold uppercase tracking-[0.14em] text-accent', i === 0 ? 'pt-1 pb-1.5' : 'pt-6 pb-1.5')}>
-                  {gruppe}
-                </td>
-              </tr>
+    <>
+      {gruppen.map(([gruppe, liste]) => (
+        <Abschnitt key={gruppe} titel={gruppe} info={GRUPPEN_INFO[gruppe]}>
+          <table className="w-full table-fixed">
+            <colgroup><col /><col className="w-[150px]" /><col className="w-[160px]" /></colgroup>
+            <tbody>
               {liste.map((a) => (
-                <tr key={a.id} className="border-b border-line/70">
-                  <td className="py-2 pr-3">
+                <tr key={a.id} className="border-b border-line/70 last:border-b-0">
+                  <td className="py-2.5 pr-4">
                     <span className="flex items-center gap-1.5">
                       <span className="text-small text-ink2">{a.label}</span>
                       {a.notiz && (
@@ -272,42 +312,42 @@ function AnnahmenTabelle({ annahmen, waehrung }: { annahmen: Annahme[]; waehrung
                       )}
                     </span>
                   </td>
-                  <td className="py-2 pr-3 text-right font-mono text-small tabular-nums">{annahmeText(a, waehrung)}</td>
-                  <td className="py-2 text-right font-mono text-micro text-ink3">
+                  <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums">{annahmeText(a, waehrung)}</td>
+                  <td className="py-2.5 text-right font-mono text-micro text-ink3">
                     {QUELLE_LABEL[a.quelle] ?? a.quelle}
                     {a.stand && <span className="block">{fmtDate(a.stand)}</span>}
                   </td>
                 </tr>
               ))}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
-    </ScrollListe>
+            </tbody>
+          </table>
+        </Abschnitt>
+      ))}
+    </>
   );
 }
 
-function SensTabelle({ zeilen }: { zeilen: SensZeile[] }) {
+function SensTabelle({ zeilen, waehrung }: { zeilen: SensZeile[]; waehrung: string | null }) {
   const max = zeilen[0]?.spanne ?? 1;
   if (!zeilen.length) return null;
   return (
     <table className="w-full table-fixed">
-      <colgroup><col /><col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[110px]" /></colgroup>
+      <colgroup><col /><col className="w-[130px]" /><col className="w-[130px]" /><col className="w-[124px]" /></colgroup>
       <thead>
         <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-          <th className="pb-2 font-normal">Stellschraube</th>
-          <th className="pb-2 text-right font-normal">10 % weniger</th>
-          <th className="pb-2 text-right font-normal">10 % mehr</th>
-          <th className="pb-2 pl-4 font-normal">Wirkung</th>
+          <th className="pb-2.5 font-normal">Stellschraube</th>
+          <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">10 % weniger</th>
+          <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">10 % mehr</th>
+          <th className="pb-2.5 pl-4 font-normal">Wirkung</th>
         </tr>
       </thead>
       <tbody>
         {zeilen.slice(0, 8).map((z) => (
           <tr key={z.id} className="border-b border-line/70">
-            <td className="py-2 pr-3 truncate text-small text-ink2" title={z.label}>{z.label}</td>
-            <td className="py-2 text-right font-mono text-small tabular-nums text-ink3">{jeAktie(z.runter, null)}</td>
-            <td className="py-2 text-right font-mono text-small tabular-nums text-ink3">{jeAktie(z.hoch, null)}</td>
-            <td className="py-2 pl-4">
+            <td className="truncate py-2.5 pr-4 text-small text-ink2" title={z.label}>{z.label}</td>
+            <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink3">{jeAktie(z.runter, waehrung)}</td>
+            <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink3">{jeAktie(z.hoch, waehrung)}</td>
+            <td className="py-2.5 pl-4">
               <span className="flex items-center gap-2">
                 <span aria-hidden className="h-1.5 rounded-full bg-accent" style={{ width: Math.max(4, (z.spanne / max) * 56) + 'px' }} />
                 <span className="font-mono text-micro tabular-nums text-ink3">{z.wirkungPct == null ? '' : Math.round(z.wirkungPct * 100) + ' %'}</span>
@@ -370,29 +410,28 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs }: {
             ))}
           </div>
 
-          <div>
-            <h4 className="mb-2 font-mono text-micro font-bold uppercase tracking-[0.14em] text-ink3">
-              Wie sicher ist das? ({fmtCompact(e.monteCarlo.laeufe)} Durchläufe mit zufällig gezogenen Annahmen)
-            </h4>
-            <p className="text-small text-ink2">
+          <Abschnitt
+            titel="Wie sicher ist das?"
+            info={`Das Modell wurde ${fmtCompact(e.monteCarlo.laeufe)} Mal durchgerechnet, jedes Mal mit leicht anderen Annahmen aus ihrer jeweiligen Bandbreite. Das zeigt, wie stabil das Ergebnis ist.`}
+          >
+            <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
               In 8 von 10 Fällen landet der Wert zwischen{' '}
               <span className="font-mono tabular-nums text-ink">{jeAktie(e.monteCarlo.p10, waehrung)}</span> und{' '}
               <span className="font-mono tabular-nums text-ink">{jeAktie(e.monteCarlo.p90, waehrung)}</span>, Mittelpunkt{' '}
               <span className="font-mono tabular-nums text-ink">{jeAktie(e.monteCarlo.median, waehrung)}</span>.
             </p>
-          </div>
+          </Abschnitt>
 
           {!!e.sensitivitaet.treiber.length && (
-            <div>
-              <h4 className="mb-2 font-mono text-micro font-bold uppercase tracking-[0.14em] text-ink3">Woran das Ergebnis hängt</h4>
-              <SensTabelle zeilen={e.sensitivitaet.treiber} />
-            </div>
+            <Abschnitt
+              titel="Woran das Ergebnis hängt"
+              info="Jede Annahme wird einzeln um 10 % nach oben und unten verschoben. Je länger der Balken, desto stärker verändert diese eine Zahl das Ergebnis."
+            >
+              <SensTabelle zeilen={e.sensitivitaet.treiber} waehrung={waehrung} />
+            </Abschnitt>
           )}
 
-          <div>
-            <h4 className="mb-2 font-mono text-micro font-bold uppercase tracking-[0.14em] text-ink3">Womit gerechnet wurde</h4>
-            <AnnahmenTabelle annahmen={v.modell.annahmen} waehrung={waehrung} />
-          </div>
+          <AnnahmenBloecke annahmen={v.modell.annahmen} waehrung={waehrung} />
 
           {!!e.warnungen.length && (
             <ul className="border-t border-line pt-2" aria-live="polite">
@@ -437,6 +476,16 @@ function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGrup
           das Vielfache gebildet, mit dem gerechnet wird. Ohne eine solche Gruppe müsste das Modell die
           Aktie mit sich selbst vergleichen und gäbe nur den heutigen Kurs zurück.
         </p>
+        {gruppe.sammelkategorie && (
+          <p className="max-w-[78ch] text-small leading-relaxed text-warn">
+            <span className="font-bold">Achtung: </span>
+            <span className="text-ink2">
+              Die Datenquelle führt diese Firma in einer Sammelkategorie ({gruppe.branche}) statt in
+              ihrer eigentlichen Branche. Die Vergleichsgruppe ist deshalb weniger treffsicher — prüfe,
+              ob die Unternehmen unten wirklich zum Geschäftsmodell passen.
+            </span>
+          </p>
+        )}
         {deutlichSchneller && (
           <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
             <span className="font-bold text-ink">Einordnung: </span>
@@ -606,7 +655,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
             <ul className="grid gap-2">
               {d.abgelehnt.map((a) => (
                 <li key={a.id} className="text-small leading-relaxed">
-                  <span className="text-ink2">{VERFAHREN_NAME[a.id]}: </span>
+                  <span className="text-ink2">{VERFAHREN_KURZ[a.id]}: </span>
                   <span className="text-ink3">{a.grund}</span>
                 </li>
               ))}

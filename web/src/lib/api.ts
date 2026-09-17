@@ -516,6 +516,8 @@ export interface BewertungsAntwort {
   rohdaten: Record<string, unknown>;
   peerGruppe: {
     branche: string;
+    /** Quelle hat die Firma in eine Sammelkategorie einsortiert — Gruppe schwächer */
+    sammelkategorie?: boolean;
     /** der bewertete Wert selbst, aus derselben Quelle wie die Peers */
     ziel?: { name: string; marktkap: number | null; wachstum: number | null; evUmsatz: number | null; evEbitda: number | null };
     peers: {

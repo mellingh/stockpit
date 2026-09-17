@@ -222,12 +222,12 @@ const mk = (id, label, wert, quelle, stand, extra = {}) => ({
 function aktienAnnahmen(roh, verwaesserungNoetig) {
   const st = roh.stand;
   return [
-    mk('bridge.aktien', 'Aktien, voll verwässert', roh.aktienVerwaessert ?? 0, 'geschaeftsbericht', st,
+    mk('bridge.aktien', 'Aktien, voll verwässert (Diluted Shares)', roh.aktienVerwaessert ?? 0, 'geschaeftsbericht', st,
       { einheit: 'anzahl', gruppe: 'Equity Bridge',
         notiz: roh.aktienAusstehend && roh.aktienVerwaessert && roh.aktienVerwaessert > roh.aktienAusstehend
           ? `Verwässerte Anzahl inkl. Optionen und Wandelanleihen; ausstehend sind ${Math.round(roh.aktienAusstehend / 1e6)} Mio.`
           : 'Verwässerte Anzahl aus dem Jahresabschluss.' }),
-    mk('bridge.verwaesserung', 'Künftige Verwässerung', verwaesserungNoetig ? SZENARIO_SONDERREGELN.verwaesserung.base : 0,
+    mk('bridge.verwaesserung', 'Künftige Verwässerung (Expected Dilution)', verwaesserungNoetig ? SZENARIO_SONDERREGELN.verwaesserung.base : 0,
       'eigene_schaetzung', st,
       { einheit: 'prozent', regel: 'verwaesserung', gruppe: 'Equity Bridge',
         notiz: verwaesserungNoetig
@@ -243,20 +243,20 @@ function bridgeAnnahmen(roh) {
     (roh.nettoergebnis ?? 0) < 0 && roh.liquiditaetMonate != null && roh.liquiditaetMonate < 24;
 
   return [
-    mk('bridge.cash', 'Zahlungsmittel und kurzfristige Anlagen', roh.cash ?? 0, 'geschaeftsbericht', st,
+    mk('bridge.cash', 'Zahlungsmittel (Cash & Equivalents)', roh.cash ?? 0, 'geschaeftsbericht', st,
       { einheit: 'geld', gruppe: 'Equity Bridge' }),
-    mk('bridge.schulden', 'Finanzverbindlichkeiten', roh.schulden ?? 0, 'geschaeftsbericht', st,
+    mk('bridge.schulden', 'Finanzschulden (Total Debt)', roh.schulden ?? 0, 'geschaeftsbericht', st,
       { einheit: 'geld', gruppe: 'Equity Bridge', notiz: 'Yahoos Gesamtverschuldung enthält bei IFRS-Bilanzierern die Leasingverbindlichkeiten meist bereits.' }),
-    mk('bridge.leasing', 'Leasingverbindlichkeiten', 0, 'geschaeftsbericht', st,
+    mk('bridge.leasing', 'Leasingverbindlichkeiten (Lease Liabilities)', 0, 'geschaeftsbericht', st,
       { einheit: 'geld', gruppe: 'Equity Bridge',
         notiz: roh.leasing != null
           ? `Laut Jahresabschluss ${Math.round(roh.leasing / 1e6)} Mio. — bewusst auf 0 vorbelegt, weil sie in den Finanzverbindlichkeiten oben meist schon stecken. Nur eintragen, wenn nachweislich nicht enthalten.`
           : 'Nicht automatisch ermittelbar.' }),
-    mk('bridge.minderheiten', 'Minderheitsanteile', roh.minderheiten ?? 0, 'geschaeftsbericht', st,
+    mk('bridge.minderheiten', 'Minderheitsanteile (Minority Interest)', roh.minderheiten ?? 0, 'geschaeftsbericht', st,
       { einheit: 'geld', gruppe: 'Equity Bridge' }),
-    mk('bridge.pensionen', 'Pensionsverpflichtungen', 0, 'geschaeftsbericht', st,
+    mk('bridge.pensionen', 'Pensionsverpflichtungen (Pension Obligations)', 0, 'geschaeftsbericht', st,
       { einheit: 'geld', gruppe: 'Equity Bridge', notiz: 'Liefert keine kostenlose Quelle — bei Bedarf aus dem Geschäftsbericht ergänzen.' }),
-    mk('bridge.royalty', 'Royalty-Financing-Verpflichtungen', 0, 'geschaeftsbericht', st,
+    mk('bridge.royalty', 'Verkaufte Umsatzbeteiligungen (Royalty Financing)', 0, 'geschaeftsbericht', st,
       { einheit: 'geld', gruppe: 'Equity Bridge',
         notiz: 'Verkauf künftiger Umsatzbeteiligungen gegen Geld im Voraus. Steht selten als Schuld in der Bilanz, ist wirtschaftlich aber genau das — und schmälert die Erlöse der Produkte, die im Modell mit vollem Wert stehen.' }),
     ...aktienAnnahmen(roh, verwaesserungNoetig),
@@ -275,39 +275,43 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
     const wachstum = roh.schaetzung?.wachstum ?? roh.umsatzwachstum ?? 0;
     const ausSchaetzung = roh.schaetzung?.wachstum != null;
     annahmen.push(
-      mk('dcf.umsatz', 'Umsatz (Basis)', roh.umsatz ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Prognose' }),
-      mk('dcf.wachstum', 'Umsatzwachstum im 1. Jahr', wachstum, ausSchaetzung ? 'analystenkonsens' : 'eigene_schaetzung', st,
+      mk('dcf.umsatz', 'Umsatz, letzte 12 Monate (Revenue TTM)', roh.umsatz ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Prognose' }),
+      mk('dcf.wachstum', 'Umsatzwachstum Jahr 1 (Revenue Growth)', wachstum, ausSchaetzung ? 'analystenkonsens' : 'eigene_schaetzung', st,
         { einheit: 'prozent', gruppe: 'Prognose',
           notiz: ausSchaetzung
             ? `Konsens von ${roh.schaetzung.analysten ?? '—'} Analysten für ${roh.schaetzung.jahr1?.endet?.slice(0, 4) ?? 'das nächste Jahr'}. Danach schmilzt das Wachstum bis zum Ende des Prognosezeitraums auf die ewige Rate ab.`
             : 'Fortgeschrieben aus dem zuletzt gemessenen Jahreswachstum; schmilzt über den Prognosezeitraum auf die ewige Rate ab.' }),
-      mk('dcf.marge', 'Operative Marge', roh.operativeMarge ?? 0, 'eigene_schaetzung', st,
+      mk('dcf.marge', 'Operative Marge (Operating Margin)', roh.operativeMarge ?? 0, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'marge', gruppe: 'Prognose', notiz: 'Vorbelegt mit der aktuellen Marge.' }),
-      mk('dcf.steuerquote', 'Steuerquote', roh.steuerquote ?? VORGABEN.steuerquote, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
-      mk('dcf.investitionen', 'Investitionen (Anteil vom Umsatz)', roh.investitionsquote ?? 0, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
-      mk('dcf.workingCapital', 'Working Capital (Anteil vom Umsatzzuwachs)', roh.workingCapitalQuote ?? 0, 'eigene_schaetzung', st, { einheit: 'prozent', gruppe: 'Prognose' }),
-      mk('dcf.kapitalkosten', 'Kapitalkosten', kk.wert, 'eigene_schaetzung', st,
+      mk('dcf.steuerquote', 'Steuerquote (Tax Rate)', roh.steuerquote ?? VORGABEN.steuerquote, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
+      mk('dcf.investitionen', 'Investitionen, Anteil vom Umsatz (CapEx)', roh.investitionsquote ?? 0, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
+      mk('dcf.workingCapital', 'Gebundenes Umlaufvermögen (Working Capital)', roh.workingCapitalQuote ?? 0, 'eigene_schaetzung', st, { einheit: 'prozent', gruppe: 'Prognose' }),
+      mk('dcf.kapitalkosten', 'Kapitalkosten (WACC)', kk.wert, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'kapitalkosten', gruppe: 'Abzinsung', notiz: kk.notiz }),
-      mk('dcf.ewigesWachstum', 'Ewige Wachstumsrate', VORGABEN.ewigesWachstum, 'eigene_schaetzung', st,
+      mk('dcf.ewigesWachstum', 'Ewiges Wachstum (Terminal Growth)', VORGABEN.ewigesWachstum, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'ewigesWachstum', gruppe: 'Abzinsung',
           notiz: 'Wachstum nach dem Prognosezeitraum — dauerhaft kann kein Unternehmen schneller wachsen als die Wirtschaft.' }),
-      mk('dcf.jahre', 'Prognosejahre', VORGABEN.prognoseJahre, 'eigene_schaetzung', st, { einheit: 'jahre', gruppe: 'Abzinsung' }),
+      mk('dcf.jahre', 'Prognosezeitraum (Forecast Period)', VORGABEN.prognoseJahre, 'eigene_schaetzung', st, { einheit: 'jahre', gruppe: 'Abzinsung' }),
       ...bridgeAnnahmen(roh),
     );
   } else if (verfahren === 'multiples') {
     const basis = extras.basis ?? (zahl(roh.ebitda) > 0 ? 'ebitda' : 'umsatz');
     const aufEquity = basis === 'gewinn' || basis === 'buchwert';
     const felder = {
-      ebitda: { label: 'EBITDA', wert: roh.ebitda, multiple: 'EV/EBITDA', reihe: peers?.evEbitda },
-      umsatz: { label: 'Umsatz', wert: roh.umsatz, multiple: 'EV/Umsatz', reihe: peers?.evUmsatz },
-      gewinn: { label: 'Nettogewinn', wert: roh.nettoergebnis, multiple: 'KGV', reihe: peers?.kgv },
-      buchwert: { label: 'Eigenkapital (Buchwert)', wert: roh.eigenkapital, multiple: 'KBV', reihe: peers?.kbv },
+      ebitda: { label: 'EBITDA', wert: roh.ebitda, multiple: 'EV/EBITDA', reihe: peers?.evEbitda,
+        info: 'Operatives Ergebnis vor Zinsen, Steuern und Abschreibungen — was das Kerngeschäft erwirtschaftet.' },
+      umsatz: { label: 'Umsatz, letzte 12 Monate (Revenue TTM)', wert: roh.umsatz, multiple: 'EV/Revenue', reihe: peers?.evUmsatz,
+        info: 'Umsatz der letzten zwölf Monate (trailing twelve months).' },
+      gewinn: { label: 'Nettogewinn (Net Income)', wert: roh.nettoergebnis, multiple: 'P/E (KGV)', reihe: peers?.kgv,
+        info: 'Nettogewinn nach Steuern — was für die Aktionäre übrig bleibt.' },
+      buchwert: { label: 'Eigenkapital, Buchwert (Book Value)', wert: roh.eigenkapital, multiple: 'P/B (KBV)', reihe: peers?.kbv,
+        info: 'Eigenkapital laut Bilanz — Vermögen minus Schulden.' },
     }[basis];
     const reihe = felder.reihe ?? [];
 
     annahmen.push(
-      mk('mult.kennzahl', felder.label, felder.wert ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Vergleich' }),
-      mk('mult.multiple', `${felder.multiple} der Vergleichsgruppe`, median(reihe) ?? 0, 'peer_gruppe', st,
+      mk('mult.kennzahl', felder.label, felder.wert ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Vergleich', notiz: felder.info }),
+      mk('mult.multiple', `${felder.multiple} (Median der Gruppe)`, median(reihe) ?? 0, 'peer_gruppe', st,
         { einheit: 'faktor', gruppe: 'Vergleich', peers: reihe,
           notiz: reihe.length
             ? `Median aus ${reihe.length} Wettbewerbern der Branche ${peers?.branche ?? '—'} (${(peers?.namen ?? []).slice(0, 8).join(', ')}). Worst Case rechnet mit dem 25., Best Case mit dem 75. Perzentil dieser Gruppe.`
@@ -318,12 +322,12 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
     );
   } else if (verfahren === 'residual') {
     annahmen.push(
-      mk('res.eigenkapital', 'Eigenkapital (Buchwert)', roh.eigenkapital ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Ertragskraft' }),
-      mk('res.roe', 'Eigenkapitalrendite', roh.roe ?? 0, 'eigene_schaetzung', st,
+      mk('res.eigenkapital', 'Eigenkapital, Buchwert (Book Value)', roh.eigenkapital ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Ertragskraft' }),
+      mk('res.roe', 'Eigenkapitalrendite (Return on Equity)', roh.roe ?? 0, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'rendite', gruppe: 'Ertragskraft', notiz: 'Vorbelegt mit der aktuellen Rendite — für die Bewertung zählt die nachhaltig erreichbare.' }),
-      mk('res.eigenkapitalkosten', 'Eigenkapitalkosten', kk.wert, 'eigene_schaetzung', st,
+      mk('res.eigenkapitalkosten', 'Eigenkapitalkosten (Cost of Equity)', kk.wert, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'kapitalkosten', gruppe: 'Ertragskraft', notiz: kk.notiz }),
-      mk('res.wachstum', 'Nachhaltiges Wachstum', VORGABEN.ewigesWachstum, 'eigene_schaetzung', st,
+      mk('res.wachstum', 'Nachhaltiges Wachstum (Sustainable Growth)', VORGABEN.ewigesWachstum, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'ewigesWachstum', gruppe: 'Ertragskraft' }),
       ...aktienAnnahmen(roh, false),
     );
@@ -342,12 +346,12 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
       const phase = phaseAusStudie(t.phases);
       zeilen.push({ id, name, indikation: t.conditions?.[0] ?? null, phase, quelle: 'clinicaltrials.gov' });
       annahmen.push(
-        mk(`zeile.${id}.spitzenumsatz`, `${name} — Spitzenumsatz`, 0, 'eigene_schaetzung', st,
+        mk(`zeile.${id}.spitzenumsatz`, `${name} — Spitzenumsatz (Peak Sales)`, 0, 'eigene_schaetzung', st,
           { einheit: 'geld', gruppe: name, notiz: 'Keine kostenlose Quelle liefert Spitzenumsätze — bitte selbst setzen.' }),
-        mk(`zeile.${id}.pos`, `${name} — Erfolgswahrscheinlichkeit`, posFuer(phase), 'eigene_schaetzung', st,
+        mk(`zeile.${id}.pos`, `${name} — Erfolgswahrscheinlichkeit (Probability of Success)`, posFuer(phase), 'eigene_schaetzung', st,
           { einheit: 'prozent', regel: 'erfolgswahrscheinlichkeit', bernoulli: phase !== 'zugelassen', gruppe: name,
             notiz: `Tabellenwert für ${POS_PHASEN.find((p) => p.id === phase)?.label ?? phase}.` }),
-        mk(`zeile.${id}.multiple`, `${name} — Bewertungsmultiple`, RNPV_MULTIPLE.patentgeschuetzt, 'eigene_schaetzung', st,
+        mk(`zeile.${id}.multiple`, `${name} — Bewertungsfaktor (Sales Multiple)`, RNPV_MULTIPLE.patentgeschuetzt, 'eigene_schaetzung', st,
           { einheit: 'faktor', gruppe: name, notiz: `Multiple auf den Spitzenumsatz. ${RNPV_MULTIPLE.patentgeschuetzt} für patentgeschützte, ${RNPV_MULTIPLE.reif} für reife Produkte.` }),
       );
     }
@@ -363,7 +367,7 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
     annahmen.push(...bridgeAnnahmen(roh));
   } else if (verfahren === 'sotp') {
     annahmen.push(
-      mk('sotp.konglomeratsabschlag', 'Konglomeratsabschlag', VORGABEN.konglomeratsabschlag, 'eigene_schaetzung', st,
+      mk('sotp.konglomeratsabschlag', 'Konglomeratsabschlag (Conglomerate Discount)', VORGABEN.konglomeratsabschlag, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'konglomeratsabschlag', gruppe: 'Segmente',
           notiz: 'Bildet ab, dass die Segmente voneinander abhängen und nicht einzeln verkäuflich sind.' }),
     );

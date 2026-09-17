@@ -245,10 +245,14 @@ export function pruefungen(modell, ergebnis, heute = new Date(), markt = {}) {
     gesehen.set(schluessel, z.name);
   }
 
-  // 6. Vorzeichenprüfung der Equity Bridge
-  const cash = modell.annahmen.find((a) => a.id === 'bridge.cash')?.wert;
-  const schulden = modell.annahmen.find((a) => a.id === 'bridge.schulden')?.wert;
-  if (modell.verfahren !== 'residual' && !zahl(cash) && !zahl(schulden)) {
+  // 6. Vorzeichenprüfung der Equity Bridge — nur, wenn es überhaupt eine gibt.
+  // Verfahren, die direkt das Eigenkapital bewerten (Residualgewinn, KGV, KBV),
+  // haben keine Bridge; dort stand die Warnung „Cash und Schulden beide null"
+  // fälschlich unter jedem Ergebnis.
+  const cash = modell.annahmen.find((a) => a.id === 'bridge.cash');
+  const schulden = modell.annahmen.find((a) => a.id === 'bridge.schulden');
+  const mitBridge = !!cash && !!schulden;
+  if (mitBridge && !zahl(cash.wert) && !zahl(schulden.wert)) {
     w.push(warn('rot', 'bridge.leer',
       'Zahlungsmittel und Finanzverbindlichkeiten stehen beide auf null.',
       'Das ist fast immer ein Eingabefehler, nicht eine schuldenfreie Firma.'));
