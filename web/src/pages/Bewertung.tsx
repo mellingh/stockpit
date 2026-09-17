@@ -55,6 +55,14 @@ const QUELLE_LABEL: Record<string, string> = {
 
 // ---------- Formatierung ----------
 
+/** Multiples ueber 200 sind Datenfehler (Roivant stand mit EV/Umsatz 3.400 da)
+ *  — die Rechnung verwirft sie, also zeigt die Tabelle sie auch nicht. */
+const multiple = (v: number | null | undefined) =>
+  v == null || v <= 0 || v > 200
+    ? '–'
+    // feste Nachkommastelle, sonst steht '4×' neben '3,6×'
+    : new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v) + '×';
+
 const jeAktie = (v: number | null | undefined, w: string | null) =>
   v == null
     ? '–'
@@ -116,6 +124,97 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
     return `${wie}: Die Rechnung kommt ${fmtPct(abw * 100, false)} über dem Kurs heraus. Der Markt traut dem Unternehmen also weniger zu als diese Annahmen — oder sieht ein Risiko, das hier nicht abgebildet ist.`;
   }
   return `${wie}: Die Rechnung kommt ${fmtPct(-abw * 100, false)} unter dem Kurs heraus. Im Kurs steckt mehr Erwartung, als diese Annahmen hergeben.`;
+}
+
+/**
+ * Erklärt die drei Spalten. Ohne diesen Absatz ist unklar, woher „pessimistisch"
+ * kommt — man könnte es für frei gesetzte Zahlen halten, was den Zweck des
+ * Regelwerks zunichte machen würde.
+ */
+function SzenarienErklaert({ anzahl }: { anzahl: number }) {
+  return (
+    <div className="mt-4 grid gap-2 border-t border-line pt-4">
+      <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
+        <span className="font-bold text-ink">Woher die drei Werte kommen: </span>
+        Sie entstehen nach festen Regeln aus denselben Annahmen — nicht durch freies Verschieben von
+        Zahlen. Beim Branchenvergleich etwa rechnet <em className="not-italic text-ink">pessimistisch</em> mit
+        dem unteren Viertel der Vergleichsgruppe, <em className="not-italic text-ink">realistisch</em> mit
+        dem Mittelwert und <em className="not-italic text-ink">optimistisch</em> mit dem oberen Viertel.
+        Gemessene Zahlen aus dem Geschäftsbericht wie Schulden oder Aktienanzahl bleiben in allen drei
+        Fällen gleich — sie sind gemessen, nicht geschätzt.
+      </p>
+      {anzahl > 1 && (
+        <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
+          <span className="font-bold text-ink">Warum ein Mittelwert: </span>
+          Jedes Verfahren betrachtet die Firma aus einem anderen Blickwinkel und liegt deshalb
+          woanders. Der gezeigte Wert ist die Mitte aus den {anzahl} Verfahren — die Einzelwerte
+          stehen unten, damit du siehst, wie weit sie auseinanderliegen.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Welches Verfahren passt zu welcher Art von Unternehmen — aufklappbar. */
+function VerfahrensUebersicht() {
+  const [offen, setOffen] = useState(false);
+  const Chevron = offen ? ChevronUp : ChevronDown;
+  const zeilen: { art: string; verfahren: string; warum: string }[] = [
+    {
+      art: 'Reife Firmen mit stetigem Geschäft',
+      verfahren: 'Zahlungsstrom-Modell + Branchenvergleich',
+      warum: 'Die Zahlungsströme sind planbar genug, um sie über zehn Jahre zu schätzen.',
+    },
+    {
+      art: 'Schnell wachsende Firmen',
+      verfahren: 'Branchenvergleich',
+      warum: 'Eine Zehnjahresprognose wäre bei hohem Wachstum eine Wette auf das Abschmelzen — der Vergleich mit der Branche trägt weiter.',
+    },
+    {
+      art: 'Biotech und Pharma mit Umsatz',
+      verfahren: 'Branchenvergleich, bei Gewinn zusätzlich Zahlungsstrom-Modell',
+      warum: 'Der Wert hängt an Zulassungen und Patenten. Der Vergleich mit anderen Biotechs fängt ein, wie der Markt solche Aussichten insgesamt bepreist.',
+    },
+    {
+      art: 'Biotech ohne Umsatz (reine Pipeline)',
+      verfahren: 'Pipeline-Modell (eigene Eingabe)',
+      warum: 'Es gibt noch nichts zu vergleichen. Jedes Medikament muss einzeln mit Spitzenumsatz und Zulassungswahrscheinlichkeit angesetzt werden — diese Zahlen liefert keine kostenlose Quelle.',
+    },
+    {
+      art: 'Banken, Versicherer, Kreditgeber',
+      verfahren: 'Eigenkapital-Modell',
+      warum: 'Bei Kreditgebern laufen Kreditvergaben durch die Cashflow-Rechnung: wer weniger Neugeschäft macht, sieht auf dem Papier besser aus. Bewertet wird deshalb über Buchwert und Eigenkapitalrendite.',
+    },
+    {
+      art: 'Konzerne mit mehreren Geschäftsfeldern',
+      verfahren: 'Bereiche einzeln (eigene Eingabe)',
+      warum: 'Ein Handelsgeschäft und eine Cloud-Sparte werden am Markt völlig unterschiedlich bewertet — zusammengerechnet verschwindet dieser Unterschied.',
+    },
+  ];
+
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <button
+        onClick={() => setOffen((o) => !o)}
+        aria-expanded={offen}
+        className="flex cursor-pointer items-center gap-2 font-mono text-micro font-bold uppercase tracking-[0.14em] text-ink3 transition-colors hover:text-ink"
+      >
+        Welches Verfahren passt zu welcher Firma?
+        <Chevron size={13} aria-hidden />
+      </button>
+      {offen && (
+        <ul className="mt-4 grid gap-4">
+          {zeilen.map((z) => (
+            <li key={z.art} className="grid gap-1">
+              <span className="text-small font-bold text-ink">{z.art}</span>
+              <span className="font-mono text-micro text-accent">{z.verfahren}</span>
+              <span className="max-w-[78ch] text-small leading-relaxed text-ink3">{z.warum}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 // ---------- Verfahren im Detail ----------
@@ -221,7 +320,7 @@ function SensTabelle({ zeilen }: { zeilen: SensZeile[] }) {
   );
 }
 
-/** Ein Verfahren als aufklappbare Zeile: Wert, Erklärung, Details. */
+/** Ein Verfahren als aufklappbare Karte: Wert, Erklärung, Details. */
 function VerfahrensZeile({ v, kurs, waehrung, eurKurs }: {
   v: BewertungsAntwort['verfahren'][number];
   kurs: number | null; waehrung: string | null; eurKurs: number | null;
@@ -233,32 +332,38 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs }: {
   const Chevron = offen ? ChevronUp : ChevronDown;
 
   return (
-    <li className="border-b border-line/70 last:border-b-0">
+    <li className="rounded-md border border-line bg-panel2/40">
       <button
         onClick={() => setOffen((o) => !o)}
         aria-expanded={offen}
-        className="flex w-full cursor-pointer items-start gap-3 py-3 text-left transition-colors hover:bg-panel2/60"
+        className="flex w-full cursor-pointer items-start gap-6 rounded-md p-4 text-left transition-colors hover:bg-panel2/70"
       >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
-            <span className="text-base font-bold text-ink">{VERFAHREN_NAME[v.id]}</span>
+            <span className="text-lg font-bold text-ink">{VERFAHREN_NAME[v.id]}</span>
             {!v.automatisch && <Badge variant="neu">eigene Eingabe</Badge>}
             <Chevron size={14} className="text-ink3" aria-hidden />
           </span>
-          <span className="mt-1 block text-small leading-relaxed text-ink3">{VERFAHREN_ERKLAERT[v.id]}</span>
-          <span className="mt-1 block text-small leading-relaxed text-ink2">{v.grund}</span>
+          {/* Lesbare Zeilenlänge: Fließtext bricht sonst über die volle Breite */}
+          <span className="mt-2 block max-w-[62ch] text-small leading-relaxed text-ink2">
+            {VERFAHREN_ERKLAERT[v.id]}
+          </span>
+          <span className="mt-2.5 block max-w-[62ch] text-small leading-relaxed">
+            <span className="font-mono text-micro uppercase tracking-[0.14em] text-ink3">Warum hier? </span>
+            <span className="text-ink2">{v.grund}</span>
+          </span>
         </span>
         <span className="shrink-0 text-right">
           <span className="block font-display text-display-sm font-bold tabular-nums">{jeAktie(wert, waehrung)}</span>
           <EuroZeile wert={wert} eurKurs={eurKurs} waehrung={waehrung} />
-          <span className={cn('block font-mono text-small tabular-nums', abw == null ? 'text-ink3' : abw >= 0 ? 'text-up' : 'text-down')}>
-            {abw == null ? '' : fmtPct(abw * 100)}
+          <span className={cn('mt-0.5 block font-mono text-small tabular-nums', abw == null ? 'text-ink3' : abw >= 0 ? 'text-up' : 'text-down')}>
+            {abw == null ? '' : fmtPct(abw * 100) + ' zum Kurs'}
           </span>
         </span>
       </button>
 
       {offen && (
-        <div className="grid gap-5 pb-5 pt-1">
+        <div className="grid gap-6 border-t border-line px-4 pb-5 pt-5">
           <div className="grid gap-3 sm:grid-cols-3">
             {(['worst', 'base', 'best'] as Fall[]).map((f) => (
               <SzenarioSpalte key={f} fall={f} wert={e.szenarien[f].wertJeAktie} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
@@ -301,6 +406,84 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs }: {
 }
 
 // ---------- Seite ----------
+
+/**
+ * Die Vergleichsgruppe mit Erklärung, wozu sie da ist. Die Wachstumsspalte ist
+ * der wichtigste Teil: wächst die betrachtete Firma deutlich schneller als die
+ * Gruppe, erklärt das einen Aufschlag im Kurs — ohne diese Spalte wirkt die
+ * Bewertung schlicht „zu hoch" (Insmed wächst 186 %, seine Branchen-Nachbarn
+ * einstellig).
+ */
+function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGruppe']> }) {
+  // Wachstum des Zielwerts AUS DERSELBEN QUELLE wie die Gruppe — Yahoo misst es
+  // anders (Quartal statt zwölf Monate) und lieferte 296 % gegen 186 %.
+  const eigenes = gruppe.ziel?.wachstum ?? null;
+  const wachstumsWerte = gruppe.peers
+    .map((p) => (p as { wachstum?: number | null }).wachstum)
+    .filter((v): v is number => typeof v === 'number');
+  const medianWachstum = wachstumsWerte.length
+    ? [...wachstumsWerte].sort((a, b) => a - b)[Math.floor(wachstumsWerte.length / 2)]
+    : null;
+  const deutlichSchneller = eigenes != null && medianWachstum != null && eigenes > medianWachstum + 0.2;
+
+  return (
+    <Panel className="animate-rise">
+      <PanelTitle>Vergleichsgruppe</PanelTitle>
+      <div className="mb-4 grid gap-2">
+        <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
+          <span className="font-bold text-ink">Wozu das dient: </span>
+          Der Branchenvergleich braucht einen Maßstab. Diese {gruppe.peers.length} Unternehmen der Branche{' '}
+          <span className="text-ink">{gruppe.branche}</span> sind ähnlich groß; aus ihren Kennzahlen wird
+          das Vielfache gebildet, mit dem gerechnet wird. Ohne eine solche Gruppe müsste das Modell die
+          Aktie mit sich selbst vergleichen und gäbe nur den heutigen Kurs zurück.
+        </p>
+        {deutlichSchneller && (
+          <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
+            <span className="font-bold text-ink">Einordnung: </span>
+            Diese Firma wächst mit {fmtPct(eigenes! * 100, false)} deutlich schneller als die Gruppe
+            (Mitte {fmtPct(medianWachstum! * 100, false)}). Ein Teil des Kursaufschlags erklärt sich
+            dadurch — der Vergleich zeigt dann vor allem, wie viel Wachstum der Kurs bereits einpreist.
+          </p>
+        )}
+      </div>
+      <ScrollListe className="max-h-[340px]">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col className="w-[78px]" /><col /><col className="w-[104px]" /><col className="w-[100px]" />
+            <col className="w-[104px]" /><col className="w-[104px]" />
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-panel">
+            <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
+              <th className="pb-2.5 font-normal">Symbol</th>
+              <th className="pb-2.5 font-normal">Name</th>
+              <th className="pb-2.5 text-right font-normal">Börsenwert</th>
+              <th className="pb-2.5 text-right font-normal">Wachstum</th>
+              <th className="pb-2.5 text-right font-normal">EV/Umsatz</th>
+              <th className="pb-2.5 text-right font-normal">EV/EBITDA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {gruppe.peers.map((p) => {
+              const w = (p as { wachstum?: number | null }).wachstum;
+              return (
+                <tr key={p.symbol} className="border-b border-line/70">
+                  <td className="py-2.5 font-mono text-small text-accent">{p.symbol}</td>
+                  <td className="py-2.5 truncate pr-3 text-small text-ink2" title={p.name}>{p.name}</td>
+                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{fmtCompact(p.marktkap)}</td>
+                  <td className={cn('py-2.5 text-right font-mono text-small tabular-nums', w == null ? 'text-ink3' : w >= 0 ? 'text-up' : 'text-down')}>
+                    {w == null ? '–' : fmtPct(w * 100)}
+                  </td>
+                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{multiple(p.evUmsatz)}</td>
+                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{multiple(p.evEbitda)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </ScrollListe>
+    </Panel>
+  );
+}
 
 /** Gespeicherte Bewertungen — der Rückblick auf frühere Annahmen. */
 function Gespeicherte() {
@@ -397,7 +580,8 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
                 <SzenarioSpalte key={f} fall={f} wert={gesamt[f]} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
               ))}
             </div>
-            {satz && <p className="mt-4 border-t border-line pt-4 text-base leading-relaxed text-ink2">{satz}</p>}
+            {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}
+            <SzenarienErklaert anzahl={gesamt.verfahren.length} />
           </>
         )}
       </Panel>
@@ -405,7 +589,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
       <Panel className="animate-rise">
         <PanelTitle>So kommt die Zahl zustande</PanelTitle>
         {d.verfahren.length ? (
-          <ul>
+          <ul className="grid gap-3">
             {d.verfahren.map((v) => (
               <VerfahrensZeile key={v.id + (v.basis ?? '')} v={v} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} />
             ))}
@@ -413,6 +597,8 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
         ) : (
           <Empty>Kein Verfahren ist mit den verfügbaren Daten belastbar.</Empty>
         )}
+
+        <VerfahrensUebersicht />
 
         {!!d.abgelehnt?.length && (
           <div className="mt-5 border-t border-line pt-4">
@@ -429,40 +615,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
         )}
       </Panel>
 
-      {!!d.peerGruppe?.peers?.length && (
-        <Panel className="animate-rise">
-          <PanelTitle>Vergleichsgruppe</PanelTitle>
-          <p className="-mt-2 mb-3 text-small text-ink3">
-            {d.peerGruppe.peers.length} Unternehmen der Branche {d.peerGruppe.branche} in ähnlicher Größe.
-            Aus ihren Kennzahlen kommt das Multiple im Branchenvergleich.
-          </p>
-          <ScrollListe className="max-h-[320px]">
-            <table className="w-full table-fixed">
-              <colgroup><col className="w-[90px]" /><col /><col className="w-[110px]" /><col className="w-[110px]" /><col className="w-[110px]" /></colgroup>
-              <thead className="sticky top-0 z-10 bg-panel">
-                <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-                  <th className="pb-2 font-normal">Symbol</th>
-                  <th className="pb-2 font-normal">Name</th>
-                  <th className="pb-2 text-right font-normal">Börsenwert</th>
-                  <th className="pb-2 text-right font-normal">EV/Umsatz</th>
-                  <th className="pb-2 text-right font-normal">EV/EBITDA</th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.peerGruppe.peers.map((p) => (
-                  <tr key={p.symbol} className="border-b border-line/70">
-                    <td className="py-2 font-mono text-small text-accent">{p.symbol}</td>
-                    <td className="py-2 truncate text-small text-ink2" title={p.name}>{p.name}</td>
-                    <td className="py-2 text-right font-mono text-small tabular-nums text-ink3">{fmtCompact(p.marktkap)}</td>
-                    <td className="py-2 text-right font-mono text-small tabular-nums text-ink3">{p.evUmsatz == null ? '–' : fmtNum(p.evUmsatz, 1) + '×'}</td>
-                    <td className="py-2 text-right font-mono text-small tabular-nums text-ink3">{p.evEbitda == null ? '–' : fmtNum(p.evEbitda, 1) + '×'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollListe>
-        </Panel>
-      )}
+      {!!d.peerGruppe?.peers?.length && <PeerPanel gruppe={d.peerGruppe} />}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams, useSetParam, useTitel } from '@/lib
 import { Check } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton, SkeletonPills, SkeletonRows } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -967,13 +967,14 @@ export default function AnalysePage() {
           <span aria-hidden>›</span>
           Aktien-Analyse
           <span aria-hidden className="h-px flex-1 bg-line" />
-          {/* Nimmt den angezeigten Wert direkt mit — das Kürzel muss nicht
-              zweimal getippt werden. */}
+          {/* Gleiche Optik wie „+ Position hinzufügen" im Dashboard (action =
+              blaue Outline). Nimmt den angezeigten Wert mit, damit das Kürzel
+              nicht zweimal getippt werden muss. */}
           <Link
             to={`/bewertung?symbol=${encodeURIComponent(symbol)}`}
-            className="shrink-0 normal-case tracking-normal text-ink3 transition-colors hover:text-accent"
+            className={cn(buttonVariants({ variant: 'action', size: 'sm' }), 'shrink-0 normal-case tracking-normal')}
           >
-            Bewerten →
+            Bewerten
           </Link>
         </div>
       </header>

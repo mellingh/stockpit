@@ -514,7 +514,21 @@ export interface BewertungsAntwort {
   /** Verfahren, die Handeingaben brauchen */
   manuell: { id: Verfahren; grund: string }[];
   rohdaten: Record<string, unknown>;
-  peerGruppe: { branche: string; peers: { symbol: string; name: string; marktkap: number | null; evUmsatz: number | null; evEbitda: number | null; kgv: number | null }[] } | null;
+  peerGruppe: {
+    branche: string;
+    /** der bewertete Wert selbst, aus derselben Quelle wie die Peers */
+    ziel?: { name: string; marktkap: number | null; wachstum: number | null; evUmsatz: number | null; evEbitda: number | null };
+    peers: {
+      symbol: string;
+      name: string;
+      marktkap: number | null;
+      /** Umsatzwachstum — zeigt, ob die Gruppe vergleichbar wächst */
+      wachstum: number | null;
+      evUmsatz: number | null;
+      evEbitda: number | null;
+      kgv: number | null;
+    }[];
+  } | null;
   markt: Record<string, number | string | null>;
   verfahrenListe: Record<Verfahren, { label: string; lang: string; fuer: string }>;
   regeln: {

@@ -1290,7 +1290,9 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
         .filter(([id]) => !verfahren.some((v) => v.id === id))
         .map(([id, grund]) => ({ id, grund })),
       rohdaten: roh,
-      peerGruppe: peers ? { branche: peers.branche, peers: peers.peers } : null,
+      // `ziel` aus derselben Quelle wie die Peers — nur so ist das Wachstum
+      // des Unternehmens mit dem der Gruppe vergleichbar (Yahoo misst es anders).
+      peerGruppe: peers ? { branche: peers.branche, ziel: peers.ziel, peers: peers.peers } : null,
       markt,
       verfahrenListe: VERFAHREN,
       regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },

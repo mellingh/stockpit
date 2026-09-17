@@ -13,6 +13,10 @@
 
 import { cached, HOUR } from './cache.js';
 
+// Wie weit darf die Vergleichsgruppe in der Groesse abweichen? Vierfach nach
+// oben und unten — darueber vergleicht man Nebenwerte mit Weltkonzernen.
+const VORGABEN_GROESSE = { faktor: 4 };
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36';
 
 /** Yahoo-Suffix → TradingView-Markt (Gegenstück zur Map in kalender-extra.js). */
@@ -42,14 +46,17 @@ async function scan(markt, body) {
   return (await res.json()).data ?? [];
 }
 
-const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity'];
+const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm'];
 
 function zeileZuObjekt(row) {
-  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe] = row.d ?? [];
+  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum] = row.d ?? [];
   return {
     symbol: String(row.s ?? '').split(':').pop(),
     boerse: String(row.s ?? '').split(':')[0],
     name: beschreibung || name, kuerzel: name, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe,
+    // Umsatzwachstum in Prozent — macht sichtbar, ob die Gruppe ueberhaupt
+    // vergleichbar waechst (Insmed 186 %, die Pharma-Riesen 3 %)
+    wachstum: typeof wachstum === 'number' ? wachstum / 100 : null,
     evUmsatz: ev > 0 && umsatz > 0 ? ev / umsatz : null,
     evEbitda: ev > 0 && ebitda > 0 ? ev / ebitda : null,
   };
@@ -94,13 +101,11 @@ export function getPeers(symbol) {
       range: [0, 80],
     }).catch(() => []);
 
-    const unten = ziel.marktkap ? ziel.marktkap / 10 : 0;
-    const oben = ziel.marktkap ? ziel.marktkap * 10 : Infinity;
     // Zum Vergleich das KÜRZEL nehmen, nicht den Firmennamen — `name` trägt
     // seit der description-Spalte den ausgeschriebenen Namen.
     const zielKuerzel = String(ziel.kuerzel ?? ticker).toUpperCase();
     const gesehen = new Set([ticker]);
-    const peers = roh
+    const brauchbar = roh
       .map(zeileZuObjekt)
       .filter((p) => {
         if (gesehen.has(p.symbol)) return false;
@@ -109,13 +114,30 @@ export function getPeers(symbol) {
         // Die eigene Aktie an einer anderen Börse: SAP.DE fand sich als
         // NYSE:SAP und OTC:SAPGF in der eigenen Vergleichsgruppe wieder.
         if (p.symbol === ticker || p.symbol === zielKuerzel) return false;
-        if (p.marktkap == null || p.marktkap < unten || p.marktkap > oben) return false;
+        if (p.marktkap == null || p.marktkap <= 0) return false;
         gesehen.add(p.symbol);
         return true;
-      })
+      });
+
+    // Die ÄHNLICHSTEN nehmen, nicht die größten: nach dem Größenabstand zum
+    // Zielwert sortieren. Vorher lieferte „nach Marktkapitalisierung absteigend"
+    // für Insmed (27 Mrd) die Riesen AstraZeneca, Novartis und Pfizer — reife
+    // Konzerne, deren Umsatzmultiples für ein wachsendes Unternehmen nichts
+    // aussagen.
+    const abstand = (p) => (ziel.marktkap ? Math.abs(Math.log(p.marktkap / ziel.marktkap)) : 0);
+    const peers = brauchbar
+      .filter((p) => abstand(p) <= Math.log(VORGABEN_GROESSE.faktor))
+      .sort((a, b) => abstand(a) - abstand(b))
       .slice(0, 15);
 
-    return { markt, ziel, branche: ziel.branche, sektor: ziel.sektor, peers };
+    // Zu wenige in enger Spanne? Dann die Spanne weiten, statt gar keine
+    // Vergleichsgruppe zu liefern — mit weniger als drei Werten fällt das
+    // Verfahren ohnehin aus.
+    const ergaenzt = peers.length >= 5
+      ? peers
+      : brauchbar.sort((a, b) => abstand(a) - abstand(b)).slice(0, 15);
+
+    return { markt, ziel, branche: ziel.branche, sektor: ziel.sektor, peers: ergaenzt };
   }).catch(() => null);
 }
 
