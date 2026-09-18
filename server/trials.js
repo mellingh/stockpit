@@ -13,10 +13,10 @@ const FIELDS = [
   'protocolSection.sponsorCollaboratorsModule.leadSponsor',
 ].join(',');
 
-async function query(params) {
+async function query(params, seitenGroesse = 25) {
   const url = new URL('https://clinicaltrials.gov/api/v2/studies');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  url.searchParams.set('pageSize', '25');
+  url.searchParams.set('pageSize', String(seitenGroesse));
   url.searchParams.set('sort', 'LastUpdatePostDate:desc');
   url.searchParams.set('fields', FIELDS);
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
@@ -60,6 +60,33 @@ export function getTrials(companyName) {
     }
 
     return studies.slice(0, 12).map(toEntry);
+  });
+}
+
+/**
+ * Dieselbe Suche, aber vollständig: für das Pipeline-Panel der Bewertung.
+ *
+ * `getTrials` liefert bewusst nur zwölf Studien — im Analyse-Report ist das
+ * eine Leseliste. Die Bewertung fragt etwas anderes: woraus soll das künftige
+ * Geschäft kommen? Dafür zählt jedes laufende Programm, und bei Moderna oder
+ * Insmed sind das weit mehr als zwölf.
+ */
+export function getPipelineStudien(companyName) {
+  const name = cleanCompanyName(companyName);
+  return cached(`pipeline:${name.toLowerCase()}`, DAY, async () => {
+    const studies = await query({ 'query.spons': name }, 100);
+    if (studies.length >= 5) return studies.map(toEntry);
+
+    // Gleicher Rückfall wie oben: die Sponsor-Suche matcht nur ganze Wörter.
+    const nadel = name.toLowerCase();
+    const perBegriff = await query({ 'query.term': name }, 100).catch(() => []);
+    const bekannt = new Set(studies.map((s) => s.protocolSection?.identificationModule?.nctId));
+    return [
+      ...studies,
+      ...perBegriff.filter((s) =>
+        !bekannt.has(s.protocolSection?.identificationModule?.nctId)
+        && (s.protocolSection?.sponsorCollaboratorsModule?.leadSponsor?.name || '').toLowerCase().includes(nadel)),
+    ].map(toEntry);
   });
 }
 

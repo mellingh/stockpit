@@ -13,7 +13,7 @@ import * as store from './storage.js';
 import { getMacroNews, getNewsForSymbols, dedupeAndSort, toTime, fillSummaries, MACRO_FEEDS } from './news.js';
 import { classify, sentimentStatus, preload } from './sentiment.js';
 import { categorize, mapAffected, priceReaction, explain, overallAssessment, isRelevant } from './analysis.js';
-import { getTrials } from './trials.js';
+import { getTrials, getPipelineStudien } from './trials.js';
 import { getCalendar } from './calendar.js';
 import { getEarnings, getFeiertage, getIpos, EARNINGS_MAERKTE } from './kalender-extra.js';
 import { getRatingsWithTargets } from './ratings.js';
@@ -1230,40 +1230,77 @@ async function bewertungsGrundlage(symbol) {
  * Zulassungswahrscheinlichkeit aus der Tabelle, damit sichtbar wird, wie viel
  * davon statistisch übrig bleibt.
  */
+// Welche Studien zählen zur Pipeline? Nur die, die noch laufen oder gerade
+// abgeschlossen wurden. Abgebrochene und zurückgezogene Programme gehören NICHT
+// dazu — bei Caris waren beide Phase-2-Studien beendet („terminated" und
+// „withdrawn") und standen trotzdem als künftiges Geschäft in der Tabelle.
+const LAEUFT = new Set(['RECRUITING', 'ACTIVE_NOT_RECRUITING', 'NOT_YET_RECRUITING', 'ENROLLING_BY_INVITATION']);
+const BEENDET = new Set(['TERMINATED', 'WITHDRAWN', 'SUSPENDED']);
+
+/**
+ * Laufende Programme nach Entwicklungsphase gebündelt — das ist bei einem
+ * Biotech die Substanz hinter der Zukunftserwartung. Zu jeder Phase gehört die
+ * Zulassungswahrscheinlichkeit aus der Tabelle, damit sichtbar wird, wie viel
+ * davon statistisch übrig bleibt.
+ */
 function pipelineNachPhase(trials) {
   if (!trials?.length) return null;
+  // Läuft eine Studie über zwei Phasen („Phase 1/2"), zählt die NIEDRIGERE:
+  // ihre Zulassungswahrscheinlichkeit ist die ehrlichere Annahme.
   const phaseVon = (phases) => {
     const p = (phases ?? []).join(' ').toUpperCase();
-    if (p.includes('PHASE4')) return 'zugelassen';
-    if (p.includes('PHASE3')) return 'phase3';
-    if (p.includes('PHASE2')) return 'phase2';
     if (p.includes('EARLY_PHASE1')) return 'praeklinisch';
     if (p.includes('PHASE1')) return 'phase1';
-    return null;
+    if (p.includes('PHASE2')) return 'phase2';
+    if (p.includes('PHASE3')) return 'phase3';
+    if (p.includes('PHASE4')) return 'zugelassen';
+    // Beobachtungs- und Diagnostikstudien haben keine Phase. Bei einem
+    // Diagnostikunternehmen wie Caris sind genau das die Programme.
+    return 'ohnePhase';
   };
+
   const gruppen = new Map();
+  const gesamt = { laufend: 0, abgeschlossen: 0, abgebrochen: 0 };
   for (const t of trials) {
+    if (BEENDET.has(t.status)) { gesamt.abgebrochen++; continue; }
+    const laeuft = LAEUFT.has(t.status);
+    const fertig = t.status === 'COMPLETED';
+    if (!laeuft && !fertig) continue; // Status unbekannt — nicht mitzählen
+    if (laeuft) gesamt.laufend++; else gesamt.abgeschlossen++;
+
     const id = phaseVon(t.phases);
-    if (!id) continue;
-    if (!gruppen.has(id)) gruppen.set(id, { id, indikationen: new Set() });
-    for (const c of t.conditions ?? []) gruppen.get(id).indikationen.add(c);
+    if (!gruppen.has(id)) gruppen.set(id, { id, indikationen: new Set(), studien: 0, fertige: 0, programme: [] });
+    const g = gruppen.get(id);
+    g.studien += laeuft ? 1 : 0;
+    g.fertige += fertig ? 1 : 0;
+    for (const c of t.conditions ?? []) g.indikationen.add(c);
+    g.programme.push({
+      id: t.nctId, titel: t.title, status: t.status, link: t.link,
+      indikationen: (t.conditions ?? []).slice(0, 2),
+    });
   }
   if (!gruppen.size) return null;
 
-  // Reihenfolge wie die Tabelle: von früh nach spät.
-  const reihenfolge = POS_PHASEN.map((p) => p.id);
-  return [...gruppen.values()]
+  const reihenfolge = ['ohnePhase', ...POS_PHASEN.map((p) => p.id)];
+  const liste = [...gruppen.values()]
     .map((g) => {
       const p = POS_PHASEN.find((x) => x.id === g.id);
       return {
         phase: g.id,
-        label: p?.label ?? g.id,
+        label: p?.label ?? 'Ohne Phasenangabe',
         pos: p?.pos ?? null,
+        // „Programm" = eine Indikation; mehrere Studien können dieselbe
+        // Indikation betreffen, deshalb stehen beide Zahlen da.
         anzahl: g.indikationen.size,
+        studien: g.studien,
+        fertige: g.fertige,
         indikationen: [...g.indikationen].slice(0, 6),
+        programme: g.programme.slice(0, 12),
+        weitere: Math.max(0, g.programme.length - 12),
       };
     })
     .sort((a, b) => reihenfolge.indexOf(b.phase) - reihenfolge.indexOf(a.phase));
+  return { phasen: liste, gesamt };
 }
 
 /** Median einer Zahlenreihe (für den Gesamtwert über mehrere Verfahren). */
@@ -1292,7 +1329,9 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
     const istHealthcare = /healthcare|biotech|pharma/i.test(`${roh.sektor ?? ''} ${roh.branche ?? ''}`);
     let trials = [];
     if (extraId === 'rnpv' || istHealthcare) {
-      trials = await getTrials(name || symbol).catch(() => []);
+      // Für die Pipeline zählt JEDE laufende Studie, nicht die zwölf jüngsten:
+      // Moderna hat 52, Insmed 55. Die rNPV-Zeilen brauchen dieselbe Liste.
+      trials = await getPipelineStudien(name || symbol).catch(() => []);
     }
 
     const bauen = (id, basis) => {
@@ -1406,6 +1445,8 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       if (mitWert.length >= 3) peers.peers = mitWert;
     }
 
+    const pipeline = pipelineNachPhase(trials);
+
     // Umrechnungskurs für die Zweitanzeige in Euro (wie im Dashboard).
     const eurKurs = roh.waehrung && roh.waehrung !== 'EUR'
       ? await yahoo.getFxRate(roh.waehrung, 'EUR').catch(() => null)
@@ -1430,7 +1471,10 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
         .filter(([id]) => !verfahren.some((v) => v.id === id))
         .map(([id, grund]) => ({ id, grund })),
       // Bei Healthcare: woraus das künftige Geschäft kommen müsste
-      pipeline: pipelineNachPhase(trials),
+      // Array bleibt Array (gespeicherte Fassungen älterer Runden lesen es so),
+      // die Summen kommen als eigenes Feld dazu.
+      pipeline: pipeline?.phasen ?? null,
+      pipelineGesamt: pipeline?.gesamt ?? null,
       rohdaten: roh,
       // `ziel` aus derselben Quelle wie die Peers — nur so ist das Wachstum
       // des Unternehmens mit dem der Gruppe vergleichbar (Yahoo misst es anders).

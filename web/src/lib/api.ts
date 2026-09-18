@@ -535,7 +535,18 @@ export interface BewertungsAntwort {
   /** Verfahren, die Handeingaben brauchen */
   manuell: { id: Verfahren; grund: string }[];
   /** nur bei Healthcare: laufende Programme nach Entwicklungsphase */
-  pipeline?: { phase: string; label: string; pos: number | null; anzahl: number; indikationen: string[] }[] | null;
+  pipeline?: {
+    phase: string; label: string; pos: number | null;
+    /** verschiedene Krankheitsgebiete in dieser Phase */
+    anzahl: number;
+    /** laufende bzw. abgeschlossene Studien (ältere Fassungen kennen die Felder nicht) */
+    studien?: number; fertige?: number;
+    indikationen: string[];
+    programme?: { id: string; titel: string; status: string; link: string; indikationen: string[] }[];
+    weitere?: number;
+  }[] | null;
+  /** Summen über alle Phasen — getrenntes Feld, damit gespeicherte Fassungen weiter lesbar bleiben */
+  pipelineGesamt?: { laufend: number; abgeschlossen: number; abgebrochen: number } | null;
   rohdaten: Record<string, unknown>;
   peerGruppe: {
     branche: string;

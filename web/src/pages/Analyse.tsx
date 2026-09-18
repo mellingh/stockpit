@@ -13,6 +13,7 @@ const StockChart = lazy(() =>
 );
 import { LinksCard } from '@/components/links-card';
 import { ScrollListe } from '@/components/scroll-liste';
+import { PHASE_DE, STUDIEN_STATUS_DE } from '@/lib/studien';
 import { RadarChart } from '@/components/radar';
 import { NewsItem } from '@/components/news';
 import { api, type Analyse, type Rating, type SnowflakePunkt } from '@/lib/api';
@@ -685,34 +686,7 @@ function Historie({ a }: { a: Analyse }) {
 
 // ---------- Extra: Studien / ETF ----------
 
-/** clinicaltrials-Rohwerte („PHASE2", „RECRUITING") lesbar machen — Unbekanntes bleibt stehen */
-const PHASE_DE: Record<string, string> = {
-  EARLY_PHASE1: 'Frühe Phase 1',
-  PHASE1: 'Phase 1',
-  PHASE2: 'Phase 2',
-  PHASE3: 'Phase 3',
-  PHASE4: 'Phase 4',
-  NA: 'Ohne Phase',
-};
-// Farben angelehnt an clinicaltrials.gov (Micha, Runde 32): laufend = grün,
-// abgebrochen/zurückgezogen/pausiert = rot, fertig = blau, wartend = gold
-type BadgeVariante = 'pos' | 'neg' | 'chip' | 'warn' | 'neu';
-const STUDIEN_STATUS_DE: Record<string, { label: string; variante: BadgeVariante }> = {
-  RECRUITING: { label: 'Rekrutiert', variante: 'pos' },
-  ACTIVE_NOT_RECRUITING: { label: 'Aktiv', variante: 'pos' },
-  ENROLLING_BY_INVITATION: { label: 'Aufnahme auf Einladung', variante: 'pos' },
-  NOT_YET_RECRUITING: { label: 'Noch nicht rekrutierend', variante: 'warn' },
-  COMPLETED: { label: 'Abgeschlossen', variante: 'chip' },
-  TERMINATED: { label: 'Abgebrochen', variante: 'neg' },
-  SUSPENDED: { label: 'Pausiert', variante: 'neg' },
-  WITHDRAWN: { label: 'Zurückgezogen', variante: 'neg' },
-  UNKNOWN: { label: 'Status unbekannt', variante: 'neu' },
-  // Expanded-Access-Studien haben eigene Status (Micha fand rohes „AVAILABLE")
-  AVAILABLE: { label: 'Verfügbar', variante: 'pos' },
-  NO_LONGER_AVAILABLE: { label: 'Nicht mehr verfügbar', variante: 'neg' },
-  TEMPORARILY_NOT_AVAILABLE: { label: 'Vorübergehend nicht verfügbar', variante: 'warn' },
-  APPROVED_FOR_MARKETING: { label: 'Zugelassen', variante: 'chip' },
-};
+// Lexikon liegt in lib/studien.ts — die Bewertung nutzt dasselbe.
 function abschlussDatum(c: string) {
   const d = new Date(c.length === 7 ? `${c}-15` : c);
   return Number.isNaN(+d) ? c : d.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });

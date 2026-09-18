@@ -9,7 +9,7 @@
 // kommen. Die Entscheidung trifft der Nutzer.
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, FileDown, Info, Save, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, ExternalLink, FileDown, Info, Save, Search, Trash2 } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { ScrollListe } from '@/components/scroll-liste';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { useSearchParams, useTitel, useNavigate, Link } from '@/lib/router';
 import { useBewertungStart, useBewertungGespeichert, useBewertungsListe, useBewertungMutation } from '@/lib/queries';
 import { api, type Annahme, type BewertungsAntwort, type Fall, type SensZeile, type Verfahren } from '@/lib/api';
 import { fmtCompact, fmtDate, fmtNum, fmtPct } from '@/lib/format';
+import { STUDIEN_STATUS_DE } from '@/lib/studien';
 import { cn } from '@/lib/utils';
 
 // ---------- Beschriftungen ----------
@@ -197,11 +198,15 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
           </p>
         ) : (
           <>
-            {/* Zwei Balken: was die Rechnung trägt, und was an Erwartung darüber liegt */}
-            <div className="flex h-2 overflow-hidden rounded-full bg-panel2" role="img"
+{/* Zwei Balken: was die Rechnung trägt, und was an Erwartung darüber liegt.
+                Der zweite Teil ist GOLD, nicht grau — in Linienfarbe war er vom
+                Hintergrund kaum zu unterscheiden, man sah das Ende der Skala
+                nicht (Micha). Gold steht in Stockpit ohnehin für „Vorsicht",
+                Grün und Rot bleiben dem Markt vorbehalten. */}
+            <div className="flex h-2.5 overflow-hidden rounded-full border border-line-strong bg-panel" role="img"
               aria-label={`${Math.round(anteilHeute)} Prozent des Kurses deckt die Rechnung ab`}>
               <span className="bg-accent" style={{ width: anteilHeute + '%' }} />
-              <span className="flex-1 bg-line-strong" />
+              <span className="flex-1 bg-warn" />
             </div>
             <div className="mt-2.5 flex flex-wrap gap-x-6 gap-y-1 text-small">
               <span className="flex items-center gap-2">
@@ -210,7 +215,7 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
                 <span className="font-mono font-bold tabular-nums text-ink">{jeAktie(heute, waehrung)}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-line-strong" />
+                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-warn" />
                 <span className="text-ink2">Vorschuss auf die Zukunft</span>
                 <span className="font-mono font-bold tabular-nums text-ink">{jeAktie(erwartung, waehrung)}</span>
               </span>
@@ -418,51 +423,132 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
  * wie viel davon statistisch übrig bleibt: aus zehn Phase-1-Programmen wird im
  * Schnitt gut eines zugelassen.
  */
-function PipelinePanel({ pipeline }: { pipeline: NonNullable<BewertungsAntwort['pipeline']> }) {
-  const gesamt = pipeline.reduce((s, p) => s + p.anzahl, 0);
+/**
+ * Eine Entwicklungsstufe als Karte — aufklappbar bis auf die einzelne Studie.
+ *
+ * Vorher stand hier eine Tabellenzeile je Phase mit der Zahl der Krankheits-
+ * gebiete. Das war zu wenig: bei Insmed laufen 55 Studien über vier Stufen, bei
+ * Caris standen zwei ABGEBROCHENE Programme als künftiges Geschäft da. Wer
+ * wissen will, worauf die Zukunftserwartung beruht, kommt hier an die Namen.
+ */
+function PhasenKarte({ p }: { p: NonNullable<BewertungsAntwort['pipeline']>[number] }) {
+  const [offen, setOffen] = useState(false);
+  const Chevron = offen ? ChevronUp : ChevronDown;
+  const programme = p.programme ?? [];
+  // Ältere gespeicherte Fassungen kennen die Studienzahl nicht — dann zählt
+  // wie früher die Zahl der Krankheitsgebiete.
+  const laufend = p.studien ?? p.anzahl;
+
+  return (
+    <li className="rounded-md border border-line bg-panel2/40">
+      <button
+        onClick={() => setOffen((o) => !o)}
+        aria-expanded={offen}
+        disabled={!programme.length}
+        className="flex w-full items-start gap-6 rounded-md p-4 text-left transition-colors enabled:cursor-pointer enabled:hover:bg-panel2/70"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="text-base font-bold text-ink">{p.label}</span>
+            {!!programme.length && <Chevron size={14} className="text-ink3" aria-hidden />}
+          </span>
+          <span className="mt-1.5 block font-mono text-micro text-ink3">
+            {laufend} {laufend === 1 ? 'laufende Studie' : 'laufende Studien'}
+            {!!p.fertige && ` · ${p.fertige} abgeschlossen`}
+            {` · ${p.anzahl} ${p.anzahl === 1 ? 'Krankheitsgebiet' : 'Krankheitsgebiete'}`}
+          </span>
+          <span className="mt-2 block max-w-[78ch] text-small leading-relaxed text-ink2">
+            {p.indikationen.join(' · ')}
+          </span>
+        </span>
+        <span className="shrink-0 text-right">
+          <span className="block font-mono text-lg font-bold tabular-nums text-ink">
+            {/* ganze Prozent: „55,00 %" für eine Erfahrungsquote täuscht
+                eine Genauigkeit vor, die es nicht gibt */}
+            {p.pos == null ? '–' : fmtNum(p.pos * 100, 0) + ' %'}
+          </span>
+          <span className="block text-micro text-ink3">Chance auf Zulassung</span>
+        </span>
+      </button>
+
+      {offen && (
+        <div className="border-t border-line px-4 pb-3.5 pt-3.5">
+          <ScrollListe className="max-h-[300px]">
+            <ul className="grid gap-3">
+              {programme.map((s) => {
+                const st = STUDIEN_STATUS_DE[s.status];
+                return (
+                  <li key={s.id} className="flex items-start gap-3">
+                    <Badge variant={st?.variante ?? 'neu'} className="shrink-0">
+                      {st?.label ?? s.status}
+                    </Badge>
+                    <span className="min-w-0 flex-1">
+                      <a
+                        href={s.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${s.titel} — öffnet in neuem Tab`}
+                        className="text-small leading-relaxed text-ink2 transition-colors hover:text-accent"
+                      >
+                        {s.titel} <ExternalLink size={11} className="inline align-middle text-ink3" aria-hidden />
+                      </a>
+                      {!!s.indikationen.length && (
+                        <span className="mt-0.5 block font-mono text-micro text-ink3">{s.indikationen.join(' · ')}</span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {!!p.weitere && (
+              <p className="pt-3 text-micro text-ink3">und {p.weitere} weitere Studien in dieser Stufe</p>
+            )}
+          </ScrollListe>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function PipelinePanel({ pipeline, gesamt }: {
+  pipeline: NonNullable<BewertungsAntwort['pipeline']>;
+  gesamt?: BewertungsAntwort['pipelineGesamt'];
+}) {
+  const laufend = gesamt?.laufend ?? pipeline.reduce((s, p) => s + (p.studien ?? p.anzahl), 0);
   // Statistisch zu erwartende Zulassungen — die nüchterne Gegenrechnung zur
-  // Aufzählung „X Programme in der Pipeline".
-  const erwartet = pipeline.reduce((s, p) => s + p.anzahl * (p.pos ?? 0), 0);
+  // Aufzählung „X Programme in der Pipeline". Gerechnet wird mit den LAUFENDEN
+  // Studien: die Zahl der Krankheitsgebiete zählt dasselbe Mittel mehrfach (das
+  // Register führt „Bronchiectasis" und „Non-Cystic Fibrosis Bronchiectasis"
+  // getrennt) und blähte die Erwartung auf.
+  const erwartet = pipeline.reduce((s, p) => s + (p.studien ?? p.anzahl) * (p.pos ?? 0), 0);
 
   return (
     <Panel className="animate-rise">
       <PanelTitle>Pipeline</PanelTitle>
       <p className="mb-4 max-w-[78ch] text-small leading-relaxed text-ink2">
         <span className="font-bold text-ink">Woher das künftige Geschäft kommen müsste: </span>
-        {gesamt} laufende Programme aus dem öffentlichen Studienregister. Die Wahrscheinlichkeit ist der
-        statistische Erfahrungswert für die jeweilige Phase — rechnerisch werden daraus{' '}
-        <span className="font-mono tabular-nums text-ink">{fmtNum(erwartet, 1)}</span> Zulassungen.
-        Das ersetzt keine Einzelbewertung, zeigt aber die Größenordnung.
+        <span className="font-mono font-bold tabular-nums text-ink">{laufend}</span>{' '}
+        {laufend === 1 ? 'laufende Studie' : 'laufende Studien'} in{' '}
+        <span className="font-mono font-bold tabular-nums text-ink">{pipeline.length}</span>{' '}
+        {pipeline.length === 1 ? 'Entwicklungsstufe' : 'Entwicklungsstufen'}
+        {/* Ohne Phasenangabe (Diagnostik, Beobachtungsstudien) gibt es keine
+            Erfahrungsquote — dann steht dort auch keine erfundene Zahl. */}
+        {erwartet > 0 ? (
+          <>
+            {' '}— rechnerisch{' '}
+            <span className="font-mono font-bold tabular-nums text-ink">{fmtNum(erwartet, 1)}</span> Zulassungen
+            <Erklaert text="Jede laufende Studie wird mit der statistischen Zulassungschance ihrer Phase multipliziert. Das ist ein grober Erwartungswert, keine Einzelbewertung: aus zehn Phase-1-Studien wird im Schnitt gut eine Zulassung." />
+          </>
+        ) : (
+          <>. Ohne Phasenangabe lässt sich daraus keine Zulassungsquote ableiten</>
+        )}
+        {gesamt?.abgebrochen
+          ? `. Abgebrochene und zurückgezogene Studien (${gesamt.abgebrochen}) zählen nicht mit.`
+          : '.'}
       </p>
-      <table className="w-full table-fixed">
-        <colgroup><col className="w-[150px]" /><col className="w-[110px]" /><col /></colgroup>
-        <thead>
-          <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-            <th className="pb-2.5 font-normal">Phase</th>
-            <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">Chance</th>
-            <th className="pb-2.5 font-normal">Indikationen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pipeline.map((p) => (
-            <tr key={p.phase} className="border-b border-line/70 last:border-b-0">
-              <td className="py-2.5 pr-4 text-small text-ink">
-                {p.label}
-                {/* „4×' las sich wie ein Faktor — ausgeschrieben ist eindeutig */}
-                <span className="ml-2 font-mono text-micro text-ink3">
-                  {p.anzahl} {p.anzahl === 1 ? 'Programm' : 'Programme'}
-                </span>
-              </td>
-              <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink2">
-                {p.pos == null ? '–' : fmtPct(p.pos * 100, false)}
-              </td>
-              <td className="py-2.5 truncate text-small text-ink3" title={p.indikationen.join(' · ')}>
-                {p.indikationen.join(' · ')}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ul className="grid gap-3">
+        {pipeline.map((p) => <PhasenKarte key={p.phase} p={p} />)}
+      </ul>
     </Panel>
   );
 }
@@ -932,12 +1018,15 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
           für DIESE Aktie: das ist der Grund, warum die Tabelle nützlich ist. */}
       <ScrollListe className="max-h-[340px]">
         <table className="w-full table-fixed">
-          {/* Breiter als nötig: bei rechtsbündigen Zahlen IST die Spaltenbreite
-              der Abstand zur Nachbarspalte (Micha: „die Spalten sind noch nicht
-              weit genug auseinander"). */}
+{/* Bei rechtsbündigen Spalten ist die sichtbare Lücke zwischen zwei
+              Köpfen genau: Breite der rechten Spalte minus Breite ihres
+              Kopftextes. Nachgemessen waren es 35/43/74/59 px — die Köpfe
+              „KURS" und „BÖRSENWERT" klebten aneinander (Micha). Jetzt ist
+              jede Spalte so breit, dass überall mindestens 55 px Luft bleiben,
+              auch beim längsten Kopf („EV/UMSATZ ERW."). */}
           <colgroup>
-            <col /><col className="w-[130px]" /><col className="w-[140px]" /><col className="w-[130px]" />
-            <col className="w-[170px]" /><col className="w-[190px]" />
+            <col /><col className="w-[130px]" /><col className="w-[165px]" /><col className="w-[150px]" />
+            <col className="w-[190px]" /><col className="w-[200px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-panel">
             {/* Jede Spalte trägt ihre Erklärung — ohne sie sind „Börsenwert",
@@ -1164,7 +1253,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
         )}
       </Panel>
 
-      {!!d.pipeline?.length && <PipelinePanel pipeline={d.pipeline} />}
+      {!!d.pipeline?.length && <PipelinePanel pipeline={d.pipeline} gesamt={d.pipelineGesamt} />}
 
       {!!d.peerGruppe?.peers?.length && (
         <PeerPanel gruppe={d.peerGruppe} symbol={d.symbol} zielKurs={d.kurs} waehrung={d.waehrung} />
