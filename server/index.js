@@ -1379,6 +1379,13 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
           ? (m * peerKurse.kennzahl + peerKurse.netto) / peerKurse.aktien
           : null;
       }
+      // Firmen ohne brauchbares Vielfaches fliegen raus — eine Zeile mit zwei
+      // Strichen hilft niemandem. Nur wenn dadurch zu wenige übrig blieben,
+      // bleibt die Liste vollständig (das Verfahren braucht mindestens drei).
+      // Drei ist die Schwelle, die das Verfahren ohnehin verlangt — darüber
+      // fliegt jede Zeile ohne Wert raus (Vaxcyte stand ohne EV/EBITDA drin).
+      const mitWert = peers.peers.filter((p) => p.kursFuerZiel != null);
+      if (mitWert.length >= 3) peers.peers = mitWert;
     }
 
     // Umrechnungskurs für die Zweitanzeige in Euro (wie im Dashboard).

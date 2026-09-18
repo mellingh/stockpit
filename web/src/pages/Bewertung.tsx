@@ -52,6 +52,15 @@ const VERFAHREN_ERKLAERT: Record<Verfahren, string> = {
   residual: 'Für Banken und Kreditgeber: bewertet das Eigenkapital danach, wie viel Rendite darauf erwirtschaftet wird. Cashflow-Modelle führen dort in die Irre.',
 };
 
+/** Was das jeweilige Vielfache bedeutet — in Alltagssprache. */
+const MULTIPLE_INFO: Record<string, string> = {
+  ebitda: 'Firmenwert geteilt durch den operativen Gewinn. 10× heißt: die Firma kostet das Zehnfache dessen, was sie im Jahr operativ verdient.',
+  umsatz: 'Firmenwert geteilt durch den Jahresumsatz. 3× heißt: die Firma kostet das Dreifache ihres Umsatzes.',
+  umsatzErwartet: 'Firmenwert geteilt durch den für nächstes Jahr erwarteten Umsatz — bei wachsenden Firmen aussagekräftiger als der heutige.',
+  gewinn: 'Kurs geteilt durch den Gewinn je Aktie (KGV). 20× heißt: man zahlt zwanzig Jahresgewinne für eine Aktie.',
+  buchwert: 'Kurs geteilt durch das Eigenkapital je Aktie (KBV). 2× heißt: man zahlt das Doppelte dessen, was laut Bilanz an Vermögen da ist.',
+};
+
 const FALL_LABEL: Record<Fall, string> = { worst: 'Pessimistisch', base: 'Realistisch', best: 'Optimistisch' };
 
 const QUELLE_LABEL: Record<string, string> = {
@@ -175,7 +184,7 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
       <div>
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <span className="font-mono text-micro uppercase tracking-[0.14em] text-accent">
-            {rechnungDarueber ? 'Kurs und Rechnung' : 'Woraus der Kurs besteht'}
+            {rechnungDarueber ? 'Kurs und Rechnung' : 'Woraus der heutige Kurs besteht'}
           </span>
         </div>
 
@@ -194,18 +203,23 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
               <span className="bg-accent" style={{ width: anteilHeute + '%' }} />
               <span className="flex-1 bg-line-strong" />
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-small">
+            <div className="mt-2.5 flex flex-wrap gap-x-6 gap-y-1 text-small">
               <span className="flex items-center gap-2">
                 <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />
-                <span className="text-ink2">Heutiges Geschäft</span>
-                <span className="font-mono tabular-nums text-ink">{jeAktie(heute, waehrung)}</span>
+                <span className="text-ink2">Vom heutigen Geschäft gedeckt</span>
+                <span className="font-mono font-bold tabular-nums text-ink">{jeAktie(heute, waehrung)}</span>
               </span>
               <span className="flex items-center gap-2">
                 <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-line-strong" />
-                <span className="text-ink2">Erwartung an die Zukunft</span>
-                <span className="font-mono tabular-nums text-ink">{jeAktie(erwartung, waehrung)}</span>
+                <span className="text-ink2">Vorschuss auf die Zukunft</span>
+                <span className="font-mono font-bold tabular-nums text-ink">{jeAktie(erwartung, waehrung)}</span>
               </span>
             </div>
+            <p className="mt-2.5 max-w-[78ch] text-small leading-relaxed text-ink3">
+              Von {jeAktie(kurs, waehrung)} deckt die Rechnung {Math.round(anteilHeute)} % ab. Der Rest ist
+              bezahlt für Geschäft, das es heute noch nicht gibt — je größer dieser Teil, desto mehr muss
+              das Unternehmen erst noch liefern.
+            </p>
           </>
         )}
       </div>
@@ -474,8 +488,8 @@ function Erklaert({ text }: { text: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="ml-1 cursor-help align-middle text-ink3" aria-label="Erklärung">
-          <Info size={12} className="inline" />
+        <span className="ml-1 cursor-help text-ink3" aria-label="Erklärung">
+          <Info size={12} className="inline align-middle" />
         </span>
       </TooltipTrigger>
       <TooltipContent side="top" align="start" className="max-w-[360px]">{text}</TooltipContent>
@@ -521,27 +535,37 @@ function VerfahrensUebersicht() {
   ];
 
   return (
-    <div className="mt-5 border-t border-line pt-4">
-      <button
-        onClick={() => setOffen((o) => !o)}
-        aria-expanded={offen}
-        className="flex cursor-pointer items-center gap-2 font-mono text-micro font-bold uppercase tracking-[0.14em] text-ink3 transition-colors hover:text-ink"
+    <>
+      {/* Eigener Panel-Titel wie „Vergleichsgruppe" (Micha) — vorher hing hier
+          ein grauer Aufklapper ohne Bezug zur Überschriften-Sprache der Seite. */}
+      <PanelTitle
+        actions={
+          <button
+            onClick={() => setOffen((o) => !o)}
+            aria-expanded={offen}
+            className="flex cursor-pointer items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-ink3 transition-colors hover:text-ink"
+          >
+            {offen ? 'Zuklappen' : 'Aufklappen'}
+            <Chevron size={13} aria-hidden />
+          </button>
+        }
       >
-        Welches Verfahren passt zu welcher Firma?
-        <Chevron size={13} aria-hidden />
-      </button>
+        Welches Verfahren passt wozu?
+      </PanelTitle>
       {offen && (
-        <ul className="mt-4 grid gap-4">
+        // gap-6 statt gap-4 und mehr Luft zwischen den drei Zeilen einer
+        // Gruppe — vorher klebten Titel, Verfahren und Erklärung aneinander
+        <ul className="grid gap-6">
           {zeilen.map((z) => (
-            <li key={z.art} className="grid gap-1">
-              <span className="text-small font-bold text-ink">{z.art}</span>
-              <span className="font-mono text-micro text-accent">{z.verfahren}</span>
+            <li key={z.art} className="grid gap-1.5">
+              <span className="text-base font-bold text-ink">{z.art}</span>
+              <span className="font-mono text-small text-accent">{z.verfahren}</span>
               <span className="max-w-[78ch] text-small leading-relaxed text-ink3">{z.warum}</span>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </>
   );
 }
 
@@ -581,7 +605,7 @@ function Abschnitt({ titel, info, children }: { titel: string; info?: string; ch
         {info && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="cursor-help text-ink3" aria-label={`Erklärung zu ${titel}`}><Info size={12} /></span>
+              <span className="inline-flex shrink-0 cursor-help text-ink3" aria-label={`Erklärung zu ${titel}`}><Info size={12} /></span>
             </TooltipTrigger>
             <TooltipContent side="top" align="start" className="max-w-[360px]">{info}</TooltipContent>
           </Tooltip>
@@ -624,7 +648,7 @@ function AnnahmenBloecke({ annahmen, waehrung }: { annahmen: Annahme[]; waehrung
                       {a.notiz && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="cursor-help text-ink3" aria-label="Erklärung"><Info size={12} /></span>
+                            <span className="inline-flex shrink-0 cursor-help text-ink3" aria-label="Erklärung"><Info size={12} /></span>
                           </TooltipTrigger>
                           <TooltipContent side="top" align="start" className="max-w-[360px]">{a.notiz}</TooltipContent>
                         </Tooltip>
@@ -873,17 +897,30 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
       <ScrollListe className="max-h-[340px]">
         <table className="w-full table-fixed">
           <colgroup>
-            <col className="w-[86px]" /><col /><col className="w-[112px]" /><col className="w-[108px]" />
+            <col /><col className="w-[104px]" /><col className="w-[112px]" /><col className="w-[108px]" />
             <col className="w-[124px]" /><col className="w-[164px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-panel">
+            {/* Jede Spalte trägt ihre Erklärung — ohne sie sind „Börsenwert",
+                „KBV" und „Wert für $KLAR" für Laien bedeutungslos (Micha). */}
             <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-              <th className="pb-2.5 font-normal">Symbol</th>
-              <th className="pb-2.5 font-normal">Name</th>
-              <th className="pb-2.5 text-right font-normal">Börsenwert</th>
-              <th className="pb-2.5 text-right font-normal">Wachstum</th>
-              <th className="whitespace-nowrap pb-2.5 pr-5 text-right font-normal">{multipleName}</th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">Wert für ${symbol}</th>
+              <th className="pb-2.5 font-normal">Firma</th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal">
+                Kurs<Erklaert text="Aktueller Börsenkurs dieses Wettbewerbers — nur zur Einordnung, er fließt nicht in die Rechnung ein." />
+              </th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal">
+                Börsenwert<Erklaert text="Was alle Aktien dieser Firma zusammen kosten. Dient dazu, ähnlich große Unternehmen zu vergleichen." />
+              </th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal">
+                Wachstum<Erklaert text="Umsatzwachstum der letzten zwölf Monate. Wächst ein Wettbewerber viel langsamer, ist sein Vielfaches nur bedingt übertragbar." />
+              </th>
+              <th className="whitespace-nowrap pb-2.5 pr-5 text-right font-normal">
+                {multipleName}<Erklaert text={MULTIPLE_INFO[gruppe.basis ?? 'umsatz'] ?? MULTIPLE_INFO.umsatz} />
+              </th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">
+                Wert für ${symbol}
+                <Erklaert text={`Was eine Aktie von ${symbol} kosten würde, wenn der Markt sie mit demselben Vielfachen bepreisen würde wie diesen Wettbewerber. Darunter der Abstand zum heutigen Kurs.`} />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -893,8 +930,11 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
               const abw = k != null && zielKurs ? (k - zielKurs) / zielKurs : null;
               return (
                 <tr key={p.symbol} className="border-b border-line/70">
-                  <td className="py-2.5 font-mono text-small text-accent">{p.symbol}</td>
-                  <td className="py-2.5 truncate pr-3 text-small text-ink2" title={p.name}>{p.name}</td>
+                  <td className="py-2.5 pr-4">
+                    <span className="block truncate text-small text-ink2" title={p.name}>{p.name}</span>
+                    <span className="block font-mono text-micro text-accent">${p.symbol}</span>
+                  </td>
+                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{jeAktie((p as { kurs?: number | null }).kurs, null)}</td>
                   <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{fmtCompact(p.marktkap)}</td>
                   <td className={cn('py-2.5 text-right font-mono text-small tabular-nums', w == null ? 'text-ink3' : w >= 0 ? 'text-up' : 'text-down')}>
                     {w == null ? '–' : fmtPct(w * 100)}
@@ -1110,7 +1150,9 @@ export default function BewertungPage() {
       </header>
 
       <Dialog open={sucheOffen} onOpenChange={setSucheOffen}>
-        <DialogContent ohneSchliessen className="p-0">
+        {/* Gleiche Maße wie die globale Suche in der Topbar — vorher p-0,
+            wodurch der Dialog schmaler war und das Feld am Rand klebte. */}
+        <DialogContent ohneSchliessen className="max-w-[560px] px-3 pb-3 pt-3.5">
           <SymbolSearch onPick={(s) => { setSucheOffen(false); navigate(`/bewertung?symbol=${encodeURIComponent(s.symbol)}`); }} />
         </DialogContent>
       </Dialog>

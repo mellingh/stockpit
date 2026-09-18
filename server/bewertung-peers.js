@@ -46,10 +46,10 @@ async function scan(markt, body) {
   return (await res.json()).data ?? [];
 }
 
-const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy'];
+const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy', 'close', 'currency'];
 
 function zeileZuObjekt(row) {
-  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet] = row.d ?? [];
+  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet, kurs, waehrung] = row.d ?? [];
   return {
     symbol: String(row.s ?? '').split(':').pop(),
     boerse: String(row.s ?? '').split(':')[0],
@@ -57,6 +57,8 @@ function zeileZuObjekt(row) {
     // Umsatzwachstum in Prozent — macht sichtbar, ob die Gruppe ueberhaupt
     // vergleichbar waechst (Insmed 186 %, die Pharma-Riesen 3 %)
     wachstum: typeof wachstum === 'number' ? wachstum / 100 : null,
+    kurs: typeof kurs === 'number' ? kurs : null,
+    waehrung: typeof waehrung === 'string' ? waehrung : null,
     umsatzErwartet: typeof umsatzErwartet === 'number' ? umsatzErwartet : null,
     evUmsatz: ev > 0 && umsatz > 0 ? ev / umsatz : null,
     // auf den ERWARTETEN Umsatz — so vergleichen Analysten wachsende Firmen
@@ -131,14 +133,14 @@ export function getPeers(symbol) {
     const peers = brauchbar
       .filter((p) => abstand(p) <= Math.log(VORGABEN_GROESSE.faktor))
       .sort((a, b) => abstand(a) - abstand(b))
-      .slice(0, 15);
+      .slice(0, 10);
 
     // Zu wenige in enger Spanne? Dann die Spanne weiten, statt gar keine
     // Vergleichsgruppe zu liefern — mit weniger als drei Werten fällt das
     // Verfahren ohnehin aus.
     const ergaenzt = peers.length >= 5
       ? peers
-      : brauchbar.sort((a, b) => abstand(a) - abstand(b)).slice(0, 15);
+      : brauchbar.sort((a, b) => abstand(a) - abstand(b)).slice(0, 10);
 
     // Manche Firmen landen bei der Quelle in einer Sammelkategorie — Klarna
     // etwa unter „Miscellaneous Commercial Services" statt bei den

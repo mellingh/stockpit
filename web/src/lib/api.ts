@@ -554,6 +554,8 @@ export interface BewertungsAntwort {
       evUmsatz: number | null;
       evEbitda: number | null;
       kgv: number | null;
+      /** aktueller Kurs des Wettbewerbers (nur zur Einordnung) */
+      kurs?: number | null;
       /** Kurs, den DIESE Aktie mit dem Vielfachen dieses Wettbewerbers hätte */
       kursFuerZiel?: number | null;
     }[];
