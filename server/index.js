@@ -20,6 +20,7 @@ import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
 import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
 import { gesamtergebnis } from './bewertung-analyse.js';
+import { impliziteErwartung, jahreBis, szenarioWerte } from './bewertung.js';
 import { rohdatenVon, anwendbareVerfahren, MANUELLE_VERFAHREN, baueModell } from './bewertung-daten.js';
 import { getPeers } from './bewertung-peers.js';
 import { VERFAHREN, POS_PHASEN, POS_GEBIETE, RNPV_MULTIPLE } from './bewertung-regeln.js';
@@ -1218,6 +1219,48 @@ async function bewertungsGrundlage(symbol) {
   return { summary, roh, peers, name, kurs, kursStand, markt: marktwerteVon(roh, summary) };
 }
 
+/**
+ * Laufende Programme nach Entwicklungsphase gebündelt — das ist bei einem
+ * Biotech die Substanz hinter der Zukunftserwartung. Zu jeder Phase gehört die
+ * Zulassungswahrscheinlichkeit aus der Tabelle, damit sichtbar wird, wie viel
+ * davon statistisch übrig bleibt.
+ */
+function pipelineNachPhase(trials) {
+  if (!trials?.length) return null;
+  const phaseVon = (phases) => {
+    const p = (phases ?? []).join(' ').toUpperCase();
+    if (p.includes('PHASE4')) return 'zugelassen';
+    if (p.includes('PHASE3')) return 'phase3';
+    if (p.includes('PHASE2')) return 'phase2';
+    if (p.includes('EARLY_PHASE1')) return 'praeklinisch';
+    if (p.includes('PHASE1')) return 'phase1';
+    return null;
+  };
+  const gruppen = new Map();
+  for (const t of trials) {
+    const id = phaseVon(t.phases);
+    if (!id) continue;
+    if (!gruppen.has(id)) gruppen.set(id, { id, indikationen: new Set() });
+    for (const c of t.conditions ?? []) gruppen.get(id).indikationen.add(c);
+  }
+  if (!gruppen.size) return null;
+
+  // Reihenfolge wie die Tabelle: von früh nach spät.
+  const reihenfolge = POS_PHASEN.map((p) => p.id);
+  return [...gruppen.values()]
+    .map((g) => {
+      const p = POS_PHASEN.find((x) => x.id === g.id);
+      return {
+        phase: g.id,
+        label: p?.label ?? g.id,
+        pos: p?.pos ?? null,
+        anzahl: g.indikationen.size,
+        indikationen: [...g.indikationen].slice(0, 6),
+      };
+    })
+    .sort((a, b) => reihenfolge.indexOf(b.phase) - reihenfolge.indexOf(a.phase));
+}
+
 /** Median einer Zahlenreihe (für den Gesamtwert über mehrere Verfahren). */
 function medianVon(werte) {
   const s = werte.filter((v) => typeof v === 'number' && Number.isFinite(v)).sort((a, b) => a - b);
@@ -1238,8 +1281,12 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
     // damit man es befüllen kann — es zählt aber nicht in den Gesamtwert.
     const extraId = MANUELLE_VERFAHREN[req.query.verfahren] ? req.query.verfahren : null;
 
+    // Studien holen, sobald es ein Healthcare-Wert ist: sie füllen das
+    // Pipeline-Panel („woher das künftige Geschäft kommen soll") und, falls
+    // angefordert, die rNPV-Zeilen.
+    const istHealthcare = /healthcare|biotech|pharma/i.test(`${roh.sektor ?? ''} ${roh.branche ?? ''}`);
     let trials = [];
-    if (extraId === 'rnpv') {
+    if (extraId === 'rnpv' || istHealthcare) {
       trials = await getTrials(name || symbol).catch(() => []);
     }
 
@@ -1251,9 +1298,37 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       return { modell, ergebnis: gesamtergebnis(modell, { markt }) };
     };
 
+    // Wachstumstempo für den Realitäts-Check: die ERWARTUNG der Analysten für
+    // das nächste Jahr, nicht das zuletzt gemessene Wachstum. Insmed wuchs
+    // durch eine Zulassung einmalig um 186 % — damit gerechnet wäre jedes Ziel
+    // in gut einem Jahr erreicht, was niemand ernsthaft unterstellt. Der
+    // Konsens (59 %) ist die ehrlichere Grundlage.
+    const tempo = roh.schaetzung?.wachstum ?? peers?.ziel?.wachstum ?? roh.umsatzwachstum ?? null;
+
+    // Was müsste das Unternehmen liefern, damit dieser Preis aufgeht?
+    const rueckwaerts = (modell, preis) => {
+      const w = szenarioWerte(modell.annahmen, 'base');
+      const e = impliziteErwartung(modell, preis, w);
+      if (!e) return null;
+      return { ...e, preis, tempo, jahre: jahreBis(e.vielfaches, tempo) };
+    };
+
     const verfahren = anwendbar.map((v) => {
       const { modell, ergebnis } = bauen(v.id, v.basis);
-      return { id: v.id, basis: v.basis ?? null, grund: v.grund, automatisch: true, modell, ergebnis };
+      return {
+        id: v.id,
+        basis: v.basis ?? null,
+        grund: v.grund,
+        automatisch: true,
+        modell,
+        ergebnis,
+        // Die Gegenprobe: welche Geschäftsentwicklung im Kurs bzw. im
+        // Analystenziel steckt — nachprüfbar statt geglaubt.
+        eingepreist: {
+          kurs: rueckwaerts(modell, kurs),
+          analysten: rueckwaerts(modell, roh.kursziel),
+        },
+      };
     });
     if (extraId) {
       const { modell, ergebnis } = bauen(extraId, null);
@@ -1298,6 +1373,8 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       manuell: Object.entries(MANUELLE_VERFAHREN)
         .filter(([id]) => !verfahren.some((v) => v.id === id))
         .map(([id, grund]) => ({ id, grund })),
+      // Bei Healthcare: woraus das künftige Geschäft kommen müsste
+      pipeline: pipelineNachPhase(trials),
       rohdaten: roh,
       // `ziel` aus derselben Quelle wie die Peers — nur so ist das Wachstum
       // des Unternehmens mit dem der Gruppe vergleichbar (Yahoo misst es anders).

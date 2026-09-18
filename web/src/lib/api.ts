@@ -483,6 +483,20 @@ export interface BewertungsErgebnis {
   };
 }
 
+/** Ergebnis der Rückwärtsrechnung zu einem Zielkurs. */
+export interface ImplizitErwartet {
+  art: 'kennzahl' | 'wachstum' | 'rendite';
+  /** was nötig wäre (Geldbetrag, Wachstums- oder Renditesatz) */
+  noetig: number;
+  /** der heutige Stand derselben Größe */
+  heute: number | null;
+  vielfaches: number | null;
+  preis: number;
+  /** unterstelltes Jahreswachstum für die Dauer-Angabe */
+  tempo: number | null;
+  jahre: number | null;
+}
+
 /** Antwort der Bewertungs-Route: alle rechenbaren Verfahren plus Gesamtwert. */
 export interface BewertungsAntwort {
   symbol: string;
@@ -510,11 +524,18 @@ export interface BewertungsAntwort {
     automatisch: boolean;
     modell: BewertungsModell;
     ergebnis: BewertungsErgebnis;
+    /** Rückwärtsrechnung: was in Kurs bzw. Analystenziel an Entwicklung steckt */
+    eingepreist?: {
+      kurs: ImplizitErwartet | null;
+      analysten: ImplizitErwartet | null;
+    };
   }[];
   /** Verfahren, die für diesen Wert nicht taugen — mit Begründung */
   abgelehnt: { id: Verfahren; grund: string }[];
   /** Verfahren, die Handeingaben brauchen */
   manuell: { id: Verfahren; grund: string }[];
+  /** nur bei Healthcare: laufende Programme nach Entwicklungsphase */
+  pipeline?: { phase: string; label: string; pos: number | null; anzahl: number; indikationen: string[] }[] | null;
   rohdaten: Record<string, unknown>;
   peerGruppe: {
     branche: string;

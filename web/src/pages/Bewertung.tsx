@@ -198,6 +198,153 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
 }
 
 /**
+ * Die Gegenprobe: was im Kurs und im Analystenziel an Geschäftsentwicklung
+ * steckt. Das ist der Zweck des Tools — eine fremde Einschätzung wird nicht
+ * geglaubt oder verworfen, sondern in eine nachprüfbare Zahl übersetzt.
+ */
+function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
+  v: BewertungsAntwort['verfahren'][number];
+  waehrung: string | null; kurs: number | null; analystenZiel: number | null;
+}) {
+  const e = v.eingepreist;
+  if (!e?.kurs && !e?.analysten) return null;
+
+  const zeile = (
+    label: string,
+    preis: number | null,
+    x: NonNullable<BewertungsAntwort['verfahren'][number]['eingepreist']>['kurs'],
+  ) => {
+    if (!x) return null;
+    return (
+      <tr key={label} className="border-b border-line/70 last:border-b-0">
+        <td className="py-2.5 pr-4 text-small text-ink2">
+          {label}
+          <span className="ml-2 font-mono tabular-nums text-ink3">{jeAktie(preis, waehrung)}</span>
+        </td>
+        <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink">
+          {x.art === 'kennzahl' && fmtCompact(x.noetig)}
+          {x.art === 'wachstum' && fmtPct((x.noetig ?? 0) * 100, false) + ' p. a.'}
+          {x.art === 'rendite' && fmtPct((x.noetig ?? 0) * 100, false)}
+        </td>
+        <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink2">
+          {x.vielfaches != null
+            ? fmtNum(x.vielfaches, 1) + '× von heute'
+            : x.heute != null
+              ? 'heute ' + fmtPct(x.heute * 100, false)
+              : '–'}
+        </td>
+        <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">
+          {x.jahre != null ? fmtNum(x.jahre, 1) + ' Jahre' : '–'}
+        </td>
+      </tr>
+    );
+  };
+
+  // Kurzform für den Spaltenkopf — das volle Annahme-Label („Umsatz nächstes
+  // Jahr, erwartet (Forward Revenue)') sprengt die Spalte.
+  const basis = v.basis ?? '';
+  const wasNoetig = v.id === 'dcf'
+    ? 'Nötiges Wachstum'
+    : v.id === 'residual'
+      ? 'Nötige Rendite'
+      : basis === 'ebitda'
+        ? 'Nötiges EBITDA'
+        : basis === 'gewinn'
+          ? 'Nötiger Gewinn'
+          : basis === 'buchwert'
+            ? 'Nötiger Buchwert'
+            : 'Nötiger Umsatz';
+  const tempo = e.kurs?.tempo ?? e.analysten?.tempo ?? null;
+
+  return (
+    <Abschnitt
+      titel="Die Gegenprobe"
+      info="Dieselbe Rechnung rückwärts: Statt zu fragen, was die Aktie wert ist, wird gefragt, was das Unternehmen liefern müsste, damit der heutige Kurs bzw. das Analystenziel aufgeht. Gerechnet wird mit demselben Vielfachen wie oben."
+    >
+      <table className="w-full table-fixed">
+        <colgroup><col /><col className="w-[150px]" /><col className="w-[140px]" /><col className="w-[110px]" /></colgroup>
+        <thead>
+          <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
+            <th className="pb-2.5 font-normal">Damit das aufgeht …</th>
+            <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">{wasNoetig}</th>
+            <th className="pb-2.5 pr-4 text-right font-normal">Vergleich</th>
+            <th className="whitespace-nowrap pb-2.5 text-right font-normal">Dauer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeile('Heutiger Kurs', kurs, e.kurs)}
+          {zeile('Kursziel der Analysten', analystenZiel, e.analysten)}
+        </tbody>
+      </table>
+      {tempo != null && (
+        <p className="mt-3 max-w-[78ch] text-small leading-relaxed text-ink3">
+          „Dauer" rechnet mit {fmtPct(tempo * 100, false)} Wachstum pro Jahr — der Erwartung der Analysten
+          für das nächste Jahr, konstant fortgeschrieben. Kein Unternehmen hält ein solches Tempo
+          beliebig lange durch; die Angabe ist eine Untergrenze, keine Prognose.
+        </p>
+      )}
+    </Abschnitt>
+  );
+}
+
+/**
+ * Die Pipeline eines Biotechs: woraus das künftige Geschäft kommen müsste.
+ *
+ * Ohne diese Liste ist „Erwartung an die Zukunft: 81 USD je Aktie" eine
+ * abstrakte Zahl. Mit ihr sieht man, worauf sich diese Erwartung stützt — und
+ * wie viel davon statistisch übrig bleibt: aus zehn Phase-1-Programmen wird im
+ * Schnitt gut eines zugelassen.
+ */
+function PipelinePanel({ pipeline }: { pipeline: NonNullable<BewertungsAntwort['pipeline']> }) {
+  const gesamt = pipeline.reduce((s, p) => s + p.anzahl, 0);
+  // Statistisch zu erwartende Zulassungen — die nüchterne Gegenrechnung zur
+  // Aufzählung „X Programme in der Pipeline".
+  const erwartet = pipeline.reduce((s, p) => s + p.anzahl * (p.pos ?? 0), 0);
+
+  return (
+    <Panel className="animate-rise">
+      <PanelTitle>Pipeline</PanelTitle>
+      <p className="mb-4 max-w-[78ch] text-small leading-relaxed text-ink2">
+        <span className="font-bold text-ink">Woher das künftige Geschäft kommen müsste: </span>
+        {gesamt} laufende Programme aus dem öffentlichen Studienregister. Die Wahrscheinlichkeit ist der
+        statistische Erfahrungswert für die jeweilige Phase — rechnerisch werden daraus{' '}
+        <span className="font-mono tabular-nums text-ink">{fmtNum(erwartet, 1)}</span> Zulassungen.
+        Das ersetzt keine Einzelbewertung, zeigt aber die Größenordnung.
+      </p>
+      <table className="w-full table-fixed">
+        <colgroup><col className="w-[150px]" /><col className="w-[110px]" /><col /></colgroup>
+        <thead>
+          <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
+            <th className="pb-2.5 font-normal">Phase</th>
+            <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">Chance</th>
+            <th className="pb-2.5 font-normal">Indikationen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pipeline.map((p) => (
+            <tr key={p.phase} className="border-b border-line/70 last:border-b-0">
+              <td className="py-2.5 pr-4 text-small text-ink">
+                {p.label}
+                {/* „4×' las sich wie ein Faktor — ausgeschrieben ist eindeutig */}
+                <span className="ml-2 font-mono text-micro text-ink3">
+                  {p.anzahl} {p.anzahl === 1 ? 'Programm' : 'Programme'}
+                </span>
+              </td>
+              <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink2">
+                {p.pos == null ? '–' : fmtPct(p.pos * 100, false)}
+              </td>
+              <td className="py-2.5 truncate text-small text-ink3" title={p.indikationen.join(' · ')}>
+                {p.indikationen.join(' · ')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Panel>
+  );
+}
+
+/**
  * Erklärt die drei Spalten. Ohne diesen Absatz ist unklar, woher „pessimistisch"
  * kommt — man könnte es für frei gesetzte Zahlen halten, was den Zweck des
  * Regelwerks zunichte machen würde.
@@ -423,9 +570,9 @@ function SensTabelle({ zeilen, waehrung }: { zeilen: SensZeile[]; waehrung: stri
 }
 
 /** Ein Verfahren als aufklappbare Karte: Wert, Erklärung, Details. */
-function VerfahrensZeile({ v, kurs, waehrung, eurKurs }: {
+function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
   v: BewertungsAntwort['verfahren'][number];
-  kurs: number | null; waehrung: string | null; eurKurs: number | null;
+  kurs: number | null; waehrung: string | null; eurKurs: number | null; analystenZiel: number | null;
 }) {
   const [offen, setOffen] = useState(false);
   const e = v.ergebnis;
@@ -471,6 +618,8 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs }: {
               <SzenarioSpalte key={f} fall={f} wert={e.szenarien[f].wertJeAktie} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
             ))}
           </div>
+
+          <Gegenprobe v={v} waehrung={waehrung} kurs={kurs} analystenZiel={analystenZiel} />
 
           <Abschnitt
             titel="Wie sicher ist das?"
@@ -703,7 +852,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
         {d.verfahren.length ? (
           <ul className="grid gap-3">
             {d.verfahren.map((v) => (
-              <VerfahrensZeile key={v.id + (v.basis ?? '')} v={v} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} />
+              <VerfahrensZeile key={v.id + (v.basis ?? '')} v={v} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} analystenZiel={d.analysten?.kursziel ?? null} />
             ))}
           </ul>
         ) : (
@@ -726,6 +875,8 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
           </div>
         )}
       </Panel>
+
+      {!!d.pipeline?.length && <PipelinePanel pipeline={d.pipeline} />}
 
       {!!d.peerGruppe?.peers?.length && <PeerPanel gruppe={d.peerGruppe} />}
     </div>

@@ -388,3 +388,105 @@ export function szenarien(modell) {
   }
   return out;
 }
+
+// ---------- Rückwärtsrechnung ----------
+
+/**
+ * Dreht die Bewertung um: Welche Geschäftsentwicklung steckt in einem Kurs?
+ *
+ * Das ist das Werkzeug, um eine fremde Einschätzung zu prüfen. Statt „was ist
+ * die Aktie wert" lautet die Frage „was müsste das Unternehmen liefern, damit
+ * dieser Preis aufgeht" — und die Antwort ist eine nachprüfbare Zahl (Umsatz,
+ * EBITDA, Gewinn) statt einer Meinung.
+ *
+ * WICHTIG: Gerechnet wird mit genau demselben Multiple wie in der
+ * Vorwärtsrechnung. Mit einem anderen kämen zwei Zahlen heraus, die sich auf
+ * derselben Seite widersprechen (bei Caris ergab EV/Umsatz das Vierfache von
+ * EV/EBITDA, weil die Marge deutlich unter der Vergleichsgruppe liegt).
+ */
+export function impliziteErwartung(modell, zielPreis, w) {
+  const preis = zahl(zielPreis);
+  if (preis == null || preis <= 0) return null;
+
+  const aktien = (zahl(w['bridge.aktien']) ?? 0) * (1 + (zahl(w['bridge.verwaesserung']) ?? 0));
+  if (!(aktien > 0)) return null;
+  const marktwertEigenkapital = preis * aktien;
+
+  if (modell.verfahren === 'multiples') {
+    const multiple = zahl(w['mult.multiple']);
+    const heute = zahl(w['mult.kennzahl']);
+    if (!(multiple > 0)) return null;
+
+    const aufEquity = (zahl(w['mult.aufEquity']) ?? 0) === 1;
+    // Bei EV-Multiples muss der Eigenkapitalwert erst in einen
+    // Unternehmenswert zurückverwandelt werden: Schulden drauf, Kasse runter.
+    const netto = aufEquity
+      ? 0
+      : (zahl(w['bridge.cash']) ?? 0)
+        - (zahl(w['bridge.schulden']) ?? 0)
+        - (zahl(w['bridge.leasing']) ?? 0)
+        - (zahl(w['bridge.minderheiten']) ?? 0)
+        - (zahl(w['bridge.pensionen']) ?? 0)
+        - (zahl(w['bridge.royalty']) ?? 0);
+
+    const noetig = (marktwertEigenkapital - netto) / multiple;
+    return {
+      art: 'kennzahl',
+      noetig,
+      heute,
+      vielfaches: heute > 0 ? noetig / heute : null,
+      multiple,
+    };
+  }
+
+  if (modell.verfahren === 'residual') {
+    // Rückwärts über das faire KBV: welches faire Kurs-Buchwert-Verhältnis
+    // steckt im Preis, und welche Eigenkapitalrendite gehört dazu?
+    const eigenkapital = zahl(w['res.eigenkapital']);
+    const coe = zahl(w['res.eigenkapitalkosten']);
+    const g = zahl(w['res.wachstum']);
+    if (!(eigenkapital > 0) || coe == null || g == null || !(coe > g)) return null;
+    const kbv = marktwertEigenkapital / eigenkapital;
+    return {
+      art: 'rendite',
+      noetig: kbv * (coe - g) + g, // aus KBV = (ROE − g)/(CoE − g)
+      heute: zahl(w['res.roe']),
+      vielfaches: null,
+      kbv,
+    };
+  }
+
+  if (modell.verfahren === 'dcf') {
+    // Nicht auflösbar — deshalb die Wachstumsrate suchen, bei der die Rechnung
+    // genau diesen Kurs ergibt (Intervallhalbierung, 60 Schritte reichen für
+    // Nachkommastellen, die ohnehin niemand ernst nehmen sollte).
+    const heute = zahl(w['dcf.wachstum']);
+    let unten = -0.5;
+    let oben = 2.0;
+    const wertBei = (wachstum) => {
+      const r = rechne(modell, { ...w, 'dcf.wachstum': wachstum });
+      return r.wertJeAktie;
+    };
+    if ((wertBei(unten) ?? 0) > preis || (wertBei(oben) ?? 0) < preis) return null;
+    for (let i = 0; i < 60; i++) {
+      const mitte = (unten + oben) / 2;
+      if ((wertBei(mitte) ?? 0) < preis) unten = mitte;
+      else oben = mitte;
+    }
+    return { art: 'wachstum', noetig: (unten + oben) / 2, heute, vielfaches: null };
+  }
+
+  return null;
+}
+
+/**
+ * Wie lange bräuchte das Unternehmen im aktuellen Tempo bis zu dieser Zahl?
+ * Der Realitäts-Check: „das Achtfache des heutigen Umsatzes" sagt wenig,
+ * „bei 30 % Wachstum pro Jahr wären das zwölf Jahre" sehr viel.
+ */
+export function jahreBis(vielfaches, wachstumProJahr) {
+  const v = zahl(vielfaches);
+  const g = zahl(wachstumProJahr);
+  if (v == null || g == null || v <= 0 || g <= 0) return null;
+  return Math.log(v) / Math.log(1 + g);
+}
