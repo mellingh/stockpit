@@ -9,7 +9,7 @@
 // kommen. Die Entscheidung trifft der Nutzer.
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, ChevronDown, ChevronUp, Info, Save, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, FileDown, Info, Save, Search, Trash2 } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { ScrollListe } from '@/components/scroll-liste';
 import { Button } from '@/components/ui/button';
@@ -98,8 +98,15 @@ function annahmeText(a: Annahme, waehrung: string | null): string {
 
 // ---------- Ergebnis oben ----------
 
-function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor }: {
-  fall: Fall; wert: number | null; kurs: number | null; waehrung: string | null; eurKurs: number | null; hervor?: boolean;
+/**
+ * Eine Szenario-Karte. Der Analystenwert steht DARIN statt als Fließtext
+ * darunter (Micha) — pessimistisch gegen deren tiefstes Ziel, realistisch gegen
+ * den Schnitt, optimistisch gegen das höchste. So sieht man die fremde
+ * Einschätzung direkt neben der eigenen, ohne einen Absatz zu lesen.
+ */
+function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor, analyst }: {
+  fall: Fall; wert: number | null; kurs: number | null; waehrung: string | null;
+  eurKurs: number | null; hervor?: boolean; analyst?: number | null;
 }) {
   const abweichung = kurs && wert != null ? (wert - kurs) / kurs : null;
   return (
@@ -112,6 +119,11 @@ function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor }: {
       <span className={cn('font-mono text-small tabular-nums', abweichung == null ? 'text-ink3' : abweichung >= 0 ? 'text-up' : 'text-down')}>
         {abweichung == null ? '–' : fmtPct(abweichung * 100) + ' zum Kurs'}
       </span>
+      {analyst != null && (
+        <span className="mt-1.5 border-t border-line pt-1.5 font-mono text-micro text-ink3">
+          Analysten {jeAktie(analyst, waehrung)}
+        </span>
+      )}
     </div>
   );
 }
@@ -126,13 +138,9 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
     ? `Gerechnet mit einem Verfahren (${VERFAHREN_KURZ[gesamt.verfahren[0]]})`
     : `Mittelwert aus ${anzahl} Verfahren`;
 
-  if (Math.abs(abw) < 0.1) {
-    return `${wie}: Der Kurs liegt etwa dort, wo die Rechnung ihn sieht. Der Markt preist die Erwartungen ein, die auch in diesen Annahmen stecken.`;
-  }
-  if (abw > 0) {
-    return `${wie}: Die Rechnung kommt ${fmtPct(abw * 100, false)} über dem Kurs heraus. Der Markt traut dem Unternehmen also weniger zu als diese Annahmen — oder sieht ein Risiko, das hier nicht abgebildet ist.`;
-  }
-  return `${wie}: Die Rechnung kommt ${fmtPct(-abw * 100, false)} unter dem Kurs heraus. Im Kurs steckt mehr Erwartung, als diese Annahmen hergeben.`;
+  if (Math.abs(abw) < 0.1) return `${wie}: Der Kurs liegt etwa dort, wo die Rechnung ihn sieht.`;
+  if (abw > 0) return `${wie}: ${fmtPct(abw * 100, false)} über dem Kurs — der Markt traut dem Unternehmen weniger zu als diese Annahmen.`;
+  return `${wie}: ${fmtPct(-abw * 100, false)} unter dem Kurs — im Kurs steckt mehr Erwartung, als diese Annahmen hergeben.`;
 }
 
 /**
@@ -155,7 +163,6 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
   const heute = Math.min(gesamt.base, kurs);
   const erwartung = kurs - heute;
   const anteilHeute = (heute / kurs) * 100;
-  const zielAbw = analysten?.kursziel ? (analysten.kursziel - kurs) / kurs : null;
 
   return (
     <div className="mt-4 grid gap-3 border-t border-line pt-4">
@@ -169,12 +176,10 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
 
         {rechnungDarueber ? (
           <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-            Hier steckt <span className="text-ink">keine Zukunftserwartung</span> im Kurs — im Gegenteil:
-            Schon das heutige Geschäft wäre nach dieser Rechnung{' '}
-            <span className="font-mono tabular-nums text-ink">{jeAktie(gesamt.base, waehrung)}</span> wert,
-            der Kurs liegt mit <span className="font-mono tabular-nums text-ink">{jeAktie(kurs, waehrung)}</span>{' '}
-            darunter. Entweder traut der Markt den Zahlen nicht, oder er sieht ein Risiko, das in
-            diesen Annahmen nicht vorkommt.
+            Schon das heutige Geschäft wäre{' '}
+            <span className="font-mono tabular-nums text-ink">{jeAktie(gesamt.base, waehrung)}</span> wert —
+            mehr als der Kurs. Es steckt also keine Zukunftserwartung im Kurs, eher ein Abschlag für
+            ein Risiko, das diese Annahmen nicht kennen.
           </p>
         ) : (
           <>
@@ -200,18 +205,12 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
         )}
       </div>
 
-      {analysten?.kursziel != null && (
-        <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-          <span className="font-bold text-ink">Was Analysten sagen: </span>
-          Ihr durchschnittliches Kursziel liegt bei{' '}
-          <span className="font-mono tabular-nums text-ink">{jeAktie(analysten.kursziel, waehrung)}</span>
-          {analysten.anzahl ? ` — Durchschnitt aus ${analysten.anzahl} Analysten-Einschätzungen` : ''}
-          {zielAbw != null && `, ${fmtPct(zielAbw * 100)} zum Kurs`}.
-          {analysten.kursziel > gesamt.base * 1.5 && (
-            <> Dass sie deutlich höher liegen, heißt nicht, dass eine Seite falsch rechnet: Analysten
-              modellieren bei solchen Firmen die Entwicklung über zehn Jahre, dieses Verfahren bewertet
-              das Geschäft von heute im Branchenvergleich.</>
-          )}
+      {/* Die Zahlen stehen jetzt IN den Karten — hier bleibt nur der Hinweis,
+          wenn die Analysten so weit weg sind, dass es einer Erklärung bedarf. */}
+      {analysten?.kursziel != null && analysten.kursziel > gesamt.base * 1.5 && (
+        <p className="max-w-[78ch] text-small leading-relaxed text-ink3">
+          Die Analysten liegen deutlich höher. Das heißt nicht, dass eine Seite falsch rechnet: Sie
+          modellieren die Entwicklung über zehn Jahre, diese Rechnung bewertet das heutige Geschäft.
         </p>
       )}
     </div>
@@ -444,25 +443,26 @@ function PipelinePanel({ pipeline }: { pipeline: NonNullable<BewertungsAntwort['
  */
 function SzenarienErklaert({ anzahl }: { anzahl: number }) {
   return (
-    <div className="mt-4 grid gap-2 border-t border-line pt-4">
-      <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-        <span className="font-bold text-ink">Woher die drei Werte kommen: </span>
-        Sie entstehen nach festen Regeln aus denselben Annahmen — nicht durch freies Verschieben von
-        Zahlen. Beim Branchenvergleich etwa rechnet <em className="not-italic text-ink">pessimistisch</em> mit
-        dem unteren Viertel der Vergleichsgruppe, <em className="not-italic text-ink">realistisch</em> mit
-        dem Mittelwert und <em className="not-italic text-ink">optimistisch</em> mit dem oberen Viertel.
-        Gemessene Zahlen aus dem Geschäftsbericht wie Schulden oder Aktienanzahl bleiben in allen drei
-        Fällen gleich — sie sind gemessen, nicht geschätzt.
-      </p>
-      {anzahl > 1 && (
-        <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-          <span className="font-bold text-ink">Warum ein Mittelwert: </span>
-          Jedes Verfahren betrachtet die Firma aus einem anderen Blickwinkel und liegt deshalb
-          woanders. Der gezeigte Wert ist die Mitte aus den {anzahl} Verfahren — die Einzelwerte
-          stehen unten, damit du siehst, wie weit sie auseinanderliegen.
-        </p>
-      )}
-    </div>
+    <p className="mt-4 max-w-[78ch] border-t border-line pt-4 text-small leading-relaxed text-ink3">
+      Die drei Werte entstehen nach festen Regeln
+      <Erklaert text="Pessimistisch rechnet mit dem unteren Viertel der Vergleichsgruppe, realistisch mit dem Mittelwert, optimistisch mit dem oberen Viertel. Gemessene Zahlen wie Schulden oder Aktienanzahl bleiben in allen drei Fällen gleich." />
+      {' '}aus denselben Annahmen — nicht durch freies Verschieben von Zahlen.
+      {anzahl > 1 && ` Gezeigt ist die Mitte aus ${anzahl} Verfahren; die Einzelwerte stehen unten.`}
+    </p>
+  );
+}
+
+/** Kleines „i" hinter einem Begriff — Erklärung auf Hover, kein Fließtext. */
+function Erklaert({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="ml-1 cursor-help align-middle text-ink3" aria-label="Erklärung">
+          <Info size={12} className="inline" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" align="start" className="max-w-[360px]">{text}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -720,12 +720,13 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
             titel="Wie sicher ist das?"
             info={`Das Modell wurde ${fmtCompact(e.monteCarlo.laeufe)} Mal durchgerechnet, jedes Mal mit leicht anderen Annahmen aus ihrer jeweiligen Bandbreite. Das zeigt, wie stabil das Ergebnis ist.`}
           >
-            <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-              In 8 von 10 Fällen landet der Wert zwischen{' '}
-              <span className="font-mono tabular-nums text-ink">{jeAktie(e.monteCarlo.p10, waehrung)}</span> und{' '}
-              <span className="font-mono tabular-nums text-ink">{jeAktie(e.monteCarlo.p90, waehrung)}</span>, Mittelpunkt{' '}
-              <span className="font-mono tabular-nums text-ink">{jeAktie(e.monteCarlo.median, waehrung)}</span>.
-            </p>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-line bg-panel2 px-4 py-3">
+              <span className="text-small text-ink2">In 8 von 10 Fällen zwischen</span>
+              <span className="font-display text-display-sm font-bold tabular-nums text-ink">
+                {jeAktie(e.monteCarlo.p10, null)} – {jeAktie(e.monteCarlo.p90, waehrung)}
+              </span>
+              <span className="font-mono text-small text-ink3">Mitte {jeAktie(e.monteCarlo.median, waehrung)}</span>
+            </div>
           </Abschnitt>
 
           {!!e.sensitivitaet.treiber.length && (
@@ -796,35 +797,48 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
     : null;
   const deutlichSchneller = eigenes != null && medianWachstum != null && eigenes > medianWachstum + 0.2;
 
+  // Spanne der brauchbaren Vielfachen und was sie fuer DIESE Aktie bedeuten.
+  const spanne = (() => {
+    const paare = gruppe.peers
+      .map((p) => ({ m: genutztesMultiple(p), k: p.kursFuerZiel }))
+      .filter((x): x is { m: number; k: number } => typeof x.m === 'number' && x.m > 0 && x.m < 200 && typeof x.k === 'number')
+      .sort((a, b) => a.m - b.m);
+    if (!paare.length) return { min: null, max: null, kursMin: null, kursMax: null };
+    const bei = (q: number) => paare[Math.min(paare.length - 1, Math.floor((paare.length - 1) * q))];
+    const u = bei(0.25);
+    const o = bei(0.75);
+    return { min: u.m, max: o.m, kursMin: u.k, kursMax: o.k };
+  })();
+
   return (
     <Panel className="animate-rise">
       <PanelTitle>Vergleichsgruppe</PanelTitle>
+      {/* Kernaussage als EINE Zeile: was die Gruppe für diese Aktie bedeutet.
+          Die Tabelle darunter ist der Beleg, nicht die Botschaft. */}
       <div className="mb-4 grid gap-2">
         <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-          <span className="font-bold text-ink">Wozu das dient: </span>
-          Der Branchenvergleich braucht einen Maßstab. Diese {gruppe.peers.length} Unternehmen der Branche{' '}
-          <span className="text-ink">{gruppe.branche}</span> sind ähnlich groß; aus ihren Kennzahlen wird
-          das Vielfache gebildet, mit dem gerechnet wird. Ohne eine solche Gruppe müsste das Modell die
-          Aktie mit sich selbst vergleichen und gäbe nur den heutigen Kurs zurück. Die letzte Spalte
-          übersetzt jedes Vielfache direkt: <span className="text-ink">so viel wäre {symbol} wert, wenn
-          der Markt diese Aktie wie den jeweiligen Wettbewerber bepreisen würde</span>.
+          {gruppe.peers.length} Wettbewerber
+          <Erklaert text={`Ähnlich große Unternehmen der Branche ${gruppe.branche}. Aus ihren Kennzahlen entsteht das Vielfache, mit dem gerechnet wird — ohne eine solche Gruppe würde das Modell die Aktie mit sich selbst vergleichen.`} />
+          {' '}liegen beim <span className="text-ink">{multipleName}</span> mehrheitlich zwischen{' '}
+          <span className="font-mono tabular-nums text-ink">{multiple(spanne.min)}</span> und{' '}
+          <span className="font-mono tabular-nums text-ink">{multiple(spanne.max)}</span>.
+          Für {symbol} wären das{' '}
+          <span className="font-mono tabular-nums text-ink">{jeAktie(spanne.kursMin, null)}</span> bis{' '}
+          <span className="font-mono tabular-nums text-ink">{jeAktie(spanne.kursMax, waehrung)}</span>.
         </p>
         {gruppe.sammelkategorie && (
           <p className="max-w-[78ch] text-small leading-relaxed text-warn">
             <span className="font-bold">Achtung: </span>
             <span className="text-ink2">
-              Die Datenquelle führt diese Firma in einer Sammelkategorie ({gruppe.branche}) statt in
-              ihrer eigentlichen Branche. Die Vergleichsgruppe ist deshalb weniger treffsicher — prüfe,
-              ob die Unternehmen unten wirklich zum Geschäftsmodell passen.
+              Die Quelle führt {symbol} in einer Sammelkategorie statt in der eigentlichen Branche —
+              prüfe, ob die Firmen unten zum Geschäftsmodell passen.
             </span>
           </p>
         )}
         {deutlichSchneller && (
-          <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-            <span className="font-bold text-ink">Einordnung: </span>
-            Diese Firma wächst mit {fmtPct(eigenes! * 100, false)} deutlich schneller als die Gruppe
-            (Mitte {fmtPct(medianWachstum! * 100, false)}). Ein Teil des Kursaufschlags erklärt sich
-            dadurch — der Vergleich zeigt dann vor allem, wie viel Wachstum der Kurs bereits einpreist.
+          <p className="max-w-[78ch] text-small leading-relaxed text-ink3">
+            {symbol} wächst mit {fmtPct(eigenes! * 100, false)} deutlich schneller als die Gruppe
+            (Mitte {fmtPct(medianWachstum! * 100, false)}) — das erklärt einen Teil des Kursaufschlags.
           </p>
         )}
       </div>
@@ -845,8 +859,8 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
               <th className="pb-2.5 font-normal">Name</th>
               <th className="pb-2.5 text-right font-normal">Börsenwert</th>
               <th className="pb-2.5 text-right font-normal">Wachstum</th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal">{multipleName}</th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">Kurs für {symbol}</th>
+              <th className="whitespace-nowrap pb-2.5 pr-5 text-right font-normal">{multipleName}</th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">{symbol} zu diesem Wert</th>
             </tr>
           </thead>
           <tbody>
@@ -862,7 +876,7 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
                   <td className={cn('py-2.5 text-right font-mono text-small tabular-nums', w == null ? 'text-ink3' : w >= 0 ? 'text-up' : 'text-down')}>
                     {w == null ? '–' : fmtPct(w * 100)}
                   </td>
-                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink2">{multiple(genutztesMultiple(p))}</td>
+                  <td className="py-2.5 pr-5 text-right font-mono text-small tabular-nums text-ink2">{multiple(genutztesMultiple(p))}</td>
                   {/* Kurs und Abstand untereinander — nebeneinander brach die Zelle um */}
                   <td className="py-2.5 text-right">
                     <span className="block font-mono text-small tabular-nums text-ink">{jeAktie(k, waehrung)}</span>
@@ -951,16 +965,22 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
               Kurs {jeAktie(kurs, waehrung)} · Stand {fmtDate(d.stand)}
             </span>
             {/* Festhalten, um in sechs Monaten zu sehen, welche Annahme trug */}
+            {/* Druckdialog des Browsers — dort „Als PDF speichern'. Kein
+                zusaetzliches Paket, und das Ergebnis ist teilbar. */}
+            <Button variant="ghost" size="sm" onClick={() => window.print()} title="Über den Druckdialog als PDF sichern">
+              <FileDown size={13} aria-hidden /> PDF
+            </Button>
             <Button
               variant="subtle"
               size="sm"
               disabled={speichern.isPending}
+              title="Speichert diese Fassung lokal in Stockpit — später unter „Bewertung' ohne Kürzel abrufbar"
               onClick={() => speichern.mutate(
                 { id: id ?? undefined, auswertung: d },
-                { onSuccess: (r) => setGemerkt('Fassung ' + (r as { version: number }).version + ' gespeichert') },
+                { onSuccess: (r) => setGemerkt('Fassung ' + (r as { version: number }).version) },
               )}
             >
-              <Save size={13} aria-hidden /> {gemerkt ?? 'Festhalten'}
+              <Save size={13} aria-hidden /> {gemerkt ? gemerkt + ' gesichert' : 'In Stockpit sichern'}
             </Button>
           </span>
         </div>
@@ -974,7 +994,16 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
           <>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {(['worst', 'base', 'best'] as Fall[]).map((f) => (
-                <SzenarioSpalte key={f} fall={f} wert={gesamt[f]} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
+                <SzenarioSpalte
+                  key={f}
+                  fall={f}
+                  wert={gesamt[f]}
+                  kurs={kurs}
+                  waehrung={waehrung}
+                  eurKurs={eurKurs}
+                  hervor={f === 'base'}
+                  analyst={f === 'worst' ? d.analysten?.tief : f === 'best' ? d.analysten?.hoch : d.analysten?.kursziel}
+                />
               ))}
             </div>
             {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}

@@ -243,3 +243,26 @@ select:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Druckansicht: Grundlage für „Als PDF speichern" im Browser-Dialog.
+   Bedienelemente und Navigation fliegen raus, Farben werden hell, alles
+   Aufgeklappte bleibt sichtbar — das Ergebnis soll lesbar auf Papier sein. */
+@media print {
+  :root {
+    --color-bg: #fff;
+    --color-panel: #fff;
+    --color-panel2: #fafafa;
+    --color-ink: #111;
+    --color-ink2: #333;
+    --color-ink3: #666;
+    --color-line: #ddd;
+    --color-line-strong: #bbb;
+  }
+  body { background: #fff; }
+  /* Topbar, Suche, Buttons und Footer gehören nicht ins Dokument */
+  header[class*="sticky"], nav, footer, button { display: none !important; }
+  .animate-rise { animation: none !important; }
+  /* Scrollbereiche vollständig ausgeben statt abzuschneiden */
+  [class*="max-h-"] { max-height: none !important; overflow: visible !important; }
+  section, table { break-inside: avoid; }
+}
