@@ -9,7 +9,7 @@
 // kommen. Die Entscheidung trifft der Nutzer.
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, ChevronDown, ChevronUp, FileDown, Info, Save, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, FileDown, Info, Save, Search, Trash2 } from 'lucide-react';
 import { Panel, PanelTitle, Empty } from '@/components/panel';
 import { ScrollListe } from '@/components/scroll-liste';
 import { Button } from '@/components/ui/button';
@@ -110,18 +110,24 @@ function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor, analyst }
 }) {
   const abweichung = kurs && wert != null ? (wert - kurs) / kurs : null;
   return (
-    <div className={cn('flex flex-col gap-1 rounded-md border px-4 py-3', hervor ? 'border-accent/40 bg-accent-soft' : 'border-line bg-panel2')}>
+    // flex-col + mt-auto am Fuß: die Analystenzeile sitzt in allen drei Karten
+    // auf derselben Höhe, auch wenn darüber unterschiedlich viel steht
+    // (die hervorgehobene Karte hat eine größere Zahl).
+    <div className={cn('flex h-full flex-col rounded-md border px-4 py-3', hervor ? 'border-accent/40 bg-accent-soft' : 'border-line bg-panel2')}>
       <span className="font-mono text-micro uppercase tracking-[0.14em] text-ink3">{FALL_LABEL[fall]}</span>
-      <span className={cn('font-display font-bold tabular-nums', hervor ? 'text-display-md' : 'text-display-sm')}>
+      <span className={cn('mt-1 font-display font-bold tabular-nums', hervor ? 'text-display-md' : 'text-display-sm')}>
         {jeAktie(wert, waehrung)}
       </span>
       <EuroZeile wert={wert} eurKurs={eurKurs} waehrung={waehrung} />
-      <span className={cn('font-mono text-small tabular-nums', abweichung == null ? 'text-ink3' : abweichung >= 0 ? 'text-up' : 'text-down')}>
+      <span className={cn('mt-0.5 mb-3 font-mono text-small tabular-nums', abweichung == null ? 'text-ink3' : abweichung >= 0 ? 'text-up' : 'text-down')}>
         {abweichung == null ? '–' : fmtPct(abweichung * 100) + ' zum Kurs'}
       </span>
       {analyst != null && (
-        <span className="mt-1.5 border-t border-line pt-1.5 font-mono text-micro text-ink3">
-          Analysten {jeAktie(analyst, waehrung)}
+        // line-strong statt line: auf dem helleren Hintergrund der
+        // hervorgehobenen Karte war die dünne Linie unsichtbar
+        <span className="mt-auto flex items-baseline justify-between gap-2 border-t border-line-strong pt-2.5">
+          <span className="text-micro text-ink3">Analysten</span>
+          <span className="font-mono text-small font-bold tabular-nums text-ink2">{jeAktie(analyst, waehrung)}</span>
         </span>
       )}
     </div>
@@ -171,14 +177,13 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
           <span className="font-mono text-micro uppercase tracking-[0.14em] text-accent">
             {rechnungDarueber ? 'Kurs und Rechnung' : 'Woraus der Kurs besteht'}
           </span>
-          <span className="font-mono text-small text-ink3">Kurs {jeAktie(kurs, waehrung)}</span>
         </div>
 
         {rechnungDarueber ? (
           <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
             Schon das heutige Geschäft wäre{' '}
-            <span className="font-mono tabular-nums text-ink">{jeAktie(gesamt.base, waehrung)}</span> wert —
-            mehr als der Kurs. Es steckt also keine Zukunftserwartung im Kurs, eher ein Abschlag für
+            <span className="font-mono font-bold tabular-nums text-ink">{jeAktie(gesamt.base, waehrung)}</span>{' '}
+            wert — <span className="font-bold text-ink">mehr als der Kurs</span>. Es steckt also keine Zukunftserwartung im Kurs, eher ein Abschlag für
             ein Risiko, das diese Annahmen nicht kennen.
           </p>
         ) : (
@@ -300,33 +305,43 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
   const e = v.eingepreist;
   if (!e?.kurs && !e?.analysten) return null;
 
+  /**
+   * Eine Zeile stellt NÖTIG gegen VORHANDEN. Vorher stand dort „1,56 Mrd" und
+   * „0,6× von heute" — man musste selbst ausrechnen, dass der tatsächliche
+   * Buchwert 2,51 Mrd beträgt und die Schwelle damit längst überschritten ist.
+   */
   const zeile = (
     label: string,
     preis: number | null,
     x: NonNullable<BewertungsAntwort['verfahren'][number]['eingepreist']>['kurs'],
   ) => {
     if (!x) return null;
+    const erfuellt = x.vielfaches != null ? x.vielfaches <= 1 : (x.heute ?? 0) >= x.noetig;
+    const einheit = (v: number | null | undefined) =>
+      v == null ? '–' : x.art === 'kennzahl' ? fmtCompact(v) : fmtPct(v * 100, false);
+
     return (
       <tr key={label} className="border-b border-line/70 last:border-b-0">
-        <td className="py-2.5 pr-4 text-small text-ink2">
-          {label}
-          <span className="ml-2 font-mono tabular-nums text-ink3">{jeAktie(preis, waehrung)}</span>
+        <td className="py-3 pr-4">
+          <span className="block text-small text-ink">{label}</span>
+          <span className="block font-mono text-micro tabular-nums text-ink3">{jeAktie(preis, waehrung)}</span>
         </td>
-        <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink">
-          {x.art === 'kennzahl' && fmtCompact(x.noetig)}
-          {x.art === 'wachstum' && fmtPct((x.noetig ?? 0) * 100, false) + ' p. a.'}
-          {x.art === 'rendite' && fmtPct((x.noetig ?? 0) * 100, false)}
+        <td className="py-3 pr-4 text-right font-mono text-small font-bold tabular-nums text-ink">
+          {einheit(x.noetig)}
         </td>
-        <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink2">
-          {x.vielfaches != null
-            ? fmtNum(x.vielfaches, 1) + '× von heute'
-            : x.heute != null
-              ? 'heute ' + fmtPct(x.heute * 100, false)
-              : '–'}
+        <td className="py-3 pr-4 text-right font-mono text-small tabular-nums text-ink2">
+          {einheit(x.heute)}
         </td>
-        <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">
-          {/* 0 Jahre heißt: es wird weniger verlangt als heute schon da ist */}
-          {x.jahre == null ? '–' : x.jahre === 0 ? 'erreicht' : fmtNum(x.jahre, 1) + ' Jahre'}
+        <td className="py-3 text-right">
+          {erfuellt ? (
+            <span className="inline-flex items-center gap-1.5 font-mono text-small text-up">
+              <Check size={13} aria-hidden /> erfüllt
+            </span>
+          ) : (
+            <span className="font-mono text-small tabular-nums text-ink2">
+              {x.jahre == null ? 'offen' : 'in ~' + fmtNum(x.jahre, 1) + ' Jahren'}
+            </span>
+          )}
         </td>
       </tr>
     );
@@ -347,6 +362,8 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
             ? 'Nötiger Buchwert'
             : 'Nötiger Umsatz';
   const tempo = e.kurs?.tempo ?? e.analysten?.tempo ?? null;
+  // Der Erklaersatz zur Dauer ist ueberfluessig, wenn beide Zeilen „erfuellt' sind
+  const brauchtZeit = [e.kurs, e.analysten].some((x) => x && (x.vielfaches ?? 0) > 1);
 
   return (
     <Abschnitt
@@ -354,13 +371,13 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
       info="Dieselbe Rechnung rückwärts: Statt zu fragen, was die Aktie wert ist, wird gefragt, was das Unternehmen liefern müsste, damit der heutige Kurs bzw. das Analystenziel aufgeht. Gerechnet wird mit demselben Vielfachen wie oben."
     >
       <table className="w-full table-fixed">
-        <colgroup><col /><col className="w-[150px]" /><col className="w-[140px]" /><col className="w-[110px]" /></colgroup>
+        <colgroup><col /><col className="w-[150px]" /><col className="w-[150px]" /><col className="w-[140px]" /></colgroup>
         <thead>
           <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
             <th className="pb-2.5 font-normal">Damit das aufgeht …</th>
             <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">{wasNoetig}</th>
-            <th className="pb-2.5 pr-4 text-right font-normal">Vergleich</th>
-            <th className="whitespace-nowrap pb-2.5 text-right font-normal">Dauer</th>
+            <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">Hat die Firma</th>
+            <th className="whitespace-nowrap pb-2.5 text-right font-normal">Stand</th>
           </tr>
         </thead>
         <tbody>
@@ -368,11 +385,11 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
           {zeile('Kursziel der Analysten', analystenZiel, e.analysten)}
         </tbody>
       </table>
-      {tempo != null && (
+      {tempo != null && brauchtZeit && (
         <p className="mt-3 max-w-[78ch] text-small leading-relaxed text-ink3">
-          „Dauer" rechnet mit {fmtPct(tempo * 100, false)} Wachstum pro Jahr — der Erwartung der Analysten
-          für das nächste Jahr, konstant fortgeschrieben. Kein Unternehmen hält ein solches Tempo
-          beliebig lange durch; die Angabe ist eine Untergrenze, keine Prognose.
+          Die Jahresangabe unterstellt {fmtPct(tempo * 100, false)} Wachstum pro Jahr — was Analysten
+          fürs nächste Jahr erwarten. Dauerhaft hält das kaum eine Firma durch, es ist also die
+          günstigste Annahme, nicht die wahrscheinlichste.
         </p>
       )}
     </Abschnitt>
@@ -633,26 +650,32 @@ function SensTabelle({ zeilen, waehrung }: { zeilen: SensZeile[]; waehrung: stri
   const max = zeilen[0]?.spanne ?? 1;
   if (!zeilen.length) return null;
   return (
+    // Spaltenköpfe bilden einen Satz: „Wenn sich das um 10 % ändert … liegt der
+    // Wert je Aktie zwischen …". Vorher standen dort „10 % weniger / 10 % mehr"
+    // und ein nackter Balken — es war unklar, WELCHE Zahl sich ändert und
+    // WELCHES Ergebnis gemeint ist.
     <table className="w-full table-fixed">
-      <colgroup><col /><col className="w-[130px]" /><col className="w-[130px]" /><col className="w-[124px]" /></colgroup>
+      <colgroup><col /><col className="w-[210px]" /><col className="w-[130px]" /></colgroup>
       <thead>
         <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-          <th className="pb-2.5 font-normal">Stellschraube</th>
-          <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">10 % weniger</th>
-          <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">10 % mehr</th>
-          <th className="pb-2.5 pl-4 font-normal">Wirkung</th>
+          <th className="pb-2.5 font-normal">Wenn sich das um 10 % ändert …</th>
+          <th className="whitespace-nowrap pb-2.5 pr-6 text-right font-normal">… Wert je Aktie dann</th>
+          <th className="pb-2.5 pl-4 font-normal">Einfluss</th>
         </tr>
       </thead>
       <tbody>
         {zeilen.slice(0, 8).map((z) => (
           <tr key={z.id} className="border-b border-line/70">
             <td className="truncate py-2.5 pr-4 text-small text-ink2" title={z.label}>{z.label}</td>
-            <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink3">{jeAktie(z.runter, waehrung)}</td>
-            <td className="py-2.5 pr-4 text-right font-mono text-small tabular-nums text-ink3">{jeAktie(z.hoch, waehrung)}</td>
+            <td className="whitespace-nowrap py-2.5 pr-6 text-right font-mono text-small tabular-nums text-ink">
+              {jeAktie(Math.min(z.runter, z.hoch), null)} – {jeAktie(Math.max(z.runter, z.hoch), waehrung)}
+            </td>
             <td className="py-2.5 pl-4">
               <span className="flex items-center gap-2">
                 <span aria-hidden className="h-1.5 rounded-full bg-accent" style={{ width: Math.max(4, (z.spanne / max) * 56) + 'px' }} />
-                <span className="font-mono text-micro tabular-nums text-ink3">{z.wirkungPct == null ? '' : Math.round(z.wirkungPct * 100) + ' %'}</span>
+                <span className="font-mono text-micro tabular-nums text-ink3">
+                  {z.wirkungPct == null ? '' : '± ' + Math.round((z.wirkungPct / 2) * 100) + ' %'}
+                </span>
               </span>
             </td>
           </tr>
@@ -822,7 +845,7 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
           {' '}liegen beim <span className="text-ink">{multipleName}</span> mehrheitlich zwischen{' '}
           <span className="font-mono tabular-nums text-ink">{multiple(spanne.min)}</span> und{' '}
           <span className="font-mono tabular-nums text-ink">{multiple(spanne.max)}</span>.
-          Für {symbol} wären das{' '}
+          Für <span className="font-mono text-accent">${symbol}</span> wären das{' '}
           <span className="font-mono tabular-nums text-ink">{jeAktie(spanne.kursMin, null)}</span> bis{' '}
           <span className="font-mono tabular-nums text-ink">{jeAktie(spanne.kursMax, waehrung)}</span>.
         </p>
@@ -850,8 +873,8 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
       <ScrollListe className="max-h-[340px]">
         <table className="w-full table-fixed">
           <colgroup>
-            <col className="w-[78px]" /><col /><col className="w-[104px]" /><col className="w-[100px]" />
-            <col className="w-[116px]" /><col className="w-[150px]" />
+            <col className="w-[86px]" /><col /><col className="w-[112px]" /><col className="w-[108px]" />
+            <col className="w-[124px]" /><col className="w-[164px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-panel">
             <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
@@ -860,7 +883,7 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
               <th className="pb-2.5 text-right font-normal">Börsenwert</th>
               <th className="pb-2.5 text-right font-normal">Wachstum</th>
               <th className="whitespace-nowrap pb-2.5 pr-5 text-right font-normal">{multipleName}</th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">{symbol} zu diesem Wert</th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">Wert für ${symbol}</th>
             </tr>
           </thead>
           <tbody>
@@ -977,10 +1000,12 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
               title="Speichert diese Fassung lokal in Stockpit — später unter „Bewertung' ohne Kürzel abrufbar"
               onClick={() => speichern.mutate(
                 { id: id ?? undefined, auswertung: d },
-                { onSuccess: (r) => setGemerkt('Fassung ' + (r as { version: number }).version) },
+                { onSuccess: (r) => setGemerkt('Fassung ' + (r as { version: number }).version + ' gespeichert') },
               )}
             >
-              <Save size={13} aria-hidden /> {gemerkt ? gemerkt + ' gesichert' : 'In Stockpit sichern'}
+              {gemerkt
+                ? <><Check size={13} aria-hidden className="text-up" /> {gemerkt}</>
+                : <><Save size={13} aria-hidden /> In Stockpit sichern</>}
             </Button>
           </span>
         </div>
@@ -1025,6 +1050,9 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
           <Empty>Kein Verfahren ist mit den verfügbaren Daten belastbar.</Empty>
         )}
 
+      </Panel>
+
+      <Panel className="animate-rise">
         <VerfahrensUebersicht />
 
         {!!d.abgelehnt?.length && (

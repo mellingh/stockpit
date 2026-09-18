@@ -264,5 +264,9 @@ select:focus-visible {
   .animate-rise { animation: none !important; }
   /* Scrollbereiche vollständig ausgeben statt abzuschneiden */
   [class*="max-h-"] { max-height: none !important; overflow: visible !important; }
-  section, table { break-inside: avoid; }
+  /* Kacheln nie mitten durchschneiden; grosse Panels beginnen auf einer
+     neuen Seite, damit das PDF wie eine Sammlung von Karten aussieht. */
+  section { break-inside: avoid; page-break-inside: avoid; }
+  main > div > section + section { break-before: page; page-break-before: always; }
+  table, tr, li { break-inside: avoid; page-break-inside: avoid; }
 }
