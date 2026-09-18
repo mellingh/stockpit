@@ -974,7 +974,7 @@ export default function AnalysePage() {
             to={`/bewertung?symbol=${encodeURIComponent(symbol)}`}
             className={cn(buttonVariants({ variant: 'action', size: 'sm' }), 'shrink-0 normal-case tracking-normal')}
           >
-            Bewerten
+            Zur Bewertung
           </Link>
         </div>
       </header>

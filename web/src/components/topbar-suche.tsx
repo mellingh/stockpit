@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { useNavigate } from '@/lib/router';
+import { useNavigate, usePathname } from '@/lib/router';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SymbolSearch } from '@/components/symbol-search';
 
@@ -14,6 +14,11 @@ import { SymbolSearch } from '@/components/symbol-search';
 export function TopbarSuche() {
   const [offen, setOffen] = useState(false);
   const navigate = useNavigate();
+  // Die Suche bleibt in der Ansicht, in der man steht: Wer im Bewertungs-Tab
+  // einen Wert sucht, will dessen Bewertung sehen, nicht die Analyse. Sonst
+  // wirft die einzige Suche der Anwendung den Nutzer aus seinem Kontext.
+  const pfad = usePathname();
+  const inBewertung = pfad.startsWith('/bewertung');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -46,7 +51,8 @@ export function TopbarSuche() {
           <SymbolSearch
             onPick={(r) => {
               setOffen(false);
-              navigate(`/analyse?symbol=${encodeURIComponent(r.symbol)}`);
+              const ziel = inBewertung ? '/bewertung' : '/analyse';
+              navigate(`${ziel}?symbol=${encodeURIComponent(r.symbol)}`);
             }}
           />
         </DialogContent>

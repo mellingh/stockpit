@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SymbolSearch } from '@/components/symbol-search';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { useSearchParams, useTitel, useNavigate } from '@/lib/router';
+import { useSearchParams, useTitel, useNavigate, Link } from '@/lib/router';
 import { useBewertungStart, useBewertungGespeichert, useBewertungsListe, useBewertungMutation } from '@/lib/queries';
 import { api, type Annahme, type BewertungsAntwort, type Fall, type SensZeile, type Verfahren } from '@/lib/api';
 import { fmtCompact, fmtDate, fmtNum, fmtPct } from '@/lib/format';
@@ -484,11 +484,14 @@ function SzenarienErklaert({ anzahl }: { anzahl: number }) {
 }
 
 /** Kleines „i" hinter einem Begriff — Erklärung auf Hover, kein Fließtext. */
-function Erklaert({ text }: { text: string }) {
+function Erklaert({ text, className }: { text: string; className?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="ml-1 cursor-help text-ink3" aria-label="Erklärung">
+        {/* In Fließtext steht das Symbol mit Abstand hinter dem Wort, in
+            Flex-Zeilen (Spaltenköpfen) sorgt der Container für den Abstand —
+            dort wird die Klasse überschrieben statt ein Pixel verschoben. */}
+        <span className={cn('ml-1 cursor-help text-ink3', className)} aria-label="Erklärung">
           <Info size={12} className="inline align-middle" />
         </span>
       </TooltipTrigger>
@@ -536,31 +539,27 @@ function VerfahrensUebersicht() {
 
   return (
     <>
-      {/* Eigener Panel-Titel wie „Vergleichsgruppe" (Micha) — vorher hing hier
-          ein grauer Aufklapper ohne Bezug zur Überschriften-Sprache der Seite. */}
-      <PanelTitle
-        actions={
-          <button
-            onClick={() => setOffen((o) => !o)}
-            aria-expanded={offen}
-            className="flex cursor-pointer items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-ink3 transition-colors hover:text-ink"
-          >
-            {offen ? 'Zuklappen' : 'Aufklappen'}
-            <Chevron size={13} aria-hidden />
-          </button>
-        }
-      >
-        Welches Verfahren passt wozu?
+      {/* Der Pfeil sitzt DIREKT hinter der Überschrift (Micha) — derselbe Griff
+          wie an den Verfahrens-Karten darüber, kein eigener Knopf am Rand. */}
+      <PanelTitle>
+        <button
+          onClick={() => setOffen((o) => !o)}
+          aria-expanded={offen}
+          className="flex cursor-pointer items-center gap-2 transition-colors hover:text-accent"
+        >
+          Welches Verfahren passt wozu?
+          <Chevron size={14} aria-hidden className="text-ink3" />
+        </button>
       </PanelTitle>
       {offen && (
-        // gap-6 statt gap-4 und mehr Luft zwischen den drei Zeilen einer
-        // Gruppe — vorher klebten Titel, Verfahren und Erklärung aneinander
-        <ul className="grid gap-6">
+        // Karten wie unter „So kommt die Zahl zustande" — Box in der Box, damit
+        // beide Kacheln dieselbe Sprache sprechen (Micha).
+        <ul className="grid gap-3">
           {zeilen.map((z) => (
-            <li key={z.art} className="grid gap-1.5">
+            <li key={z.art} className="grid gap-1.5 rounded-md border border-line bg-panel2/40 p-4">
               <span className="text-base font-bold text-ink">{z.art}</span>
               <span className="font-mono text-small text-accent">{z.verfahren}</span>
-              <span className="max-w-[78ch] text-small leading-relaxed text-ink3">{z.warum}</span>
+              <span className="max-w-[78ch] text-small leading-relaxed text-ink2">{z.warum}</span>
             </li>
           ))}
         </ul>
@@ -801,6 +800,40 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
 // ---------- Seite ----------
 
 /**
+ * Ein Kürzel, das zur Analyse dieses Werts führt. Ein blau geschriebenes
+ * Kürzel sieht aus wie ein Link — also ist es einer (Micha).
+ */
+function Cashtag({ symbol, className }: { symbol: string; className?: string }) {
+  return (
+    <Link
+      to={`/analyse?symbol=${encodeURIComponent(symbol)}`}
+      title={`${symbol} in der Analyse öffnen`}
+      className={cn('font-mono text-small text-accent transition-colors hover:text-ink hover:underline', className)}
+    >
+      ${symbol}
+    </Link>
+  );
+}
+
+/**
+ * Spaltenkopf der Vergleichsgruppe. Text und „i" stehen in einer Flex-Zeile mit
+ * items-center — als Inline-Element saß das Symbol eine Spur zu tief und
+ * fluchtete nicht mit den Nachbarspalten (Micha).
+ */
+function Kopf({ children, info, links, className }: {
+  children: ReactNode; info?: string; links?: boolean; className?: string;
+}) {
+  return (
+    <th className={cn('pb-2.5 font-normal', className)}>
+      <span className={cn('flex items-center gap-1 whitespace-nowrap', links ? 'justify-start' : 'justify-end')}>
+        {children}
+        {info && <Erklaert text={info} className="ml-0" />}
+      </span>
+    </th>
+  );
+}
+
+/**
  * Die Vergleichsgruppe mit Erklärung, wozu sie da ist. Die Wachstumsspalte ist
  * der wichtigste Teil: wächst die betrachtete Firma deutlich schneller als die
  * Gruppe, erklärt das einen Aufschlag im Kurs — ohne diese Spalte wirkt die
@@ -818,7 +851,8 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
   const multipleName = {
     ebitda: 'EV/EBITDA',
     umsatz: 'EV/Umsatz',
-    umsatzErwartet: 'EV/Umsatz (erwartet)',
+    // kurz halten: der lange Name lief im Spaltenkopf in die Nachbarspalte
+    umsatzErwartet: 'EV/Umsatz erw.',
     gewinn: 'KGV',
     buchwert: 'KBV',
   }[gruppe.basis ?? 'umsatz'] ?? 'EV/Umsatz';
@@ -864,12 +898,14 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
           Die Tabelle darunter ist der Beleg, nicht die Botschaft. */}
       <div className="mb-4 grid gap-2">
         <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
-          {gruppe.peers.length} Wettbewerber
-          <Erklaert text={`Ähnlich große Unternehmen der Branche ${gruppe.branche}. Aus ihren Kennzahlen entsteht das Vielfache, mit dem gerechnet wird — ohne eine solche Gruppe würde das Modell die Aktie mit sich selbst vergleichen.`} />
+          {/* Die Anzahl in derselben Auszeichnung wie die übrigen Zahlen des
+              Satzes — als bloßer Fließtext war sie kleiner und ging unter. */}
+          <span className="font-mono font-bold tabular-nums text-ink">{gruppe.peers.length}</span> Wettbewerber
+          <Erklaert text={`Ähnlich große Unternehmen der Branche ${gruppe.branche}, die ähnlich schnell wachsen. Aus ihren Kennzahlen entsteht das Vielfache, mit dem gerechnet wird — ohne eine solche Gruppe würde das Modell die Aktie mit sich selbst vergleichen.`} />
           {' '}liegen beim <span className="text-ink">{multipleName}</span> mehrheitlich zwischen{' '}
           <span className="font-mono tabular-nums text-ink">{multiple(spanne.min)}</span> und{' '}
           <span className="font-mono tabular-nums text-ink">{multiple(spanne.max)}</span>.
-          Für <span className="font-mono text-accent">${symbol}</span> wären das{' '}
+          Für <Cashtag symbol={symbol} /> wären das{' '}
           <span className="font-mono tabular-nums text-ink">{jeAktie(spanne.kursMin, null)}</span> bis{' '}
           <span className="font-mono tabular-nums text-ink">{jeAktie(spanne.kursMax, waehrung)}</span>.
         </p>
@@ -896,31 +932,28 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
           für DIESE Aktie: das ist der Grund, warum die Tabelle nützlich ist. */}
       <ScrollListe className="max-h-[340px]">
         <table className="w-full table-fixed">
+          {/* Breiter als nötig: bei rechtsbündigen Zahlen IST die Spaltenbreite
+              der Abstand zur Nachbarspalte (Micha: „die Spalten sind noch nicht
+              weit genug auseinander"). */}
           <colgroup>
-            <col /><col className="w-[104px]" /><col className="w-[112px]" /><col className="w-[108px]" />
-            <col className="w-[124px]" /><col className="w-[164px]" />
+            <col /><col className="w-[130px]" /><col className="w-[140px]" /><col className="w-[130px]" />
+            <col className="w-[170px]" /><col className="w-[190px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-panel">
             {/* Jede Spalte trägt ihre Erklärung — ohne sie sind „Börsenwert",
                 „KBV" und „Wert für $KLAR" für Laien bedeutungslos (Micha). */}
             <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-              <th className="pb-2.5 font-normal">Firma</th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal">
-                Kurs<Erklaert text="Aktueller Börsenkurs dieses Wettbewerbers — nur zur Einordnung, er fließt nicht in die Rechnung ein." />
-              </th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal">
-                Börsenwert<Erklaert text="Was alle Aktien dieser Firma zusammen kosten. Dient dazu, ähnlich große Unternehmen zu vergleichen." />
-              </th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal">
-                Wachstum<Erklaert text="Umsatzwachstum der letzten zwölf Monate. Wächst ein Wettbewerber viel langsamer, ist sein Vielfaches nur bedingt übertragbar." />
-              </th>
-              <th className="whitespace-nowrap pb-2.5 pr-5 text-right font-normal">
-                {multipleName}<Erklaert text={MULTIPLE_INFO[gruppe.basis ?? 'umsatz'] ?? MULTIPLE_INFO.umsatz} />
-              </th>
-              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">
+              <Kopf links>Firma</Kopf>
+              <Kopf info="Aktueller Börsenkurs dieses Wettbewerbers — nur zur Einordnung, er fließt nicht in die Rechnung ein.">Kurs</Kopf>
+              <Kopf info="Was alle Aktien dieser Firma zusammen kosten. Dient dazu, ähnlich große Unternehmen zu vergleichen.">Börsenwert</Kopf>
+              <Kopf info="Umsatzwachstum der letzten zwölf Monate. Wächst ein Wettbewerber viel langsamer, ist sein Vielfaches nur bedingt übertragbar.">Wachstum</Kopf>
+              <Kopf info={MULTIPLE_INFO[gruppe.basis ?? 'umsatz'] ?? MULTIPLE_INFO.umsatz}>{multipleName}</Kopf>
+              <Kopf
+                className="text-accent"
+                info={`Was eine Aktie von ${symbol} kosten würde, wenn der Markt sie mit demselben Vielfachen bepreisen würde wie diesen Wettbewerber. Darunter der Abstand zum heutigen Kurs.`}
+              >
                 Wert für ${symbol}
-                <Erklaert text={`Was eine Aktie von ${symbol} kosten würde, wenn der Markt sie mit demselben Vielfachen bepreisen würde wie diesen Wettbewerber. Darunter der Abstand zum heutigen Kurs.`} />
-              </th>
+              </Kopf>
             </tr>
           </thead>
           <tbody>
@@ -930,16 +963,16 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
               const abw = k != null && zielKurs ? (k - zielKurs) / zielKurs : null;
               return (
                 <tr key={p.symbol} className="border-b border-line/70">
-                  <td className="py-2.5 pr-4">
+                  <td className="py-2.5 pr-6">
                     <span className="block truncate text-small text-ink2" title={p.name}>{p.name}</span>
-                    <span className="block font-mono text-micro text-accent">${p.symbol}</span>
+                    <Cashtag symbol={p.symbol} className="block text-micro" />
                   </td>
                   <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{jeAktie((p as { kurs?: number | null }).kurs, null)}</td>
                   <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{fmtCompact(p.marktkap)}</td>
                   <td className={cn('py-2.5 text-right font-mono text-small tabular-nums', w == null ? 'text-ink3' : w >= 0 ? 'text-up' : 'text-down')}>
                     {w == null ? '–' : fmtPct(w * 100)}
                   </td>
-                  <td className="py-2.5 pr-5 text-right font-mono text-small tabular-nums text-ink2">{multiple(genutztesMultiple(p))}</td>
+                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink2">{multiple(genutztesMultiple(p))}</td>
                   {/* Kurs und Abstand untereinander — nebeneinander brach die Zelle um */}
                   <td className="py-2.5 text-right">
                     <span className="block font-mono text-small tabular-nums text-ink">{jeAktie(k, waehrung)}</span>
@@ -1012,6 +1045,17 @@ function Gespeicherte() {
 function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
   const { kurs, waehrung, eurKurs, gesamt } = d;
   const satz = einschaetzungsSatz(d);
+
+  // Liegen zwei Verfahren um mehr als das Zweieinhalbfache auseinander, sagt
+  // ihre Mitte wenig — bei Tesla stehen 2 USD aus der Zahlungsstrom-Rechnung
+  // gegen 38 USD aus dem Branchenvergleich. Das gehört dazugesagt, sonst wirkt
+  // der Mittelwert genauer, als er ist.
+  const einzelwerte = d.verfahren
+    .filter((v) => v.automatisch)
+    .map((v) => v.ergebnis.szenarien.base.wertJeAktie)
+    .filter((x): x is number => typeof x === 'number' && x > 0);
+  const weitAuseinander = einzelwerte.length > 1
+    && Math.max(...einzelwerte) / Math.min(...einzelwerte) > 2.5;
   const [gemerkt, setGemerkt] = useState<string | null>(null);
   const speichern = useBewertungMutation((body: { id?: string; auswertung: BewertungsAntwort }) =>
     api.post<{ id: string; version: number }>('/api/bewertungen', body),
@@ -1022,7 +1066,9 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
       <Panel className="animate-rise">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="font-display text-display-sm font-bold">{d.name}</h2>
-          <span className="font-mono text-small text-ink3">({d.symbol})</span>
+          {/* Der Weg zurück in die Analyse desselben Werts — seit die Analyse
+              kein Navigationspunkt mehr ist, braucht die Bewertung einen. */}
+          <Cashtag symbol={d.symbol} />
           <span className="ml-auto flex items-center gap-3">
             <span className="font-mono text-small text-ink3">
               Kurs {jeAktie(kurs, waehrung)} · Stand {fmtDate(d.stand)}
@@ -1072,6 +1118,14 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
               ))}
             </div>
             {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}
+            {weitAuseinander && (
+              <p className="mt-2 max-w-[78ch] text-small leading-relaxed text-ink3">
+                Die Verfahren liegen weit auseinander (
+                <span className="font-mono tabular-nums">{jeAktie(Math.min(...einzelwerte), null)}</span> bis{' '}
+                <span className="font-mono tabular-nums">{jeAktie(Math.max(...einzelwerte), waehrung)}</span>)
+                — die Mitte daraus ist nur ein grober Anhaltspunkt.
+              </p>
+            )}
             <KursZerlegung d={d} />
             <SzenarienErklaert anzahl={gesamt.verfahren.length} />
           </>
@@ -1143,9 +1197,13 @@ export default function BewertungPage() {
           <h1 className="font-display text-display-md font-bold tracking-tight text-balance">
             Was ein Wert <em className="not-italic text-accent">wert ist.</em>
           </h1>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSucheOffen(true)}>
-            <Search size={13} aria-hidden /> {symbol ? 'Anderen Wert' : 'Wert wählen'}
-          </Button>
+          {/* Ohne gewählten Wert steht der Knopf in der leeren Kachel — zwei
+              gleichlautende Knöpfe übereinander waren eine Entscheidung zu viel. */}
+          {(symbol || id) && (
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSucheOffen(true)}>
+              <Search size={13} aria-hidden /> Anderen Wert
+            </Button>
+          )}
         </div>
       </header>
 
@@ -1159,9 +1217,17 @@ export default function BewertungPage() {
 
       {!symbol && !id && (
         <Panel className="animate-rise">
-          <Empty>
-            Wähle oben einen Wert. Stockpit rechnet dann selbst — mit Zahlen aus dem Geschäftsbericht,
-            den Schätzungen der Analysten und dem Vergleich zu Wettbewerbern derselben Branche.
+          {/* Ein Knopf statt „wähle oben einen Wert": „oben" gab es zweimal —
+              die globale Suche in der Topbar und den Knopf in der Kopfzeile.
+              Beide Wege öffnen denselben Dialog, hier ist er unübersehbar. */}
+          <Empty className="grid justify-items-center gap-4 py-10">
+            <span className="max-w-[62ch]">
+              Stockpit rechnet selbst — mit Zahlen aus dem Geschäftsbericht, den Schätzungen der
+              Analysten und dem Vergleich zu Wettbewerbern derselben Branche.
+            </span>
+            <Button variant="action" size="sm" onClick={() => setSucheOffen(true)}>
+              <Search size={13} aria-hidden /> Wert wählen
+            </Button>
           </Empty>
         </Panel>
       )}

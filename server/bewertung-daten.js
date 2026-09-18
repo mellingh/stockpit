@@ -106,6 +106,19 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     aktienAusstehend: zahl(ks.sharesOutstanding),
     steuerquote: zahl(f.taxRateForCalcs),
     investitionsquote: zahl(f.capitalExpenditure) != null && zahl(f.totalRevenue) ? Math.abs(f.capitalExpenditure) / f.totalRevenue : null,
+    // Abschreibungen sind KEIN Geldabfluss — sie mindern nur den ausgewiesenen
+    // Gewinn. Wer sie in der Cashflow-Rechnung nicht zurückaddiert, bewertet
+    // jede kapitalintensive Firma systematisch zu niedrig: Tesla kam so auf
+    // einen NEGATIVEN Unternehmenswert, ExxonMobil auf 40 USD bei Kurs 163.
+    // Drei Feldnamen, weil Yahoo je nach Branche anders benennt: Ölkonzerne
+    // führen den Posten als „Depletion" (ExxonMobil hat kein
+    // depreciationAndAmortization, wohl aber 26 Mrd unter dem längeren Namen).
+    abschreibungsquote: (() => {
+      const da = zahl(f.depreciationAndAmortization)
+        ?? zahl(f.depreciationAmortizationDepletion)
+        ?? zahl(f.reconciledDepreciation);
+      return da != null && zahl(f.totalRevenue) ? Math.abs(da) / f.totalRevenue : null;
+    })(),
     workingCapitalQuote: zahl(f.changeInWorkingCapital) != null && zahl(f.totalRevenue) ? Math.abs(f.changeInWorkingCapital) / f.totalRevenue : null,
     liquiditaetMonate,
     letzteZahlen: isoTag(zusatz.letzteZahlen),
@@ -302,7 +315,14 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
       mk('dcf.marge', 'Operative Marge (Operating Margin)', roh.operativeMarge ?? 0, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'marge', gruppe: 'Prognose', notiz: 'Vorbelegt mit der aktuellen Marge.' }),
       mk('dcf.steuerquote', 'Steuerquote (Tax Rate)', roh.steuerquote ?? VORGABEN.steuerquote, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
-      mk('dcf.investitionen', 'Investitionen, Anteil vom Umsatz (CapEx)', roh.investitionsquote ?? 0, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
+      mk('dcf.investitionen', 'Investitionen, Anteil vom Umsatz (CapEx)', roh.investitionsquote ?? 0, 'geschaeftsbericht', st,
+        { einheit: 'prozent', gruppe: 'Prognose', notiz: 'Was die Firma jährlich in Anlagen und Ausrüstung steckt, gemessen am Umsatz. Dieses Geld fließt ab.' }),
+      // Nur zusammen mit den Investitionen ansetzen: fehlt die Zeitreihe, fehlen
+      // beide Werte — dann darf nicht die eine Seite ohne die andere wirken.
+      mk('dcf.abschreibungen', 'Abschreibungen, Anteil vom Umsatz (D&A)',
+        roh.investitionsquote != null ? roh.abschreibungsquote ?? 0 : 0, 'geschaeftsbericht', st,
+        { einheit: 'prozent', gruppe: 'Prognose',
+          notiz: 'Der Wertverlust von Maschinen und Gebäuden mindert den Gewinn, kostet aber kein Geld. Deshalb wird er in der Zahlungsstrom-Rechnung wieder hinzugerechnet.' }),
       mk('dcf.workingCapital', 'Gebundenes Umlaufvermögen (Working Capital)', roh.workingCapitalQuote ?? 0, 'eigene_schaetzung', st, { einheit: 'prozent', gruppe: 'Prognose' }),
       mk('dcf.kapitalkosten', 'Kapitalkosten (WACC)', kk.wert, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'kapitalkosten', gruppe: 'Abzinsung', notiz: kk.notiz }),

@@ -17,6 +17,109 @@ import { cached, HOUR } from './cache.js';
 // oben und unten — darueber vergleicht man Nebenwerte mit Weltkonzernen.
 const VORGABEN_GROESSE = { faktor: 4 };
 
+// Wie stark zaehlt ein Wachstumsunterschied gegenueber einem Groessenunterschied
+// bei der Auswahl? Gleich stark. Ein Vielfaches entsteht aus Groesse UND
+// Wachstumsaussicht — Viatris (schrumpfend) ist fuer Insmed (+186 %) kein
+// Massstab, auch wenn die Marktkapitalisierung passt.
+const GEWICHT_WACHSTUM = 1;
+
+// Ein Wettbewerber, fuer den die Quelle kein Wachstum kennt, ist nicht
+// „gleich schnell" — genau so wirkte er aber, solange Unbekanntes als Abstand 0
+// zaehlte: Caris (+85 %) bekam dadurch reine Forschungsfirmen ohne Umsatz in
+// die Gruppe. Unbekanntes kostet deshalb einen mittleren Abstand.
+const ABSTAND_OHNE_WACHSTUM = 0.35;
+
+/** Ein Vielfaches ist brauchbar, wenn es positiv und nicht absurd ist. */
+const brauchbaresVielfaches = (v) => typeof v === 'number' && v > 0 && v < 200;
+
+/**
+ * Sammelkategorien der Quelle: Branchen, in die TradingView alles einsortiert,
+ * was nirgends sonst passt. Sie taugen NICHT als Vergleichsgruppe — in
+ * „Miscellaneous Commercial Services" stehen Klarna, PayPal, Block, ein
+ * Gefaengnisbetreiber und zwei Bildungskonzerne nebeneinander.
+ *
+ * Exakte Namen statt eines Musters auf „diversified/other": „Chemicals: Major
+ * Diversified" (Dow, DuPont) und „Industrial Conglomerates" sind echte,
+ * brauchbare Branchen und wurden von der alten Regex faelschlich verdaechtigt.
+ */
+const SAMMELKATEGORIEN = new Set([
+  'Miscellaneous',
+  'Miscellaneous Commercial Services',
+  'Miscellaneous Manufacturing',
+  'Other Consumer Services',
+  'Other Consumer Specialties',
+  'Other Metals/Minerals',
+  'Other Transportation',
+]);
+
+/**
+ * Yahoo-Branche → TradingView-Branche. Wird NUR gebraucht, wenn TradingView den
+ * Wert in einer Sammelkategorie fuehrt: dann liefert Yahoos Einordnung die
+ * bessere Branche, und in der gesuchten TradingView-Kategorie stehen die
+ * richtigen Wettbewerber.
+ *
+ * Beispiel Klarna: TradingView sagt „Miscellaneous Commercial Services"
+ * (Nachbarn: Laureate Education, TAL Education, ADT, GEO Group), Yahoo sagt
+ * „Credit Services" — in TradingViews „Finance/Rental/Leasing" stehen Affirm,
+ * SoFi, Upstart, Oportun und Ally. Das ist die echte Vergleichsgruppe.
+ */
+const TV_BRANCHE_AUS_YAHOO = {
+  // Finanzen
+  'credit services': 'Finance/Rental/Leasing',
+  'mortgage finance': 'Finance/Rental/Leasing',
+  'financial conglomerates': 'Financial Conglomerates',
+  'banks - regional': 'Regional Banks',
+  'banks - diversified': 'Major Banks',
+  'capital markets': 'Investment Banks/Brokers',
+  'financial data & stock exchanges': 'Investment Banks/Brokers',
+  'asset management': 'Investment Managers',
+  'insurance - property & casualty': 'Property/Casualty Insurance',
+  'insurance - life': 'Life/Health Insurance',
+  'insurance - diversified': 'Multi-Line Insurance',
+  'insurance - reinsurance': 'Multi-Line Insurance',
+  'insurance - specialty': 'Specialty Insurance',
+  'insurance brokers': 'Insurance Brokers/Services',
+  // Technologie
+  'software - application': 'Packaged Software',
+  'software - infrastructure': 'Packaged Software',
+  'information technology services': 'Information Technology Services',
+  'internet content & information': 'Internet Software/Services',
+  semiconductors: 'Semiconductors',
+  'semiconductor equipment & materials': 'Electronic Production Equipment',
+  'consumer electronics': 'Electronics/Appliances',
+  'communication equipment': 'Telecommunications Equipment',
+  'computer hardware': 'Computer Processing Hardware',
+  // Gesundheit
+  biotechnology: 'Biotechnology',
+  'drug manufacturers - general': 'Pharmaceuticals: Major',
+  'drug manufacturers - specialty & generic': 'Pharmaceuticals: Major',
+  'diagnostics & research': 'Medical Specialties',
+  'medical devices': 'Medical Specialties',
+  'medical instruments & supplies': 'Medical Specialties',
+  'healthcare plans': 'Managed Health Care',
+  'medical care facilities': 'Hospital/Nursing Management',
+  'health information services': 'Services to the Health Industry',
+  // Konsum, Industrie, Energie
+  'internet retail': 'Internet Retail',
+  'specialty retail': 'Specialty Stores',
+  restaurants: 'Restaurants',
+  'auto manufacturers': 'Motor Vehicles',
+  'travel services': 'Hotels/Resorts/Cruise lines',
+  'advertising agencies': 'Advertising/Marketing Services',
+  'aerospace & defense': 'Aerospace & Defense',
+  airlines: 'Airlines',
+  'engineering & construction': 'Engineering & Construction',
+  'waste management': 'Environmental Services',
+  solar: 'Alternative Power Generation',
+  'oil & gas e&p': 'Oil & Gas Production',
+  'utilities - regulated electric': 'Electric Utilities',
+  conglomerates: 'Industrial Conglomerates',
+};
+
+/** Yahoo schreibt mal „Banks - Regional", mal „Banks—Regional". */
+const brancheSchluessel = (b) =>
+  String(b ?? '').toLowerCase().replace(/[\u2014\u2013]/g, '-').replace(/\s+/g, ' ').trim();
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36';
 
 /** Yahoo-Suffix → TradingView-Markt (Gegenstück zur Map in kalender-extra.js). */
@@ -46,13 +149,16 @@ async function scan(markt, body) {
   return (await res.json()).data ?? [];
 }
 
-const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy', 'close', 'currency'];
+const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy', 'close', 'currency', 'typespecs'];
 
 function zeileZuObjekt(row) {
-  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet, kurs, waehrung] = row.d ?? [];
+  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet, kurs, waehrung, arten] = row.d ?? [];
   return {
     symbol: String(row.s ?? '').split(':').pop(),
     boerse: String(row.s ?? '').split(':')[0],
+    // Vorzugsaktien tragen dieselbe Branche, aber eine eigene Kapitalstruktur
+    // (SLMBP neben SLM) — als Vergleichswert sind sie eine Dublette.
+    vorzug: Array.isArray(arten) && arten.includes('preferred'),
     name: beschreibung || name, kuerzel: name, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe,
     // Umsatzwachstum in Prozent — macht sichtbar, ob die Gruppe ueberhaupt
     // vergleichbar waechst (Insmed 186 %, die Pharma-Riesen 3 %)
@@ -74,7 +180,7 @@ function zeileZuObjekt(row) {
  * OTC-Zweitnotierungen fliegen raus: sie verdoppeln dieselbe Firma
  * (Lonza stand als LZAGY und LZAGF zugleich in der Liste).
  */
-export function getPeers(symbol) {
+export function getPeers(symbol, yahooBranche = null) {
   return cached(`peers:${symbol}`, 6 * HOUR, async () => {
     const markt = marktFuer(symbol);
     if (!markt) return null;
@@ -90,6 +196,13 @@ export function getPeers(symbol) {
     const ziel = treffer.map(zeileZuObjekt).find((x) => x.branche) ?? null;
     if (!ziel?.branche) return null;
 
+    // Landet der Wert in einer Sammelkategorie, entscheidet Yahoos Einordnung.
+    // Sonst vergleicht sich Klarna mit einem Gefaengnisbetreiber.
+    const ersatz = SAMMELKATEGORIEN.has(ziel.branche)
+      ? TV_BRANCHE_AUS_YAHOO[brancheSchluessel(yahooBranche)] ?? null
+      : null;
+    const branche = ersatz ?? ziel.branche;
+
     // 2. Branchen-Nachbarn — IMMER im US-Markt gesucht, auch für deutsche
     //    Werte. Multiples sind währungsneutral (Zähler und Nenner in derselben
     //    Währung), und an den europäischen Börsen stehen überwiegend
@@ -98,7 +211,7 @@ export function getPeers(symbol) {
     //    aus dem US-Markt kommen Microsoft, Oracle, Salesforce und 8,2.
     const roh = await scan('america', {
       filter: [
-        { left: 'industry', operation: 'equal', right: ziel.branche },
+        { left: 'industry', operation: 'equal', right: branche },
         { left: 'market_cap_basic', operation: 'greater', right: 1e8 },
       ],
       columns: SPALTEN,
@@ -115,7 +228,7 @@ export function getPeers(symbol) {
       .filter((p) => {
         if (gesehen.has(p.symbol)) return false;
         if (p.boerse === 'OTC') return false; // Zweitnotierungen sind Dubletten
-        if (p.symbol.includes('/')) return false; // Vorzugsaktien (ORCL/PD)
+        if (p.symbol.includes('/') || p.vorzug) return false; // Vorzugsaktien (ORCL/PD, SLMBP)
         // Die eigene Aktie an einer anderen Börse: SAP.DE fand sich als
         // NYSE:SAP und OTC:SAPGF in der eigenen Vergleichsgruppe wieder.
         if (p.symbol === ticker || p.symbol === zielKuerzel) return false;
@@ -129,9 +242,43 @@ export function getPeers(symbol) {
     // für Insmed (27 Mrd) die Riesen AstraZeneca, Novartis und Pfizer — reife
     // Konzerne, deren Umsatzmultiples für ein wachsendes Unternehmen nichts
     // aussagen.
-    const abstand = (p) => (ziel.marktkap ? Math.abs(Math.log(p.marktkap / ziel.marktkap)) : 0);
-    const peers = brauchbar
-      .filter((p) => abstand(p) <= Math.log(VORGABEN_GROESSE.faktor))
+    const groesse = (p) => (ziel.marktkap ? Math.abs(Math.log(p.marktkap / ziel.marktkap)) : 0);
+
+    // Aehnlich gross REICHT NICHT: ein Vielfaches spiegelt auch die
+    // Wachstumsaussicht. Viatris (schrumpfend) und Haleon (+3 %) standen in
+    // Insmeds Gruppe (+186 %) und zogen das Vielfache auf ein Niveau, das fuer
+    // eine wachsende Firma nichts aussagt. Der Abstand zaehlt deshalb Groesse
+    // UND Wachstum, beide logarithmisch, damit sie vergleichbar skalieren.
+    const wachstumsAbstand = (p) => {
+      const a = 1 + (ziel.wachstum ?? 0);
+      const b = 1 + (p.wachstum ?? 0);
+      if (ziel.wachstum == null) return 0;
+      if (p.wachstum == null || a <= 0 || b <= 0) return ABSTAND_OHNE_WACHSTUM;
+      return Math.abs(Math.log(b / a));
+    };
+    const abstand = (p) => groesse(p) + GEWICHT_WACHSTUM * wachstumsAbstand(p);
+
+    // Die Gruppe muss auf DER Kennzahl vergleichbar sein, mit der spaeter
+    // gerechnet wird. Sonst besetzen Firmen die Plaetze, die zu dieser Frage
+    // gar nichts sagen: In Caris' Gruppe standen sechs Forschungsfirmen ohne
+    // Umsatz und ohne operativen Gewinn — verglichen wurde am Ende trotzdem
+    // ueber den Umsatz, und zwar mit den zwei Firmen, die zufaellig einen hatten.
+    // Welche Kennzahl das ist, entscheidet der Zielwert selbst, in derselben
+    // Reihenfolge wie die Verfahrenswahl (bei Finanzwerten zaehlen Gewinn und
+    // Buchwert, EV-Vielfache sind dort ohne Aussage).
+    const finanzwert = /finance/i.test(ziel.sektor ?? '') || /bank|insurance|finance/i.test(branche);
+    const leitkennzahl = (finanzwert ? ['kgv', 'kbv'] : ['evEbitda', 'evUmsatz', 'kgv', 'kbv'])
+      .find((feld) => brauchbaresVielfaches(ziel[feld])) ?? null;
+    const vergleichbar = leitkennzahl
+      ? brauchbar.filter((p) => brauchbaresVielfaches(p[leitkennzahl]))
+      : brauchbar;
+    // Blieben zu wenige uebrig, ist die strengere Auswahl schlechter als gar
+    // keine — dann zaehlt wieder die ganze Branche.
+    const pool = vergleichbar.length >= 4 ? vergleichbar : brauchbar;
+
+    const peers = pool
+      // Die Groesse bleibt der harte Filter, das Wachstum entscheidet die Reihenfolge
+      .filter((p) => groesse(p) <= Math.log(VORGABEN_GROESSE.faktor))
       .sort((a, b) => abstand(a) - abstand(b))
       .slice(0, 10);
 
@@ -140,15 +287,19 @@ export function getPeers(symbol) {
     // Verfahren ohnehin aus.
     const ergaenzt = peers.length >= 5
       ? peers
-      : brauchbar.sort((a, b) => abstand(a) - abstand(b)).slice(0, 10);
+      : pool.sort((a, b) => abstand(a) - abstand(b)).slice(0, 10);
 
     // Manche Firmen landen bei der Quelle in einer Sammelkategorie — Klarna
     // etwa unter „Miscellaneous Commercial Services" statt bei den
     // Finanzdienstleistern. Die Vergleichsgruppe ist dann schwächer, und das
     // gehört gesagt statt kaschiert.
-    const sammelkategorie = /miscellaneous|other|diversified/i.test(ziel.branche);
+    const sammelkategorie = SAMMELKATEGORIEN.has(branche);
 
-    return { markt, ziel, branche: ziel.branche, sektor: ziel.sektor, sammelkategorie, peers: ergaenzt };
+    return {
+      markt, ziel, branche, sektor: ziel.sektor, sammelkategorie, peers: ergaenzt,
+      // Fuer die Anzeige: „laut Yahoo Credit Services statt Sammelkategorie"
+      korrigiert: ersatz ? { von: ziel.branche, nach: ersatz } : null,
+    };
   }).catch(() => null);
 }
 

@@ -20,7 +20,7 @@ import { getRatingsWithTargets } from './ratings.js';
 import { computeSnowflake } from './snowflake.js';
 import { xHandleExistiert, urlErreichbar } from './erreichbar.js';
 import { gesamtergebnis } from './bewertung-analyse.js';
-import { impliziteErwartung, jahreBis, szenarioWerte } from './bewertung.js';
+import { impliziteErwartung, jahreBis, szenarioWerte, perzentil } from './bewertung.js';
 import { rohdatenVon, anwendbareVerfahren, MANUELLE_VERFAHREN, baueModell } from './bewertung-daten.js';
 import { getPeers } from './bewertung-peers.js';
 import { VERFAHREN, POS_PHASEN, POS_GEBIETE, RNPV_MULTIPLE } from './bewertung-regeln.js';
@@ -1198,13 +1198,18 @@ function marktwerteVon(roh, summary) {
  * automatisch mit: ein rNPV ohne Spitzenumsätze zeigt nur den Kassenbestand.
  */
 async function bewertungsGrundlage(symbol) {
-  const [summary, fts, quote, peers] = await Promise.all([
+  const [summary, fts, quote] = await Promise.all([
     yahoo.getSummary(symbol),
     yahoo.getFundamentals(symbol),
     yahoo.getQuote(symbol),
-    getPeers(symbol),
   ]);
   if (!summary?.price) throw new Error('Unbekanntes Symbol');
+
+  // Die Peer-Suche läuft NACH dem Summary, weil sie Yahoos Branche als
+  // Rückfallebene braucht: führt TradingView den Wert in einer Sammelkategorie,
+  // ist Yahoos Einordnung die bessere (Klarna: „Credit Services" statt
+  // „Miscellaneous Commercial Services"). Beide Abrufe sind gecacht.
+  const peers = await getPeers(symbol, summary?.assetProfile?.industry ?? null);
 
   // Meldedatum der letzten Quartalszahlen: dient als „Stand" der Bilanzposten
   // UND als Auslöser der Warnung „seit dieser Annahme kamen neue Zahlen".
@@ -1373,9 +1378,22 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
     })();
 
     if (peerKurse && peers) {
+      // Ausreißer fliegen aus der TABELLE, weil sie auch aus der RECHNUNG
+      // fliegen (dort gilt dieselbe Regel: mehr als das Dreifache des Medians).
+      // Sonst stand ImmunityBio mit 43,6× und „374 USD für $INSM" in der Liste,
+      // während das Modell diesen Wert gar nicht verwendet — die Tabelle hätte
+      // die Rechnung widerlegt, die sie belegen soll.
+      const werte = peers.peers
+        .map((p) => p[peerKurse.feld])
+        .filter((v) => typeof v === 'number' && v > 0 && v < 200);
+      // Genau derselbe Median wie in bewertung-daten.js — eine andere Formel
+      // würde Grenzfälle unterschiedlich behandeln.
+      const mitte = werte.length ? perzentil(werte, 0.5) : null;
+      const grenze = mitte == null ? Infinity : mitte * 3;
+
       for (const p of peers.peers) {
         const m = p[peerKurse.feld];
-        p.kursFuerZiel = typeof m === 'number' && m > 0 && m < 200
+        p.kursFuerZiel = typeof m === 'number' && m > 0 && m < 200 && m <= grenze
           ? (m * peerKurse.kennzahl + peerKurse.netto) / peerKurse.aktien
           : null;
       }
@@ -1420,6 +1438,7 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
         ? {
           branche: peers.branche,
           sammelkategorie: peers.sammelkategorie,
+          korrigiert: peers.korrigiert,
           ziel: peers.ziel,
           // welche Kennzahl das Verfahren nutzt — die Tabelle hebt sie hervor
           basis: multiplesVerfahren?.basis ?? null,

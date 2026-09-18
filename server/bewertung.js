@@ -154,6 +154,7 @@ export function rechneDcf(w) {
   const marge = zahl(w['dcf.marge']) ?? 0;
   const steuer = zahl(w['dcf.steuerquote']) ?? 0;
   const investitionen = zahl(w['dcf.investitionen']) ?? 0; // Anteil vom Umsatz
+  const abschreibungen = zahl(w['dcf.abschreibungen']) ?? 0; // Anteil vom Umsatz
   const workingCapital = zahl(w['dcf.workingCapital']) ?? 0; // Anteil vom Umsatzzuwachs
   const g = zahl(w['dcf.ewigesWachstum']) ?? 0;
 
@@ -182,7 +183,11 @@ export function rechneDcf(w) {
     const nopat = ebit * (1 - steuer);
     const capex = umsatz * investitionen;
     const wcVeraenderung = (umsatz - vorher) * workingCapital;
-    const fcf = nopat - capex - wcVeraenderung;
+    // Freier Cashflow = Betriebsergebnis nach Steuern + Abschreibungen
+    // − Investitionen − gebundenes Umlaufvermögen. Die Abschreibungen gehören
+    // zurück in die Rechnung: sie mindern den Gewinn, es fließt aber kein Geld
+    // ab. Ohne sie ergab Teslas Rechnung einen negativen Wert je Aktie.
+    const fcf = nopat + umsatz * abschreibungen - capex - wcVeraenderung;
     const diskont = Math.pow(1 + wacc, j);
     const barwert = fcf / diskont;
     barwerte += barwert;
