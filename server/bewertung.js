@@ -488,5 +488,8 @@ export function jahreBis(vielfaches, wachstumProJahr) {
   const v = zahl(vielfaches);
   const g = zahl(wachstumProJahr);
   if (v == null || g == null || v <= 0 || g <= 0) return null;
+  // Wird WENIGER als heute verlangt, ist die Schwelle längst überschritten —
+  // die Formel lieferte sonst negative Jahre („in −3,2 Jahren').
+  if (v <= 1) return 0;
   return Math.log(v) / Math.log(1 + g);
 }

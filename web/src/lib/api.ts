@@ -541,6 +541,8 @@ export interface BewertungsAntwort {
     branche: string;
     /** Quelle hat die Firma in eine Sammelkategorie einsortiert — Gruppe schwächer */
     sammelkategorie?: boolean;
+    /** welche Kennzahl das Verfahren nutzt (ebitda/umsatz/umsatzErwartet/gewinn/buchwert) */
+    basis?: string | null;
     /** der bewertete Wert selbst, aus derselben Quelle wie die Peers */
     ziel?: { name: string; marktkap: number | null; wachstum: number | null; evUmsatz: number | null; evEbitda: number | null };
     peers: {
@@ -552,6 +554,8 @@ export interface BewertungsAntwort {
       evUmsatz: number | null;
       evEbitda: number | null;
       kgv: number | null;
+      /** Kurs, den DIESE Aktie mit dem Vielfachen dieses Wettbewerbers hätte */
+      kursFuerZiel?: number | null;
     }[];
   } | null;
   markt: Record<string, number | string | null>;

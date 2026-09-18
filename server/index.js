@@ -1350,6 +1350,37 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       einzelwerte: auto.map((v) => ({ id: v.id, basis: v.basis, wertJeAktie: v.ergebnis.szenarien.base.wertJeAktie })),
     };
 
+    // Jedes Peer-Multiple in einen Kurs für DIESE Aktie übersetzen. Ein
+    // „EV/EBITDA 7,3×" sagt einem Laien nichts; „mit Genpacts Vielfachem wäre
+    // die Aktie 8,40 USD wert" beantwortet die Frage direkt.
+    const multiplesVerfahren = verfahren.find((v) => v.id === 'multiples' && v.automatisch);
+    const peerKurse = (() => {
+      if (!multiplesVerfahren || !peers?.peers?.length) return null;
+      const w = szenarioWerte(multiplesVerfahren.modell.annahmen, 'base');
+      const kennzahl = w['mult.kennzahl'];
+      const aktien = (w['bridge.aktien'] ?? 0) * (1 + (w['bridge.verwaesserung'] ?? 0));
+      if (!(kennzahl > 0) || !(aktien > 0)) return null;
+
+      const aufEquity = (w['mult.aufEquity'] ?? 0) === 1;
+      const netto = aufEquity
+        ? 0
+        : (w['bridge.cash'] ?? 0) - (w['bridge.schulden'] ?? 0) - (w['bridge.leasing'] ?? 0)
+          - (w['bridge.minderheiten'] ?? 0) - (w['bridge.pensionen'] ?? 0) - (w['bridge.royalty'] ?? 0);
+
+      // Dieselbe Kennzahl wie im Verfahren, damit die Spalte zur Rechnung passt.
+      const feld = { ebitda: 'evEbitda', umsatz: 'evUmsatz', umsatzErwartet: 'evUmsatzErwartet', gewinn: 'kgv', buchwert: 'kbv' }[multiplesVerfahren.basis ?? 'umsatz'];
+      return { feld, kennzahl, aktien, netto };
+    })();
+
+    if (peerKurse && peers) {
+      for (const p of peers.peers) {
+        const m = p[peerKurse.feld];
+        p.kursFuerZiel = typeof m === 'number' && m > 0 && m < 200
+          ? (m * peerKurse.kennzahl + peerKurse.netto) / peerKurse.aktien
+          : null;
+      }
+    }
+
     // Umrechnungskurs für die Zweitanzeige in Euro (wie im Dashboard).
     const eurKurs = roh.waehrung && roh.waehrung !== 'EUR'
       ? await yahoo.getFxRate(roh.waehrung, 'EUR').catch(() => null)
@@ -1378,7 +1409,16 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       rohdaten: roh,
       // `ziel` aus derselben Quelle wie die Peers — nur so ist das Wachstum
       // des Unternehmens mit dem der Gruppe vergleichbar (Yahoo misst es anders).
-      peerGruppe: peers ? { branche: peers.branche, sammelkategorie: peers.sammelkategorie, ziel: peers.ziel, peers: peers.peers } : null,
+      peerGruppe: peers
+        ? {
+          branche: peers.branche,
+          sammelkategorie: peers.sammelkategorie,
+          ziel: peers.ziel,
+          // welche Kennzahl das Verfahren nutzt — die Tabelle hebt sie hervor
+          basis: multiplesVerfahren?.basis ?? null,
+          peers: peers.peers,
+        }
+        : null,
       markt,
       verfahrenListe: VERFAHREN,
       regeln: { phasen: POS_PHASEN, gebiete: POS_GEBIETE, rnpvMultiple: RNPV_MULTIPLE },

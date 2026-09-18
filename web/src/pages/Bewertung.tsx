@@ -147,36 +147,57 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
 function KursZerlegung({ d }: { d: BewertungsAntwort }) {
   const { kurs, waehrung, gesamt, analysten } = d;
   if (kurs == null || gesamt.base == null) return null;
-  const heute = Math.max(0, Math.min(gesamt.base, kurs));
+
+  // Zwei grundverschiedene Fälle — früher wurde nur der erste gezeigt, wodurch
+  // bei Klarna „Erwartung an die Zukunft: 0,00 USD" neben „realistisch
+  // 22,37 USD" stand und sich widersprach.
+  const rechnungDarueber = gesamt.base > kurs;
+  const heute = Math.min(gesamt.base, kurs);
   const erwartung = kurs - heute;
   const anteilHeute = (heute / kurs) * 100;
-  const zielAbw = analysten?.kursziel && kurs ? (analysten.kursziel - kurs) / kurs : null;
+  const zielAbw = analysten?.kursziel ? (analysten.kursziel - kurs) / kurs : null;
 
   return (
     <div className="mt-4 grid gap-3 border-t border-line pt-4">
       <div>
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <span className="font-mono text-micro uppercase tracking-[0.14em] text-accent">Woraus der Kurs besteht</span>
+          <span className="font-mono text-micro uppercase tracking-[0.14em] text-accent">
+            {rechnungDarueber ? 'Kurs und Rechnung' : 'Woraus der Kurs besteht'}
+          </span>
           <span className="font-mono text-small text-ink3">Kurs {jeAktie(kurs, waehrung)}</span>
         </div>
-        {/* Zwei Balken: was die Rechnung trägt, und was an Erwartung darüber liegt */}
-        <div className="flex h-2 overflow-hidden rounded-full bg-panel2" role="img"
-          aria-label={`${Math.round(anteilHeute)} Prozent des Kurses deckt die Rechnung ab`}>
-          <span className="bg-accent" style={{ width: anteilHeute + '%' }} />
-          <span className="flex-1 bg-line-strong" />
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-small">
-          <span className="flex items-center gap-2">
-            <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />
-            <span className="text-ink2">Heutiges Geschäft</span>
-            <span className="font-mono tabular-nums text-ink">{jeAktie(heute, waehrung)}</span>
-          </span>
-          <span className="flex items-center gap-2">
-            <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-line-strong" />
-            <span className="text-ink2">Erwartung an die Zukunft</span>
-            <span className="font-mono tabular-nums text-ink">{jeAktie(erwartung, waehrung)}</span>
-          </span>
-        </div>
+
+        {rechnungDarueber ? (
+          <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
+            Hier steckt <span className="text-ink">keine Zukunftserwartung</span> im Kurs — im Gegenteil:
+            Schon das heutige Geschäft wäre nach dieser Rechnung{' '}
+            <span className="font-mono tabular-nums text-ink">{jeAktie(gesamt.base, waehrung)}</span> wert,
+            der Kurs liegt mit <span className="font-mono tabular-nums text-ink">{jeAktie(kurs, waehrung)}</span>{' '}
+            darunter. Entweder traut der Markt den Zahlen nicht, oder er sieht ein Risiko, das in
+            diesen Annahmen nicht vorkommt.
+          </p>
+        ) : (
+          <>
+            {/* Zwei Balken: was die Rechnung trägt, und was an Erwartung darüber liegt */}
+            <div className="flex h-2 overflow-hidden rounded-full bg-panel2" role="img"
+              aria-label={`${Math.round(anteilHeute)} Prozent des Kurses deckt die Rechnung ab`}>
+              <span className="bg-accent" style={{ width: anteilHeute + '%' }} />
+              <span className="flex-1 bg-line-strong" />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-small">
+              <span className="flex items-center gap-2">
+                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+                <span className="text-ink2">Heutiges Geschäft</span>
+                <span className="font-mono tabular-nums text-ink">{jeAktie(heute, waehrung)}</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-line-strong" />
+                <span className="text-ink2">Erwartung an die Zukunft</span>
+                <span className="font-mono tabular-nums text-ink">{jeAktie(erwartung, waehrung)}</span>
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {analysten?.kursziel != null && (
@@ -184,9 +205,9 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
           <span className="font-bold text-ink">Was Analysten sagen: </span>
           Ihr durchschnittliches Kursziel liegt bei{' '}
           <span className="font-mono tabular-nums text-ink">{jeAktie(analysten.kursziel, waehrung)}</span>
-          {analysten.anzahl ? ` (${analysten.anzahl} Häuser)` : ''}
-          {zielAbw != null && `, also ${fmtPct(zielAbw * 100)} zum Kurs`}.
-          {gesamt.base != null && analysten.kursziel > gesamt.base * 1.5 && (
+          {analysten.anzahl ? ` — Durchschnitt aus ${analysten.anzahl} Analysten-Einschätzungen` : ''}
+          {zielAbw != null && `, ${fmtPct(zielAbw * 100)} zum Kurs`}.
+          {analysten.kursziel > gesamt.base * 1.5 && (
             <> Dass sie deutlich höher liegen, heißt nicht, dass eine Seite falsch rechnet: Analysten
               modellieren bei solchen Firmen die Entwicklung über zehn Jahre, dieses Verfahren bewertet
               das Geschäft von heute im Branchenvergleich.</>
@@ -195,6 +216,77 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
       )}
     </div>
   );
+}
+
+/**
+ * Die Rechnung zum Mitlesen, ganz oben im aufgeklappten Bereich.
+ *
+ * „Branchenvergleich → 22,37 USD" beantwortet nicht, WIE man dahin kommt.
+ * Diese Kette tut es in einer Zeile: Kennzahl × Vielfaches = Firmenwert,
+ * Schulden ab, durch die Aktien. Wer will, liest darunter weiter; wer nur
+ * wissen will, woher die Zahl kommt, ist nach drei Sekunden fertig.
+ */
+function Rechenweg({ v, waehrung }: { v: BewertungsAntwort['verfahren'][number]; waehrung: string | null }) {
+  const e = v.ergebnis;
+  const wert = (id: string) => v.modell.annahmen.find((a) => a.id === id)?.wert ?? null;
+  const geld = (x: number | null | undefined) => (x == null ? '–' : fmtCompact(x));
+
+  const schritte: { label: string; wert: string; op?: string }[] = [];
+
+  if (v.id === 'multiples') {
+    const kennzahl = v.modell.annahmen.find((a) => a.id === 'mult.kennzahl');
+    const m = wert('mult.multiple');
+    const aufEquity = wert('mult.aufEquity') === 1;
+    schritte.push({ label: kurzLabel(kennzahl?.label ?? 'Kennzahl'), wert: geld(kennzahl?.wert) });
+    schritte.push({ op: '×', label: 'Vielfaches der Gruppe', wert: m == null ? '–' : fmtNum(m, 1) + '×' });
+    schritte.push({ op: '=', label: aufEquity ? 'Wert des Eigenkapitals' : 'Wert des Unternehmens', wert: geld(e.kern.enterpriseValue ?? e.equity.equityValue) });
+    if (!aufEquity) {
+      schritte.push({ op: '±', label: 'Kasse minus Schulden', wert: geld((e.equity.equityValue ?? 0) - (e.kern.enterpriseValue ?? 0)) });
+    }
+  } else if (v.id === 'residual') {
+    schritte.push({ label: 'Eigenkapital', wert: geld(wert('res.eigenkapital')) });
+    schritte.push({ op: '×', label: 'faires Kurs-Buchwert-Verhältnis', wert: e.kern.fairesKbv == null ? '–' : fmtNum(e.kern.fairesKbv, 2) + '×' });
+    schritte.push({ op: '=', label: 'Wert des Eigenkapitals', wert: geld(e.equity.equityValue) });
+  } else if (v.id === 'dcf') {
+    schritte.push({ label: 'Zahlungsströme der Prognosejahre', wert: geld(e.kern.barwertExplizit) });
+    schritte.push({ op: '+', label: 'Wert danach (Endwert)', wert: geld(e.kern.endwert) });
+    schritte.push({ op: '±', label: 'Kasse minus Schulden', wert: geld((e.equity.equityValue ?? 0) - (e.kern.enterpriseValue ?? 0)) });
+  } else {
+    return null;
+  }
+
+  schritte.push({ op: '÷', label: 'Aktien', wert: fmtCompact(e.equity.aktien) });
+
+  return (
+    <div className="rounded-md border border-line bg-panel px-4 py-3.5">
+      <div className="mb-3 font-mono text-micro uppercase tracking-[0.14em] text-accent">So wird gerechnet</div>
+      <div className="flex flex-wrap items-stretch gap-x-3 gap-y-3">
+        {schritte.map((s) => (
+          <div key={s.label} className="flex items-center gap-3">
+            {s.op && <span aria-hidden className="font-mono text-lg text-ink3">{s.op}</span>}
+            <span className="grid gap-0.5">
+              <span className="font-mono text-small tabular-nums text-ink">{s.wert}</span>
+              <span className="text-micro text-ink3">{s.label}</span>
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center gap-3">
+          <span aria-hidden className="font-mono text-lg text-ink3">=</span>
+          <span className="grid gap-0.5">
+            <span className="font-mono text-small font-bold tabular-nums text-accent">
+              {jeAktie(e.szenarien.base.wertJeAktie, waehrung)}
+            </span>
+            <span className="text-micro text-ink3">je Aktie</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Lange Annahme-Labels für die Rechenkette kürzen (Klammer-Zusatz raus). */
+function kurzLabel(label: string): string {
+  return label.replace(/\s*\([^)]*\)\s*$/, '').replace(/,.*$/, '');
 }
 
 /**
@@ -234,7 +326,8 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
               : '–'}
         </td>
         <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">
-          {x.jahre != null ? fmtNum(x.jahre, 1) + ' Jahre' : '–'}
+          {/* 0 Jahre heißt: es wird weniger verlangt als heute schon da ist */}
+          {x.jahre == null ? '–' : x.jahre === 0 ? 'erreicht' : fmtNum(x.jahre, 1) + ' Jahre'}
         </td>
       </tr>
     );
@@ -613,6 +706,8 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
 
       {offen && (
         <div className="grid gap-6 border-t border-line px-4 pb-5 pt-5">
+          <Rechenweg v={v} waehrung={waehrung} />
+
           <div className="grid gap-3 sm:grid-cols-3">
             {(['worst', 'base', 'best'] as Fall[]).map((f) => (
               <SzenarioSpalte key={f} fall={f} wert={e.szenarien[f].wertJeAktie} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
@@ -664,7 +759,32 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
  * Bewertung schlicht „zu hoch" (Insmed wächst 186 %, seine Branchen-Nachbarn
  * einstellig).
  */
-function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGruppe']> }) {
+function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
+  gruppe: NonNullable<BewertungsAntwort['peerGruppe']>;
+  symbol: string;
+  zielKurs: number | null;
+  waehrung: string | null;
+}) {
+  // Die Tabelle zeigt genau das Vielfache, mit dem gerechnet wird — sonst
+  // steht dort EV/Umsatz, während das Verfahren den Buchwert nutzt.
+  const multipleName = {
+    ebitda: 'EV/EBITDA',
+    umsatz: 'EV/Umsatz',
+    umsatzErwartet: 'EV/Umsatz (erwartet)',
+    gewinn: 'KGV',
+    buchwert: 'KBV',
+  }[gruppe.basis ?? 'umsatz'] ?? 'EV/Umsatz';
+
+  const genutztesMultiple = (p: NonNullable<BewertungsAntwort['peerGruppe']>['peers'][number]) => {
+    const x = p as unknown as Record<string, number | null | undefined>;
+    return {
+      ebitda: x.evEbitda,
+      umsatz: x.evUmsatz,
+      umsatzErwartet: x.evUmsatzErwartet,
+      gewinn: x.kgv,
+      buchwert: x.kbv,
+    }[gruppe.basis ?? 'umsatz'] ?? x.evUmsatz;
+  };
   // Wachstum des Zielwerts AUS DERSELBEN QUELLE wie die Gruppe — Yahoo misst es
   // anders (Quartal statt zwölf Monate) und lieferte 296 % gegen 186 %.
   const eigenes = gruppe.ziel?.wachstum ?? null;
@@ -685,7 +805,9 @@ function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGrup
           Der Branchenvergleich braucht einen Maßstab. Diese {gruppe.peers.length} Unternehmen der Branche{' '}
           <span className="text-ink">{gruppe.branche}</span> sind ähnlich groß; aus ihren Kennzahlen wird
           das Vielfache gebildet, mit dem gerechnet wird. Ohne eine solche Gruppe müsste das Modell die
-          Aktie mit sich selbst vergleichen und gäbe nur den heutigen Kurs zurück.
+          Aktie mit sich selbst vergleichen und gäbe nur den heutigen Kurs zurück. Die letzte Spalte
+          übersetzt jedes Vielfache direkt: <span className="text-ink">so viel wäre {symbol} wert, wenn
+          der Markt diese Aktie wie den jeweiligen Wettbewerber bepreisen würde</span>.
         </p>
         {gruppe.sammelkategorie && (
           <p className="max-w-[78ch] text-small leading-relaxed text-warn">
@@ -706,11 +828,16 @@ function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGrup
           </p>
         )}
       </div>
+      {/* Gezeigt wird GENAU das Vielfache, mit dem gerechnet wird — vorher
+          standen hier EV/Umsatz und EV/EBITDA, während das Verfahren bei
+          Klarna den Buchwert nutzte; die maßgebliche Spalte fehlte also.
+          Die letzte Spalte übersetzt jedes fremde Vielfache in einen Kurs
+          für DIESE Aktie: das ist der Grund, warum die Tabelle nützlich ist. */}
       <ScrollListe className="max-h-[340px]">
         <table className="w-full table-fixed">
           <colgroup>
             <col className="w-[78px]" /><col /><col className="w-[104px]" /><col className="w-[100px]" />
-            <col className="w-[104px]" /><col className="w-[104px]" />
+            <col className="w-[116px]" /><col className="w-[150px]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-panel">
             <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
@@ -718,13 +845,15 @@ function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGrup
               <th className="pb-2.5 font-normal">Name</th>
               <th className="pb-2.5 text-right font-normal">Börsenwert</th>
               <th className="pb-2.5 text-right font-normal">Wachstum</th>
-              <th className="pb-2.5 text-right font-normal">EV/Umsatz</th>
-              <th className="pb-2.5 text-right font-normal">EV/EBITDA</th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal">{multipleName}</th>
+              <th className="whitespace-nowrap pb-2.5 text-right font-normal text-accent">Kurs für {symbol}</th>
             </tr>
           </thead>
           <tbody>
             {gruppe.peers.map((p) => {
               const w = (p as { wachstum?: number | null }).wachstum;
+              const k = p.kursFuerZiel;
+              const abw = k != null && zielKurs ? (k - zielKurs) / zielKurs : null;
               return (
                 <tr key={p.symbol} className="border-b border-line/70">
                   <td className="py-2.5 font-mono text-small text-accent">{p.symbol}</td>
@@ -733,8 +862,16 @@ function PeerPanel({ gruppe }: { gruppe: NonNullable<BewertungsAntwort['peerGrup
                   <td className={cn('py-2.5 text-right font-mono text-small tabular-nums', w == null ? 'text-ink3' : w >= 0 ? 'text-up' : 'text-down')}>
                     {w == null ? '–' : fmtPct(w * 100)}
                   </td>
-                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{multiple(p.evUmsatz)}</td>
-                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">{multiple(p.evEbitda)}</td>
+                  <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink2">{multiple(genutztesMultiple(p))}</td>
+                  {/* Kurs und Abstand untereinander — nebeneinander brach die Zelle um */}
+                  <td className="py-2.5 text-right">
+                    <span className="block font-mono text-small tabular-nums text-ink">{jeAktie(k, waehrung)}</span>
+                    {abw != null && (
+                      <span className={cn('block font-mono text-micro tabular-nums', abw >= 0 ? 'text-up' : 'text-down')}>
+                        {fmtPct(abw * 100)} zum Kurs
+                      </span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -878,7 +1015,9 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
 
       {!!d.pipeline?.length && <PipelinePanel pipeline={d.pipeline} />}
 
-      {!!d.peerGruppe?.peers?.length && <PeerPanel gruppe={d.peerGruppe} />}
+      {!!d.peerGruppe?.peers?.length && (
+        <PeerPanel gruppe={d.peerGruppe} symbol={d.symbol} zielKurs={d.kurs} waehrung={d.waehrung} />
+      )}
     </div>
   );
 }
