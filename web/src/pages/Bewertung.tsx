@@ -150,13 +150,68 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
   if (kurs == null || gesamt.base == null) return null;
   const abw = (gesamt.base - kurs) / kurs;
   const anzahl = gesamt.verfahren.length;
+  // Die Verfahren beim Namen nennen — „Mittelwert aus 2 Verfahren" ließ offen,
+  // aus welchen.
   const wie = anzahl === 1
-    ? `Gerechnet mit einem Verfahren (${VERFAHREN_KURZ[gesamt.verfahren[0]]})`
-    : `Mittelwert aus ${anzahl} Verfahren`;
+    ? `Gerechnet mit dem ${VERFAHREN_KURZ[gesamt.verfahren[0]]}`
+    : `Mitte aus ${anzahl} Verfahren (${gesamt.verfahren.map((v) => VERFAHREN_KURZ[v]).join(', ')})`;
 
-  if (Math.abs(abw) < 0.1) return `${wie}: Der Kurs liegt etwa dort, wo die Rechnung ihn sieht.`;
-  if (abw > 0) return `${wie}: ${fmtPct(abw * 100, false)} über dem Kurs — der Markt traut dem Unternehmen weniger zu als diese Annahmen.`;
-  return `${wie}: ${fmtPct(-abw * 100, false)} unter dem Kurs — im Kurs steckt mehr Erwartung, als diese Annahmen hergeben.`;
+  // Die Abweichung in Prozent steht schon in jeder Karte — hier bleibt nur,
+  // WOMIT gerechnet wurde. Was der Abstand zum Kurs bedeutet, sagt der Satz
+  // darunter mit nachprüfbaren Zahlen statt mit einem Urteil.
+  if (Math.abs(abw) < 0.1) return `${wie}. Der Kurs liegt etwa dort, wo die Rechnung ihn sieht.`;
+  return `${wie}.`;
+}
+
+/** Wie die Kennzahl im Satz heißt („müsste DER UMSATZ bei … liegen"). */
+const KENNZAHL_WORT: Record<string, string> = {
+  ebitda: 'der operative Gewinn (EBITDA)',
+  umsatz: 'der Umsatz',
+  umsatzErwartet: 'der Umsatz',
+  gewinn: 'der Nettogewinn',
+  buchwert: 'der Buchwert',
+};
+
+/**
+ * Was der heutige Kurs voraussetzt — in einem Satz, ganz oben.
+ *
+ * Die Zahl steckte bisher nur in der Gegenprobe im aufgeklappten Verfahren.
+ * Dort beantwortet sie aber genau die Frage, die beim Blick auf „13,79 USD bei
+ * einem Kurs von 38,17" als Erstes aufkommt: Was müsste passieren, damit der
+ * Kurs aufgeht? Das ist die nützlichere Information als die Abweichung in
+ * Prozent — sie ist nachprüfbar statt wertend.
+ */
+function KursVoraussetzung({ d }: { d: BewertungsAntwort }) {
+  // Das Verfahren nehmen, das auch den Gesamtwert trägt
+  const v = d.verfahren.find((x) => x.automatisch && x.eingepreist?.kurs);
+  const e = v?.eingepreist?.kurs;
+  if (!v || !e || e.noetig == null) return null;
+
+  const zeigeZahl = (x: number | null | undefined) =>
+    x == null ? '–' : e.art === 'kennzahl' ? fmtCompact(x) : fmtPct(x * 100, false);
+  const Zahl = ({ x, fett }: { x: number | null | undefined; fett?: boolean }) => (
+    <span className={cn('font-mono tabular-nums text-ink', fett && 'font-bold')}>{zeigeZahl(x)}</span>
+  );
+
+  // Je Verfahren ein eigener Satzbau — „müsste die Firma jährliches Wachstum
+  // bei 24 % liegen" war grammatisch schief.
+  const kern = v.id === 'dcf'
+    ? <>müsste das Unternehmen dauerhaft <Zahl x={e.noetig} fett /> pro Jahr wachsen{e.heute != null && <>, erwartet werden <Zahl x={e.heute} /></>}</>
+    : v.id === 'residual'
+      ? <>müsste die <span className="font-bold text-ink">Eigenkapitalrendite</span> bei <Zahl x={e.noetig} fett /> liegen{e.heute != null && <>, heute sind es <Zahl x={e.heute} /></>}</>
+      : <>müsste <span className="font-bold text-ink">{KENNZAHL_WORT[v.basis ?? ''] ?? 'der Umsatz'}</span> bei <Zahl x={e.noetig} fett /> liegen{e.heute != null && <>, heute sind es <Zahl x={e.heute} /></>}</>;
+
+  return (
+    <p className="mt-2 max-w-[78ch] text-base leading-relaxed text-ink2">
+      Damit der Kurs von{' '}
+      <span className="font-mono tabular-nums text-ink">{jeAktie(d.kurs, d.waehrung)}</span> aufgeht, {kern}
+      {/* Beträge wie „2,05 Mrd." enden selbst auf einen Punkt — steht ein
+          solcher Wert am Satzende, entfällt der Schlusspunkt. */}
+      {e.jahre != null && e.jahre > 0
+        ? <>{' '}— beim erwarteten Tempo rund <span className="font-mono font-bold tabular-nums text-ink">{fmtNum(e.jahre, 1)} Jahre</span>.</>
+        : (e.art === 'kennzahl' ? null : '.')}
+    </p>
+  );
 }
 
 /**
@@ -1274,7 +1329,18 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
           </Empty>
         ) : (
           <>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {/* Ohne diese Zeile liest sich „REALISTISCH 13,79 USD" wie ein
+                Kursziel. Es ist aber etwas anderes: was das Geschäft trägt, das
+                heute schon da ist (Micha: „wie kann der realistische Wert so
+                krass unter dem Kurs liegen?"). */}
+            <div className="mt-5 flex items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-accent">
+              Was die heutigen Zahlen tragen
+              <Erklaert
+                className="ml-0"
+                text="Gerechnet mit Umsatz, Gewinn und Bilanz von heute und dem Maßstab der Wettbewerber. Das ist kein Kursziel: Künftiges Wachstum steckt hier nur so weit drin, wie die Schätzungen fürs nächste Jahr es hergeben. Was der Markt darüber hinaus erwartet, steht darunter."
+              />
+            </div>
+            <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
               {(['worst', 'base', 'best'] as Fall[]).map((f) => (
                 <SzenarioSpalte
                   key={f}
@@ -1289,6 +1355,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
               ))}
             </div>
             {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}
+            <KursVoraussetzung d={d} />
             {weitAuseinander && (
               <p className="mt-2 max-w-[78ch] text-small leading-relaxed text-ink3">
                 Die Verfahren liegen weit auseinander (

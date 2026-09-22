@@ -136,6 +136,8 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
         anzahl: peers.peers.length,
         namen: peers.peers.map((p) => p.symbol),
         evUmsatz: peerWerte('evUmsatz'),
+        // ohne Ausreißer-Kappung: hier zählt die typische Marge der Branche
+        ebitdaMargen: (peers.peers ?? []).map((p) => p.ebitdaMarge).filter((v) => typeof v === 'number' && v > 0),
         evUmsatzErwartet: peerWerte('evUmsatzErwartet'),
         evEbitda: peerWerte('evEbitda'),
         kgv: peerWerte('kgv'),
@@ -184,7 +186,8 @@ export function anwendbareVerfahren(roh) {
     } else {
       abgelehnt.push({ id: 'residual', grund: 'Buchwert oder Eigenkapitalrendite fehlen bzw. sind negativ.' });
     }
-    if ((peers?.kgv?.length ?? 0) >= 3 && zahl(roh.nettoergebnis) > 0) {
+    const nettoMarge = zahl(roh.nettoergebnis) > 0 && zahl(roh.umsatz) > 0 ? roh.nettoergebnis / roh.umsatz : null;
+    if ((peers?.kgv?.length ?? 0) >= 3 && nettoMarge != null && nettoMarge >= VORGABEN.mindestNettoMarge) {
       raus.push({ id: 'multiples', basis: 'gewinn', grund: `Gewinnvielfaches im Vergleich zu ${peers.anzahl} Wettbewerbern.` });
     } else if ((peers?.kbv?.length ?? 0) >= 3 && zahl(roh.eigenkapital) > 0) {
       raus.push({ id: 'multiples', basis: 'buchwert', grund: `Buchwertvielfaches im Vergleich zu ${peers.anzahl} Wettbewerbern.` });
@@ -196,8 +199,22 @@ export function anwendbareVerfahren(roh) {
 
   // DCF braucht ein positives operatives Ergebnis und eine Wachstumsschätzung.
   const wachstum = roh.schaetzung?.wachstum ?? roh.umsatzwachstum;
+  // Freier Zahlungsstrom je Euro Umsatz — dieselbe Formel wie in rechneDcf.
+  const fcfMarge = zahl(roh.operativeMarge) != null
+    ? roh.operativeMarge * (1 - (zahl(roh.steuerquote) ?? VORGABEN.steuerquote))
+      + (roh.investitionsquote != null ? roh.abschreibungsquote ?? 0 : 0)
+      - (roh.investitionsquote ?? 0)
+    : null;
   if (!(zahl(roh.umsatz) > 0) || !(zahl(roh.operativeMarge) > 0)) {
     abgelehnt.push({ id: 'dcf', grund: 'Operativ noch nicht profitabel — es gibt keine Zahlungsströme, die sich abzinsen ließen.' });
+  } else if (fcfMarge != null && fcfMarge < VORGABEN.mindestFcfMargeFuerDcf) {
+    // Gemessen wird der freie Zahlungsstrom des ersten Prognosejahres, genau so
+    // wie ihn rechneDcf bildet: Betriebsergebnis nach Steuern + Abschreibungen
+    // − Investitionen. Bleibt davon nichts, ist das Ergebnis beliebig.
+    abgelehnt.push({
+      id: 'dcf',
+      grund: `Nach Investitionen bleibt vom Umsatz praktisch kein freier Zahlungsstrom übrig (${pz(fcfMarge)}). Eine Zehnjahresrechnung darauf misst Rundungsfehler: schon ein halber Prozentpunkt mehr Marge würde das Ergebnis vervielfachen.`,
+    });
   } else if (zahl(wachstum) == null) {
     abgelehnt.push({ id: 'dcf', grund: 'Keine belastbare Wachstumsschätzung verfügbar.' });
   } else if (wachstum > VORGABEN.maxWachstumFuerDcf) {
@@ -228,7 +245,19 @@ export function anwendbareVerfahren(roh) {
   //     so auf 5,5 Mrd, während der Markt 26,5 Mrd zahlt).
   //  3. Sonst der heutige Umsatz.
   const waechstDeutlich = (zahl(wachstum) ?? 0) > VORGABEN.wachstumFuerForward;
-  if ((peers?.evEbitda?.length ?? 0) >= 3 && zahl(roh.ebitda) > 0) {
+  // Das EBITDA muss die Firma auch tragen. Entscheidend ist nicht eine absolute
+  // Schwelle — Handelskonzerne verdienen strukturell 4 bis 6 % und werden
+  // trotzdem über EV/EBITDA bewertet —, sondern der Abstand zur eigenen
+  // Branche: Samsara kommt auf 1,7 %, seine Vergleichsgruppe auf rund 20 %. Das
+  // Vielfache profitabler Wettbewerber auf eine solche Restgröße ergibt einen
+  // Wert nahe null (2,92 USD bei einem Kurs von 38) — die dünne Marge wird
+  // zweimal bestraft. Unterhalb der halben Branchenmarge zählt der Umsatz.
+  const ebitdaMarge = zahl(roh.ebitda) > 0 && zahl(roh.umsatz) > 0 ? roh.ebitda / roh.umsatz : null;
+  const brancheMarge = median(peers?.ebitdaMargen ?? []);
+  const ebitdaTraegt = ebitdaMarge != null
+    && ebitdaMarge >= VORGABEN.mindestEbitdaMarge
+    && (brancheMarge == null || ebitdaMarge >= brancheMarge * VORGABEN.margenAbstandZurBranche);
+  if ((peers?.evEbitda?.length ?? 0) >= 3 && ebitdaTraegt) {
     raus.push({ id: 'multiples', basis: 'ebitda', grund: `EV/EBITDA im Vergleich zu ${peers.anzahl} Wettbewerbern derselben Branche.` });
   } else if (waechstDeutlich && (peers?.evUmsatzErwartet?.length ?? 0) >= 3 && zahl(roh.umsatzErwartet) > 0) {
     raus.push({ id: 'multiples', basis: 'umsatzErwartet',

@@ -185,6 +185,9 @@ function zeileZuObjekt(row) {
     kurs: typeof kurs === 'number' ? kurs : null,
     waehrung: typeof waehrung === 'string' ? waehrung : null,
     umsatzErwartet: typeof umsatzErwartet === 'number' ? umsatzErwartet : null,
+    // Marge der Wettbewerber: Maßstab dafür, ob das eigene EBITDA als
+    // Bezugsgröße überhaupt taugt.
+    ebitdaMarge: ebitda > 0 && umsatz > 0 ? ebitda / umsatz : null,
     evUmsatz: ev > 0 && umsatz > 0 ? ev / umsatz : null,
     // auf den ERWARTETEN Umsatz — so vergleichen Analysten wachsende Firmen
     evUmsatzErwartet: ev > 0 && umsatzErwartet > 0 ? ev / umsatzErwartet : null,

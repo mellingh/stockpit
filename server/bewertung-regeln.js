@@ -77,6 +77,25 @@ export const VORGABEN = {
   // Ab diesem Wachstum wird das Multiple auf den ERWARTETEN Umsatz gerechnet
   // statt auf den heutigen.
   wachstumFuerForward: 0.20,
+  // Ein Vielfaches auf eine Kennzahl nahe null ist keine Bewertung, sondern ein
+  // Zufallsgenerator: Samsara verdient 31 Mio EBITDA bei 1,85 Mrd Umsatz
+  // (1,7 %). Das Vielfache profitabler Wettbewerber darauf ergab 2,92 USD bei
+  // einem Kurs von 38 — die duenne Marge wurde doppelt bestraft (einmal in der
+  // eigenen Kennzahl, einmal im fremden Vielfachen). Unterhalb dieser Schwellen
+  // wird deshalb auf den Umsatz ausgewichen, so wie Analysten es bei solchen
+  // Firmen auch tun.
+  // absolute Untergrenze (ein EBITDA nahe null taugt nie als Bezugsgroesse)
+  mindestEbitdaMarge: 0.03,
+  // und der Abstand zur Branche: weniger als die halbe Branchenmarge heisst,
+  // dass das fremde Vielfache nicht uebertragbar ist
+  margenAbstandZurBranche: 0.5,
+  mindestNettoMarge: 0.02,
+  // Dieselbe Logik fuer den DCF, aber an der richtigen Stelle gemessen: nicht
+  // an der operativen Marge (Handelskonzerne wie Walmart oder Kroger verdienen
+  // strukturell 2 bis 4 % und sind trotzdem gut planbar), sondern am FREIEN
+  // Zahlungsstrom nach Investitionen. Bleibt davon nichts uebrig, zinst die
+  // Rechnung Rundungsfehler ab — Samsara kam so auf 1,22 USD bei Kurs 38.
+  mindestFcfMargeFuerDcf: 0.01,
   monteCarloLaeufe: 10000,
   sensitivitaetSchritt: 0.10,
 };
