@@ -173,6 +173,107 @@ const KENNZAHL_WORT: Record<string, string> = {
 };
 
 /**
+ * Die ernsten Prüfergebnisse ganz oben statt versteckt im aufgeklappten
+ * Verfahren. „Der Endwert macht 85 % des Werts aus" oder „keine
+ * Vergleichsgruppe gefunden" entscheidet darüber, wie viel die Zahl darüber
+ * wert ist — das gehört neben die Zahl, nicht drei Klicks entfernt.
+ */
+function Vorbehalte({ d }: { d: BewertungsAntwort }) {
+  // Jede Warnung nur einmal, auch wenn zwei Verfahren sie melden
+  const gesehen = new Set<string>();
+  const wichtig = d.verfahren
+    .filter((v) => v.automatisch)
+    .flatMap((v) => v.ergebnis.warnungen)
+    .filter((w) => (w.stufe === 'rot' || w.stufe === 'gelb') && !gesehen.has(w.id) && gesehen.add(w.id))
+    .slice(0, 3);
+  if (!wichtig.length) return null;
+
+  return (
+    <ul className="mt-4 grid gap-1.5 border-t border-line pt-4" aria-live="polite">
+      {wichtig.map((w) => (
+        <li key={w.id} className="flex gap-2.5">
+          <AlertTriangle size={13} aria-hidden className={cn('mt-0.5 shrink-0', w.stufe === 'rot' ? 'text-down' : 'text-warn')} />
+          <span className="max-w-[78ch] text-small leading-relaxed">
+            <span className="text-ink2">{w.text}</span>
+            {w.hinweis && <span className="text-ink3"> {w.hinweis}</span>}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Drei Zahlen nebeneinander, damit klar ist, welcher Art sie sind (Micha:
+ * „dann hat man drei verschiedene Werte").
+ *
+ *  1. Was der Markt heute zahlt — gemessen, kein Modell.
+ *  2. Was laut Bilanz an Substanz dahintersteht — gemessen, ebenfalls kein
+ *     Modell: Vermögen minus Schulden, geteilt durch alle Aktien. Das ist der
+ *     Boden, unter den eine Bewertung selten fällt, solange die Firma nicht
+ *     Geld verbrennt.
+ *  3. Diese Rechnung — gerechnet, mit dem Maßstab der Wettbewerber.
+ *  4. Was Analysten erwarten — eine Meinung, kein Fakt.
+ *
+ * Die Kennzeichnung „gemessen / gerechnet / Meinung" ist der eigentliche Punkt:
+ * Sie macht sichtbar, welche Zahl man nachprüfen kann und welche nicht.
+ */
+function VierBlickwinkel({ d }: { d: BewertungsAntwort }) {
+  const { waehrung, substanz, gesamt, analysten } = d;
+  const spalten: { titel: string; wert: number | null; art: string; info: string }[] = [
+    {
+      titel: 'Kurs heute',
+      wert: d.kurs,
+      art: 'gemessen',
+      info: 'Was der Markt in diesem Moment für eine Aktie zahlt. Keine Schätzung — aber auch keine Aussage darüber, ob der Preis angemessen ist.',
+    },
+    {
+      titel: 'Substanz je Aktie',
+      wert: substanz?.eigenkapitalJeAktie ?? null,
+      art: 'gemessen',
+      info: `Vermögen minus Schulden laut Bilanz, geteilt durch alle Aktien (Buchwert). Das ist da, auch wenn das Geschäft morgen stillsteht${
+        substanz?.nettoCashJeAktie != null
+          ? ` — davon ${jeAktie(substanz.nettoCashJeAktie, waehrung)} als Kasse abzüglich Schulden`
+          : ''
+      }. Bei Firmen, deren Wert an Marken, Patenten oder Software hängt, ist dieser Wert niedrig, ohne dass das ein Mangel wäre.`,
+    },
+    {
+      titel: 'Diese Rechnung',
+      wert: gesamt.base,
+      art: 'gerechnet',
+      info: 'Das Ergebnis der Verfahren unten — die heutigen Zahlen, gemessen am Maßstab der Wettbewerber. Nachvollziehbar, aber abhängig davon, wie gut die Vergleichsgruppe passt.',
+    },
+    {
+      titel: 'Analysten',
+      wert: analysten?.kursziel ?? null,
+      art: 'Meinung',
+      info: `Durchschnittliches Kursziel auf zwölf Monate${
+        analysten?.anzahl ? ` aus ${analysten.anzahl} Einschätzungen` : ''
+      }. Analysten modellieren die Entwicklung über viele Jahre und liegen oft über dem, was die heutigen Zahlen tragen — nachprüfbar ist diese Zahl nicht.`,
+    },
+  ];
+
+  if (spalten.every((s) => s.wert == null)) return null;
+
+  return (
+    <div className="mt-5 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
+      {spalten.map((s) => (
+        <div key={s.titel} className="grid gap-1 bg-panel2/40 px-4 py-3">
+          <span className="flex items-center gap-1 font-mono text-micro uppercase tracking-[0.14em] text-ink3">
+            {s.titel}
+            <Erklaert text={s.info} className="ml-0" />
+          </span>
+          <span className="font-mono text-lg font-bold tabular-nums text-ink">{jeAktie(s.wert, waehrung)}</span>
+          <span className={cn('text-micro', s.art === 'gemessen' ? 'text-up' : s.art === 'gerechnet' ? 'text-accent' : 'text-ink3')}>
+            {s.art}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Was der heutige Kurs voraussetzt — in einem Satz, ganz oben.
  *
  * Die Zahl steckte bisher nur in der Gegenprobe im aufgeklappten Verfahren.
@@ -306,34 +407,94 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
  */
 function Rechenweg({ v, waehrung }: { v: BewertungsAntwort['verfahren'][number]; waehrung: string | null }) {
   const e = v.ergebnis;
-  const wert = (id: string) => v.modell.annahmen.find((a) => a.id === id)?.wert ?? null;
+  const annahme = (id: string) => v.modell.annahmen.find((a) => a.id === id);
+  const wert = (id: string) => annahme(id)?.wert ?? null;
   const geld = (x: number | null | undefined) => (x == null ? '–' : fmtCompact(x));
 
-  const schritte: { label: string; wert: string; op?: string }[] = [];
+  // Jeder Schritt trägt seine Erklärung (Micha: „ich frage mich, was Vielfaches
+  // der Gruppe ist und wie gerechnet wird"). Wo eine Annahme dahintersteht,
+  // kommt deren Notiz — so steht die Herkunft der Zahl an genau einer Stelle.
+  const schritte: { label: string; wert: string; op?: string; info?: string }[] = [];
 
   if (v.id === 'multiples') {
     const kennzahl = v.modell.annahmen.find((a) => a.id === 'mult.kennzahl');
     const m = wert('mult.multiple');
     const aufEquity = wert('mult.aufEquity') === 1;
-    schritte.push({ label: kurzLabel(kennzahl?.label ?? 'Kennzahl'), wert: geld(kennzahl?.wert) });
-    schritte.push({ op: '×', label: 'Vielfaches der Gruppe', wert: m == null ? '–' : fmtNum(m, 1) + '×' });
-    schritte.push({ op: '=', label: aufEquity ? 'Wert des Eigenkapitals' : 'Wert des Unternehmens', wert: geld(e.kern.enterpriseValue ?? e.equity.equityValue) });
+    schritte.push({
+      label: kurzLabel(kennzahl?.label ?? 'Kennzahl'),
+      wert: geld(kennzahl?.wert),
+      info: (kennzahl?.notiz ?? '') + ' Diese Zahl des Unternehmens ist der Ausgangspunkt der Rechnung.',
+    });
+    schritte.push({
+      op: '×',
+      label: 'Vielfaches der Gruppe',
+      wert: m == null ? '–' : fmtNum(m, 1) + '×',
+      info: (annahme('mult.multiple')?.notiz ?? '')
+        + (m == null ? '' : ` Ein Vielfaches von ${fmtNum(m, 1)}× heißt: Für vergleichbare Firmen zahlen Anleger derzeit das ${fmtNum(m, 1)}-Fache dieser Kennzahl.`),
+    });
+    schritte.push({
+      op: '=',
+      label: aufEquity ? 'Wert des Eigenkapitals' : 'Wert des Unternehmens',
+      wert: geld(e.kern.enterpriseValue ?? e.equity.equityValue),
+      info: aufEquity
+        ? 'Kennzahl mal Vielfaches — bei Gewinn und Buchwert ist das direkt der Wert der Aktien, weil beide Größen schon nach Zinsen und Schulden gerechnet sind.'
+        : 'Kennzahl mal Vielfaches — das ist der Preis für das ganze Unternehmen einschließlich seiner Schulden (Enterprise Value).',
+    });
     if (!aufEquity) {
-      schritte.push({ op: '±', label: 'Kasse minus Schulden', wert: geld((e.equity.equityValue ?? 0) - (e.kern.enterpriseValue ?? 0)) });
+      schritte.push({
+        op: '±',
+        label: 'Kasse minus Schulden',
+        wert: geld((e.equity.equityValue ?? 0) - (e.kern.enterpriseValue ?? 0)),
+        info: 'Wer eine Firma kauft, bekommt ihre Kasse mit und übernimmt ihre Schulden. Beides wird deshalb verrechnet, damit am Ende der Wert der Aktien steht (Equity Bridge).',
+      });
     }
   } else if (v.id === 'residual') {
-    schritte.push({ label: 'Eigenkapital', wert: geld(wert('res.eigenkapital')) });
-    schritte.push({ op: '×', label: 'faires Kurs-Buchwert-Verhältnis', wert: e.kern.fairesKbv == null ? '–' : fmtNum(e.kern.fairesKbv, 2) + '×' });
-    schritte.push({ op: '=', label: 'Wert des Eigenkapitals', wert: geld(e.equity.equityValue) });
+    schritte.push({
+      label: 'Eigenkapital',
+      wert: geld(wert('res.eigenkapital')),
+      info: 'Das Vermögen laut Bilanz abzüglich aller Schulden — bei Banken und Versicherern die Grundlage jeder Bewertung.',
+    });
+    schritte.push({
+      op: '×',
+      label: 'faires Kurs-Buchwert-Verhältnis',
+      wert: e.kern.fairesKbv == null ? '–' : fmtNum(e.kern.fairesKbv, 2) + '×',
+      info: 'Wie viel das Eigenkapital wert sein darf, hängt davon ab, wie viel Rendite darauf erwirtschaftet wird: Wer mehr verdient, als das Kapital kostet, ist mehr wert als sein Buchwert. Gerechnet als (Rendite − Wachstum) geteilt durch (Kapitalkosten − Wachstum).',
+    });
+    schritte.push({
+      op: '=',
+      label: 'Wert des Eigenkapitals',
+      wert: geld(e.equity.equityValue),
+      info: 'Buchwert mal dem fairen Verhältnis — der Wert, den die Aktien zusammen haben sollten.',
+    });
   } else if (v.id === 'dcf') {
-    schritte.push({ label: 'Zahlungsströme der Prognosejahre', wert: geld(e.kern.barwertExplizit) });
-    schritte.push({ op: '+', label: 'Wert danach (Endwert)', wert: geld(e.kern.endwert) });
-    schritte.push({ op: '±', label: 'Kasse minus Schulden', wert: geld((e.equity.equityValue ?? 0) - (e.kern.enterpriseValue ?? 0)) });
+    schritte.push({
+      label: 'Zahlungsströme der Prognosejahre',
+      wert: geld(e.kern.barwertExplizit),
+      info: 'Die freien Mittel der nächsten zehn Jahre, jeweils auf heute abgezinst: Geld in zehn Jahren ist weniger wert als Geld heute.',
+    });
+    schritte.push({
+      op: '+',
+      label: 'Wert danach (Endwert)',
+      wert: geld(e.kern.endwert),
+      info: 'Was das Geschäft nach dem zehnten Jahr noch wert ist, ebenfalls auf heute gerechnet. Macht dieser Teil den Großteil aus, hängt das Ergebnis vor allem an einer Annahme über die ferne Zukunft — darauf weist die Prüfliste hin.',
+    });
+    schritte.push({
+      op: '±',
+      label: 'Kasse minus Schulden',
+      wert: geld((e.equity.equityValue ?? 0) - (e.kern.enterpriseValue ?? 0)),
+      info: 'Wer eine Firma kauft, bekommt ihre Kasse mit und übernimmt ihre Schulden. Beides wird deshalb verrechnet, damit am Ende der Wert der Aktien steht (Equity Bridge).',
+    });
   } else {
     return null;
   }
 
-  schritte.push({ op: '÷', label: 'Aktien', wert: fmtCompact(e.equity.aktien) });
+  schritte.push({
+    op: '÷',
+    label: 'Aktien',
+    wert: fmtCompact(e.equity.aktien),
+    info: (annahme('bridge.aktien')?.notiz ?? '')
+      + ' Geteilt wird durch ALLE Ansprüche auf den Gewinn: sämtliche Aktiengattungen, Optionen und Wandelrechte, dazu die erwartete künftige Verwässerung.',
+  });
 
   return (
     <div className="rounded-md border border-line bg-panel px-4 py-3.5">
@@ -344,7 +505,10 @@ function Rechenweg({ v, waehrung }: { v: BewertungsAntwort['verfahren'][number];
             {s.op && <span aria-hidden className="font-mono text-lg text-ink3">{s.op}</span>}
             <span className="grid gap-0.5">
               <span className="font-mono text-small tabular-nums text-ink">{s.wert}</span>
-              <span className="text-micro text-ink3">{s.label}</span>
+              <span className="flex items-center gap-1 text-micro text-ink3">
+                {s.label}
+                {s.info && <Erklaert text={s.info.trim()} className="ml-0" />}
+              </span>
             </span>
           </div>
         ))}
@@ -354,7 +518,13 @@ function Rechenweg({ v, waehrung }: { v: BewertungsAntwort['verfahren'][number];
             <span className="font-mono text-small font-bold tabular-nums text-accent">
               {jeAktie(e.szenarien.base.wertJeAktie, waehrung)}
             </span>
-            <span className="text-micro text-ink3">je Aktie</span>
+            <span className="flex items-center gap-1 text-micro text-ink3">
+              je Aktie
+              <Erklaert
+                className="ml-0"
+                text="Das Ergebnis dieser Rechnung — was eine Aktie nach diesem Verfahren wert wäre, wenn die Firma heute so bewertet würde wie ihre Vergleichsgruppe. Kein Kursziel: Erwartungen an künftiges Wachstum stecken nur so weit drin, wie die Kennzahl sie schon enthält."
+              />
+            </span>
           </span>
         </div>
       </div>
@@ -1372,6 +1542,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
                 />
               ))}
             </div>
+            <VierBlickwinkel d={d} />
             {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}
             <KursVoraussetzung d={d} />
             {weitAuseinander && (
@@ -1383,6 +1554,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
               </p>
             )}
             <KursZerlegung d={d} />
+            <Vorbehalte d={d} />
             <SzenarienErklaert anzahl={gesamt.verfahren.length} />
           </>
         )}

@@ -549,6 +549,15 @@ export interface BewertungsAntwort {
   }[] | null;
   /** Summen über alle Phasen — getrenntes Feld, damit gespeicherte Fassungen weiter lesbar bleiben */
   pipelineGesamt?: { laufend: number; abgeschlossen: number; abgebrochen: number } | null;
+  /** Ist-Stand ohne Modell: Börsenwert und Bilanzsubstanz je Aktie */
+  substanz?: {
+    boersenwert: number | null;
+    aktien: number;
+    eigenkapital: number | null;
+    eigenkapitalJeAktie: number | null;
+    nettoCashJeAktie: number | null;
+    umsatzJeAktie: number | null;
+  } | null;
   /** ETF/Fonds statt Einzelaktie — dann gibt es bewusst kein Ergebnis */
   istFonds?: boolean;
   /** Kennzahlen-Vergleich mit der Branche: entscheidet über die Stelle in der Peer-Bandbreite */

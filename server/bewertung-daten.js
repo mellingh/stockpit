@@ -15,6 +15,56 @@ import { POS_PHASEN, RNPV_MULTIPLE, VORGABEN, SZENARIO_SONDERREGELN } from './be
 import { perzentil } from './bewertung.js';
 
 const zahl = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** Wie viele Geschäftsjahre in die Durchschnitte eingehen. */
+const JAHRE_SCHNITT = 3;
+
+/**
+ * Kennzahlen je Geschäftsjahr aus der Jahresreihe — nur Jahre mit Umsatz.
+ * Beträge werden mit demselben Faktor in die Kurswährung gebracht wie der Rest.
+ */
+function jahresReihe(f, fx = 1) {
+  const quote = (wert, umsatz) => (zahl(wert) != null && zahl(umsatz) > 0 ? Math.abs(wert) / umsatz : null);
+  return (f?.reihe ?? [])
+    .filter((j) => zahl(j.totalRevenue) > 0)
+    .map((j) => ({
+      jahr: new Date(j.date).getUTCFullYear(),
+      umsatz: j.totalRevenue * fx,
+      marge: zahl(j.operatingIncome) != null ? j.operatingIncome / j.totalRevenue : null,
+      investitionen: quote(j.capitalExpenditure, j.totalRevenue),
+      abschreibungen: quote(
+        j.depreciationAndAmortization ?? j.depreciationAmortizationDepletion ?? j.reconciledDepreciation,
+        j.totalRevenue,
+      ),
+      steuerquote: zahl(j.taxRateForCalcs),
+      aktien: zahl(j.dilutedAverageShares),
+      aktienverguetung: quote(j.stockBasedCompensation, j.totalRevenue),
+    }));
+}
+
+/** Durchschnitt der letzten n Jahre eines Feldes (null, wenn nichts da ist). */
+function mehrjahresSchnitt(reihe, feld, n = JAHRE_SCHNITT) {
+  const werte = reihe.slice(-n).map((j) => j[feld]).filter((v) => zahl(v) != null);
+  return werte.length ? werte.reduce((s, v) => s + v, 0) / werte.length : null;
+}
+
+/**
+ * Jährliche Verwässerung aus der gemessenen Aktienanzahl.
+ *
+ * Bisher stand hier pauschal null — bei Samsara wuchs die Aktienzahl in vier
+ * Jahren von 514 auf 573 Mio (2,8 % pro Jahr), weil ein Fünftel des Umsatzes
+ * als Aktienvergütung ausgezahlt wird. Über die Haltedauer verwässert das den
+ * Wert je Aktie spürbar. Aktienrückkäufe (negative Werte) bleiben unbeachtet:
+ * das Geld dafür steckt schon im Cashflow, es zweimal gutzuschreiben wäre
+ * zu freundlich gerechnet.
+ */
+function verwaesserungProJahr(reihe) {
+  const werte = reihe.map((j) => j.aktien).filter((v) => zahl(v) > 0);
+  if (werte.length < 2) return null;
+  const jahre = werte.length - 1;
+  const rate = (werte[werte.length - 1] / werte[0]) ** (1 / jahre) - 1;
+  return Math.min(0.05, Math.max(0, rate));
+}
 const isoTag = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null);
 const median = (a) => perzentil(a ?? [], 0.5);
 
@@ -67,6 +117,7 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
    */
   const fx = zahl(zusatz.waehrungsfaktor) ?? 1;
   const geld = (v) => (zahl(v) == null ? null : v * fx);
+  const jahre = jahresReihe(f, fx);
 
   const umsatz = geld(fd.totalRevenue);
   const opCf = geld(fd.operatingCashflow);
@@ -79,6 +130,17 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
   // Ausreisser kappen: ein einzelner Wert wie CrowdStrikes EV/EBITDA von 935
   // zieht sonst das 75. Perzentil und damit den ganzen Best Case hoch. Erst
   // grob filtern, dann alles ueber dem Dreifachen des Medians verwerfen.
+  // Für Hersteller mit eigener Bank zählt nur, wer selbst so finanziert ist:
+  // Volkswagen gegen Ford, GM, Toyota und Stellantis — nicht gegen Tesla und
+  // Ferrari, die ohne Finanzierungstochter und mit ganz anderen Vielfachen
+  // dastehen. Gemessen am Verhältnis Schulden zu Eigenkapital.
+  const hochVerschuldet = (p) => typeof p.schuldenquote === 'number' && p.schuldenquote > 1.5;
+  const peerWerteGefiltert = (feld, filter) => {
+    const grob = (peers?.peers ?? []).filter(filter).map((p) => p[feld])
+      .filter((v) => zahl(v) != null && v > 0 && v < 200);
+    const m = median(grob);
+    return m == null ? grob : grob.filter((v) => v <= m * 3);
+  };
   const peerWerte = (feld) => {
     const grob = (peers?.peers ?? []).map((p) => p[feld]).filter((v) => zahl(v) != null && v > 0 && v < 200);
     const m = median(grob);
@@ -120,10 +182,36 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     schulden: geld(fd.totalDebt),
     leasing: geld(f.capitalLeaseObligations),
     minderheiten: geld(f.minorityInterest),
-    aktienVerwaessert: zahl(f.dilutedAverageShares) ?? zahl(ks.impliedSharesOutstanding) ?? zahl(ks.sharesOutstanding),
+    // Die GRÖSSTE der drei Zahlen zählt, nicht die erstbeste:
+    //  - `dilutedAverageShares` ist der DURCHSCHNITT des letzten Geschäftsjahres
+    //    und hinkt jeder Kapitalerhöhung hinterher (Assembly Biosciences: 11,2
+    //    statt 20,4 Mio Stück — der Wert je Aktie war dadurch 82 % zu hoch);
+    //  - `impliedSharesOutstanding` zählt alle Aktiengattungen (bei Samsara
+    //    gibt es A- und B-Aktien: 380 Mio ausgewiesen, 586 Mio insgesamt);
+    //  - `dilutedAverageShares` enthält dafür Optionen und Wandelrechte.
+    // Wer eine Aktie bewertet, teilt durch ALLE Ansprüche auf den Gewinn.
+    aktienVerwaessert: Math.max(
+      zahl(f.dilutedAverageShares) ?? 0,
+      zahl(ks.impliedSharesOutstanding) ?? 0,
+      zahl(ks.sharesOutstanding) ?? 0,
+    ) || null,
     aktienAusstehend: zahl(ks.sharesOutstanding),
-    steuerquote: zahl(f.taxRateForCalcs),
-    investitionsquote: zahl(f.capitalExpenditure) != null && zahl(f.totalRevenue) ? Math.abs(f.capitalExpenditure) / f.totalRevenue : null,
+    // Steuerquote gedeckelt: in Verlustjahren meldet die Quelle Werte wie 40 %
+    // oder 0 %, beides verzerrt eine Zehnjahresrechnung.
+    steuerquote: (() => {
+      const s = mehrjahresSchnitt(jahre, 'steuerquote') ?? zahl(f.taxRateForCalcs);
+      return s == null ? null : Math.min(0.35, Math.max(0.15, s));
+    })(),
+    // Investitionen und Steuern kommen als Schnitt der letzten drei Jahre:
+    // beide springen von Jahr zu Jahr (Microsoft 13 → 35 % Investitionsquote,
+    // Samsara 40 % Steuerquote in einem Verlustjahr). Die operative Marge bleibt
+    // dagegen der aktuelle Wert — sie ist die heutige Ertragskraft, und die
+    // Szenarien verschieben sie ohnehin um ±3 Punkte.
+    investitionsquote: mehrjahresSchnitt(jahre, 'investitionen')
+      ?? (zahl(f.capitalExpenditure) != null && zahl(f.totalRevenue) ? Math.abs(f.capitalExpenditure) / f.totalRevenue : null),
+    jahresreihe: jahre,
+    verwaesserungProJahr: verwaesserungProJahr(jahre),
+    aktienverguetungsquote: jahre.length ? jahre[jahre.length - 1].aktienverguetung : null,
     // Abschreibungen sind KEIN Geldabfluss — sie mindern nur den ausgewiesenen
     // Gewinn. Wer sie in der Cashflow-Rechnung nicht zurückaddiert, bewertet
     // jede kapitalintensive Firma systematisch zu niedrig: Tesla kam so auf
@@ -131,7 +219,7 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     // Drei Feldnamen, weil Yahoo je nach Branche anders benennt: Ölkonzerne
     // führen den Posten als „Depletion" (ExxonMobil hat kein
     // depreciationAndAmortization, wohl aber 26 Mrd unter dem längeren Namen).
-    abschreibungsquote: (() => {
+    abschreibungsquote: mehrjahresSchnitt(jahre, 'abschreibungen') ?? (() => {
       const da = zahl(f.depreciationAndAmortization)
         ?? zahl(f.depreciationAmortizationDepletion)
         ?? zahl(f.reconciledDepreciation);
@@ -163,6 +251,8 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
         evEbitda: peerWerte('evEbitda'),
         kgv: peerWerte('kgv'),
         kbv: peerWerte('kbv'),
+        kgvVerschuldet: peerWerteGefiltert('kgv', hochVerschuldet),
+        kbvVerschuldet: peerWerteGefiltert('kbv', hochVerschuldet),
       }
       : null,
   };
@@ -249,6 +339,38 @@ export function anwendbareVerfahren(roh) {
   // DCF braucht ein positives operatives Ergebnis und eine Wachstumsschätzung.
   const wachstum = roh.schaetzung?.wachstum ?? roh.umsatzwachstum;
   const immobilie = istImmobilie(roh);
+
+  // Hersteller mit eigener Bank: Die Finanzierungsschulden gehören zum
+  // Geschäftsmodell und stehen Kundenforderungen gegenüber, die im EBITDA nicht
+  // vorkommen. Zieht man sie wie normale Schulden ab, bleibt vom Wert nichts
+  // übrig — Volkswagen, BMW, Mercedes, Ford und Deere kamen alle auf negative
+  // Werte je Aktie. Bewertet wird dann über Gewinn oder Buchwert, also über
+  // Größen, in denen die Finanzierung schon steckt (dieselbe Logik wie bei
+  // Banken, nur eine Stufe weiter unten).
+  const nettoSchulden = (zahl(roh.schulden) ?? 0) - (zahl(roh.cash) ?? 0);
+  const hebel = zahl(roh.ebitda) > 0 ? nettoSchulden / roh.ebitda : null;
+  const eigeneBank = !finanz && !immobilie && !istNetzbetreiber(roh)
+    && hebel != null && hebel > VORGABEN.maxHebelFuerEv;
+  if (eigeneBank) {
+    const hebelText = hebel.toFixed(1).replace('.', ',');
+    const grund = `Die Netto-Verschuldung beträgt das ${hebelText}-Fache des operativen Gewinns. Bei Herstellern mit eigener Finanzierungstochter gehört dieser Teil zum Geschäft und steht Kundenforderungen gegenüber — Verfahren über den Unternehmenswert ziehen ihn ab und kommen auf einen Wert unter null.`;
+    abgelehnt.push({ id: 'dcf', grund });
+    // Hier zählt NUR, ob unter dem Strich Gewinn steht — nicht die Nettomarge.
+    // Autohersteller verdienen strukturell 1 bis 3 % vom Umsatz; mit der
+    // Margenschwelle fiel Volkswagen auf das Buchwertvielfache, und weil die
+    // Gruppe Tesla und Ferrari enthält, kam ein Wert vom Fünffachen des Kurses
+    // heraus. Über den Gewinn landet dieselbe Aktie in der Nähe des Kurses.
+    if ((peers?.kgv?.length ?? 0) >= 3 && zahl(roh.nettoergebnis) > 0) {
+      raus.push({ id: 'multiples', basis: 'gewinn',
+        grund: `Gewinnvielfaches im Vergleich zu ${peers.anzahl} Wettbewerbern — im Gewinn steckt die Finanzierung bereits drin.` });
+    } else if ((peers?.kbv?.length ?? 0) >= 3 && zahl(roh.eigenkapital) > 0) {
+      raus.push({ id: 'multiples', basis: 'buchwert',
+        grund: `Buchwertvielfaches im Vergleich zu ${peers.anzahl} Wettbewerbern — der Gewinn ist zu dünn, das Eigenkapital trägt die Bewertung.` });
+    } else {
+      abgelehnt.push({ id: 'multiples', grund: 'Keine Vergleichsgruppe mit brauchbarem Gewinn- oder Buchwertvielfachen.' });
+    }
+    return { anwendbar: raus, abgelehnt };
+  }
   // Freier Zahlungsstrom je Euro Umsatz, aus der Jahresreihe zusammengesetzt.
   // Yahoos Feld `freeCashflow` taugt dafür NICHT — nachgemessen weist es für
   // Microsoft 5 % vom Umsatz aus statt rund 21 %, für Coca-Cola 10 statt 19 %.
@@ -333,11 +455,52 @@ export const MANUELLE_VERFAHREN = {
   sotp: 'Segmentumsätze stehen nur im Geschäftsbericht — die trägst du selbst ein.',
 };
 
+/** „Die letzten Jahre: 2023: 13,3 % · 2024: 18,1 % · 2025: 22,9 %" */
+function jahresNotiz(roh, feld) {
+  const jahre = (roh.jahresreihe ?? []).slice(-4).filter((j) => zahl(j[feld]) != null);
+  if (jahre.length < 2) return '';
+  const teile = jahre.map((j) => `${j.jahr}: ${(j[feld] * 100).toFixed(1).replace('.', ',')} %`);
+  return 'Die letzten Geschäftsjahre — ' + teile.join(' · ') + '.';
+}
+
 const mk = (id, label, wert, quelle, stand, extra = {}) => ({
   id, label, wert, quelle, stand, herkunft: 'auto', ...extra,
 });
 
 /** Aktienanzahl und künftige Verwässerung — braucht jedes Verfahren. */
+/**
+ * Wie viele Aktien kommen noch dazu?
+ *
+ * Bisher stand hier null, sofern keine Kapitalerhöhung drohte — das war zu
+ * freundlich. Aktienvergütung erhöht die Aktienzahl Jahr für Jahr, und zwar
+ * messbar: bei Samsara um 2,8 % pro Jahr (ein Fünftel des Umsatzes geht als
+ * Aktien an die Belegschaft), bei NVIDIA um 0,4 %. Angesetzt wird die gemessene
+ * Rate über drei Jahre — nicht über den ganzen Prognosezeitraum, weil niemand
+ * weiß, wie lange ein Unternehmen so vergütet.
+ *
+ * WICHTIG: Die Aktienvergütung wird NUR hier berücksichtigt, nicht zusätzlich
+ * als Kostenposten. Beides zusammen wäre doppelt gezählt.
+ */
+function verwaesserungAnsatz(roh, verwaesserungNoetig) {
+  const pz = (v) => (v * 100).toFixed(1).replace('.', ',');
+  if (verwaesserungNoetig) {
+    return {
+      wert: SZENARIO_SONDERREGELN.verwaesserung.base,
+      notiz: 'Operativ negativ und Liquidität unter 24 Monaten — eine Kapitalerhöhung ist wahrscheinlich, deshalb vorbelegt.',
+    };
+  }
+  const proJahr = zahl(roh.verwaesserungProJahr);
+  if (!proJahr) {
+    return { wert: 0, notiz: 'Zusätzliche Aktien aus künftigen Kapitalerhöhungen — keine Veränderung messbar.' };
+  }
+  const sbc = zahl(roh.aktienverguetungsquote);
+  return {
+    wert: Math.min(0.25, proJahr * 3),
+    notiz: `Gemessen: Die Aktienzahl stieg zuletzt um ${pz(proJahr)} % pro Jahr, hier über drei Jahre fortgeschrieben.`
+      + (sbc ? ` Ursache ist meist die Aktienvergütung — sie kostet aktuell ${pz(sbc)} % vom Umsatz und taucht im EBITDA nicht auf.` : ''),
+  };
+}
+
 function aktienAnnahmen(roh, verwaesserungNoetig) {
   const st = roh.stand;
   return [
@@ -346,12 +509,10 @@ function aktienAnnahmen(roh, verwaesserungNoetig) {
         notiz: roh.aktienAusstehend && roh.aktienVerwaessert && roh.aktienVerwaessert > roh.aktienAusstehend
           ? `Verwässerte Anzahl inkl. Optionen und Wandelanleihen; ausstehend sind ${Math.round(roh.aktienAusstehend / 1e6)} Mio.`
           : 'Verwässerte Anzahl aus dem Jahresabschluss.' }),
-    mk('bridge.verwaesserung', 'Künftige Verwässerung (Expected Dilution)', verwaesserungNoetig ? SZENARIO_SONDERREGELN.verwaesserung.base : 0,
-      'eigene_schaetzung', st,
+    mk('bridge.verwaesserung', 'Künftige Verwässerung (Expected Dilution)',
+      verwaesserungAnsatz(roh, verwaesserungNoetig).wert, 'eigene_schaetzung', st,
       { einheit: 'prozent', regel: 'verwaesserung', gruppe: 'Equity Bridge',
-        notiz: verwaesserungNoetig
-          ? 'Operativ negativ und Liquidität unter 24 Monaten — eine Kapitalerhöhung ist wahrscheinlich, deshalb vorbelegt.'
-          : 'Zusätzliche Aktien aus künftigen Kapitalerhöhungen.' }),
+        notiz: verwaesserungAnsatz(roh, verwaesserungNoetig).notiz }),
   ];
 }
 
@@ -401,16 +562,20 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
             ? `Konsens von ${roh.schaetzung.analysten ?? '—'} Analysten für ${roh.schaetzung.jahr1?.endet?.slice(0, 4) ?? 'das nächste Jahr'}. Danach schmilzt das Wachstum bis zum Ende des Prognosezeitraums auf die ewige Rate ab.`
             : 'Fortgeschrieben aus dem zuletzt gemessenen Jahreswachstum; schmilzt über den Prognosezeitraum auf die ewige Rate ab.' }),
       mk('dcf.marge', 'Operative Marge (Operating Margin)', roh.operativeMarge ?? 0, 'eigene_schaetzung', st,
-        { einheit: 'prozent', regel: 'marge', gruppe: 'Prognose', notiz: 'Vorbelegt mit der aktuellen Marge.' }),
+        { einheit: 'prozent', regel: 'marge', gruppe: 'Prognose',
+          notiz: 'Vorbelegt mit der aktuellen Marge — sie ist die heutige Ertragskraft. ' + jahresNotiz(roh, 'marge') }),
       mk('dcf.steuerquote', 'Steuerquote (Tax Rate)', roh.steuerquote ?? VORGABEN.steuerquote, 'geschaeftsbericht', st, { einheit: 'prozent', gruppe: 'Prognose' }),
       mk('dcf.investitionen', 'Investitionen, Anteil vom Umsatz (CapEx)', roh.investitionsquote ?? 0, 'geschaeftsbericht', st,
-        { einheit: 'prozent', gruppe: 'Prognose', notiz: 'Was die Firma jährlich in Anlagen und Ausrüstung steckt, gemessen am Umsatz. Dieses Geld fließt ab.' }),
+        { einheit: 'prozent', gruppe: 'Prognose',
+          notiz: 'Was die Firma jährlich in Anlagen und Ausrüstung steckt, gemessen am Umsatz. Dieses Geld fließt ab. '
+            + jahresNotiz(roh, 'investitionen') }),
       // Nur zusammen mit den Investitionen ansetzen: fehlt die Zeitreihe, fehlen
       // beide Werte — dann darf nicht die eine Seite ohne die andere wirken.
       mk('dcf.abschreibungen', 'Abschreibungen, Anteil vom Umsatz (D&A)',
         roh.investitionsquote != null ? roh.abschreibungsquote ?? 0 : 0, 'geschaeftsbericht', st,
         { einheit: 'prozent', gruppe: 'Prognose',
-          notiz: 'Der Wertverlust von Maschinen und Gebäuden mindert den Gewinn, kostet aber kein Geld. Deshalb wird er in der Zahlungsstrom-Rechnung wieder hinzugerechnet.' }),
+          notiz: 'Der Wertverlust von Maschinen und Gebäuden mindert den Gewinn, kostet aber kein Geld. Deshalb wird er in der Zahlungsstrom-Rechnung wieder hinzugerechnet. '
+            + jahresNotiz(roh, 'abschreibungen') }),
       mk('dcf.workingCapital', 'Gebundenes Umlaufvermögen (Working Capital)', roh.workingCapitalQuote ?? 0, 'eigene_schaetzung', st, { einheit: 'prozent', gruppe: 'Prognose' }),
       mk('dcf.kapitalkosten', 'Kapitalkosten (WACC)', kk.wert, 'eigene_schaetzung', st,
         { einheit: 'prozent', regel: 'kapitalkosten', gruppe: 'Abzinsung', notiz: kk.notiz }),

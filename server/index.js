@@ -1362,10 +1362,10 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       trials = await getPipelineStudien(name || symbol).catch(() => []);
     }
 
-    const bauen = (id, basis) => {
+    const bauen = (id, basis, extra = {}) => {
       const modell = baueModell({
         symbol, name, kurs, kursStand, verfahren: id, roh,
-        extras: { basis, trials },
+        extras: { basis, trials, ...extra },
       });
       return { modell, ergebnis: gesamtergebnis(modell, { markt }) };
     };
@@ -1386,7 +1386,8 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
     };
 
     const verfahren = anwendbar.map((v) => {
-      const { modell, ergebnis } = bauen(v.id, v.basis);
+      // `vergleichbar` markiert die engere Peer-Auswahl (gleiche Kapitalstruktur)
+      const { modell, ergebnis } = bauen(v.id, v.basis, { vergleichbar: v.vergleichbar });
       return {
         id: v.id,
         basis: v.basis ?? null,
@@ -1508,6 +1509,22 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       manuell: Object.entries(MANUELLE_VERFAHREN)
         .filter(([id]) => !verfahren.some((v) => v.id === id))
         .map(([id, grund]) => ({ id, grund })),
+      // Der Ist-Stand ohne jedes Modell (Micha): Was der Markt heute zahlt und
+      // was laut Bilanz an Substanz dahintersteht. Beide Zahlen sind gemessen,
+      // nicht geschätzt — sie sind der Boden, auf dem alles andere steht.
+      substanz: (() => {
+        const aktien = roh.aktienVerwaessert;
+        if (!(aktien > 0)) return null;
+        const netto = (roh.cash ?? 0) - (roh.schulden ?? 0);
+        return {
+          boersenwert: kurs != null ? kurs * aktien : roh.marktkapitalisierung,
+          aktien,
+          eigenkapital: roh.eigenkapital,
+          eigenkapitalJeAktie: roh.eigenkapital != null ? roh.eigenkapital / aktien : null,
+          nettoCashJeAktie: netto / aktien,
+          umsatzJeAktie: roh.umsatz != null ? roh.umsatz / aktien : null,
+        };
+      })(),
       // Kennzahlen-Vergleich mit der Branche — er bestimmt, an welcher Stelle
       // der Wettbewerber-Bandbreite gerechnet wird, und ist deshalb Teil der
       // Herleitung, nicht nur Schmuck.

@@ -183,6 +183,28 @@ export function pruefungen(modell, ergebnis, heute = new Date(), markt = {}) {
   const w = [];
   const base = ergebnis.base ?? null;
 
+  // 0. Wie einig ist sich die Vergleichsgruppe überhaupt?
+  //
+  // Ein Median sagt nur dann etwas, wenn die Gruppe halbwegs zusammenliegt. In
+  // der Autobranche stehen Tesla und Ferrari mit dem Vierzigfachen des Gewinns
+  // neben Ford und Stellantis mit dem Fünffachen — der Mittelwert daraus passt
+  // auf keine der beiden Sorten. Das gehört gesagt, bevor jemand die Zahl für
+  // präzise hält.
+  const multipleAnnahme = modell.annahmen.find((a) => a.id === 'mult.multiple');
+  const reihe = (multipleAnnahme?.peers ?? []).filter((v) => typeof v === 'number' && v > 0).sort((a, b) => a - b);
+  if (reihe.length >= 5) {
+    const bei = (q) => reihe[Math.min(reihe.length - 1, Math.floor((reihe.length - 1) * q))];
+    const unten = bei(0.25);
+    const oben = bei(0.75);
+    // 2,5 ist nachgemessen: Autobauer 2,97 (Tesla und Ferrari neben Ford und
+    // Stellantis), NVIDIA 2,11, SAP 1,78, McDonald's 1,21, Banken 1,16.
+    if (unten > 0 && oben / unten > 2.5) {
+      w.push(warn('gelb', 'gruppeUneinig',
+        `Die Wettbewerber liegen weit auseinander: Die Hälfte von ihnen bewegt sich zwischen dem ${unten.toFixed(1).replace('.', ',')}- und dem ${oben.toFixed(1).replace('.', ',')}-Fachen.`,
+        'Ein mittleres Vielfaches aus so unterschiedlichen Firmen trägt wenig — die Tabelle der Vergleichsgruppe zeigt, welche davon wirklich zum Geschäftsmodell passen.'));
+    }
+  }
+
   // 1. Konzentration — hängt alles an einer Position? Nur sinnvoll, wenn es
   // überhaupt mehrere gibt: beim Multiples-Verfahren ist die eine Position
   // zwangsläufig 100 % und die Warnung wäre reines Rauschen. Der DCF ist

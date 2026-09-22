@@ -108,7 +108,18 @@ export const VORGABEN = {
   // strukturell 2 bis 4 % und sind trotzdem gut planbar), sondern am FREIEN
   // Zahlungsstrom nach Investitionen. Bleibt davon nichts uebrig, zinst die
   // Rechnung Rundungsfehler ab — Samsara kam so auf 1,22 USD bei Kurs 38.
-  mindestFcfMargeFuerDcf: 0.01,
+  // 1,5 statt 1 %: Walmart landet mit dem Dreijahresschnitt bei 1,2 % und
+  // bekam dadurch einen Zahlungsstrom-Wert von 11 USD neben 63 USD aus dem
+  // Branchenvergleich. Bei so duennem Cashflow entscheidet ein halber
+  // Prozentpunkt Marge ueber das Vielfache des Ergebnisses.
+  mindestFcfMargeFuerDcf: 0.015,
+  // Ab dieser Verschuldung (Netto-Schulden zu EBITDA) sind Unternehmenswert-
+  // Verfahren nicht mehr aussagekraeftig: Bei Autoherstellern mit eigener Bank
+  // gehoert der groesste Teil der Schulden zum Finanzierungsgeschaeft und steht
+  // Forderungen gegenueber, die in EBITDA und Cashflow nicht auftauchen.
+  // Gemessen: Volkswagen 11,1x, Ford 18,5x, BMW 7,3x, Mercedes 7,1x, Deere 6,7x
+  // — alle lieferten NEGATIVE Werte je Aktie. Caterpillar (2,4x) bleibt normal.
+  maxHebelFuerEv: 5,
   monteCarloLaeufe: 10000,
   sensitivitaetSchritt: 0.10,
 };

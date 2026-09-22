@@ -107,7 +107,12 @@ export function getFundamentals(symbol) {
         module: 'all',
         type: 'annual',
       });
-      return Array.isArray(reihe) && reihe.length ? reihe[reihe.length - 1] : null;
+      if (!Array.isArray(reihe) || !reihe.length) return null;
+      // Das jüngste Jahr wie bisher direkt am Objekt — zusätzlich die ganze
+      // Reihe: Investitionen, Steuerquote und Aktienanzahl schwanken von Jahr zu
+      // Jahr so stark, dass ein einzelner Wert in die Irre führt (Microsofts
+      // Investitionsquote stieg in vier Jahren von 13 auf 35 % vom Umsatz).
+      return { ...reihe[reihe.length - 1], reihe };
     } catch {
       return null; // Ohne Zeitreihe läuft die Bewertung mit quoteSummary weiter
     }
