@@ -615,7 +615,7 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
 
     annahmen.push(
       mk('mult.kennzahl', felder.label, felder.wert ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Vergleich', notiz: felder.info }),
-      mk('mult.multiple', `${felder.multiple} (${stellenText})`, multipleWert ?? 0, 'peer_gruppe', st,
+      mk('mult.multiple', `${felder.multiple}, ${stellenText}`, multipleWert ?? 0, 'peer_gruppe', st,
         { einheit: 'faktor', gruppe: 'Vergleich', peers: reihe, perzentile: pz ?? undefined,
           notiz: reihe.length
             ? `Aus ${reihe.length} Wettbewerbern der Branche ${peers?.branche ?? '—'} (${(peers?.namen ?? []).slice(0, 8).join(', ')}). Gerechnet wird am ${stellenText} — welche Stelle das ist, entscheidet der Kennzahlen-Vergleich weiter unten. Pessimistisch und optimistisch liegen 25 Perzentilpunkte darunter bzw. darüber.`

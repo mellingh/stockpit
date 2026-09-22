@@ -109,14 +109,16 @@ function annahmeText(a: Annahme, waehrung: string | null): string {
 // ---------- Ergebnis oben ----------
 
 /**
- * Eine Szenario-Karte. Der Analystenwert steht DARIN statt als Fließtext
- * darunter (Micha) — pessimistisch gegen deren tiefstes Ziel, realistisch gegen
- * den Schnitt, optimistisch gegen das höchste. So sieht man die fremde
- * Einschätzung direkt neben der eigenen, ohne einen Absatz zu lesen.
+ * Eine Szenario-Karte: Wert, Umrechnung, Abstand zum Kurs.
+ *
+ * Der Analystenwert stand hier bis Runde 78 als Fußzeile in JEDER der drei
+ * Karten — dreimal dieselbe Quelle für dieselbe Aussage (Micha: „ist das nicht
+ * doppelt?"). Er steht jetzt einmal als Spanne unter den Karten und zusätzlich
+ * in der Blickwinkel-Leiste. Nicht wieder in die Karten zurückholen.
  */
-function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor, analyst }: {
+function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor }: {
   fall: Fall; wert: number | null; kurs: number | null; waehrung: string | null;
-  eurKurs: number | null; hervor?: boolean; analyst?: number | null;
+  eurKurs: number | null; hervor?: boolean;
 }) {
   const abweichung = kurs && wert != null ? (wert - kurs) / kurs : null;
   return (
@@ -129,17 +131,9 @@ function SzenarioSpalte({ fall, wert, kurs, waehrung, eurKurs, hervor, analyst }
         {jeAktie(wert, waehrung)}
       </span>
       <EuroZeile wert={wert} eurKurs={eurKurs} waehrung={waehrung} />
-      <span className={cn('mt-0.5 mb-3 font-mono text-small tabular-nums', abweichung == null ? 'text-ink3' : abweichung >= 0 ? 'text-up' : 'text-down')}>
+      <span className={cn('mt-0.5 font-mono text-small tabular-nums', abweichung == null ? 'text-ink3' : abweichung >= 0 ? 'text-up' : 'text-down')}>
         {abweichung == null ? '–' : fmtPct(abweichung * 100) + ' zum Kurs'}
       </span>
-      {analyst != null && (
-        // line-strong statt line: auf dem helleren Hintergrund der
-        // hervorgehobenen Karte war die dünne Linie unsichtbar
-        <span className="mt-auto flex items-baseline justify-between gap-2 border-t border-line-strong pt-2.5">
-          <span className="text-micro text-ink3">Analysten</span>
-          <span className="font-mono text-small font-bold tabular-nums text-ink2">{jeAktie(analyst, waehrung)}</span>
-        </span>
-      )}
     </div>
   );
 }
@@ -162,6 +156,9 @@ function einschaetzungsSatz(d: BewertungsAntwort): string | null {
   if (Math.abs(abw) < 0.1) return `${wie}. Der Kurs liegt etwa dort, wo die Rechnung ihn sieht.`;
   return `${wie}.`;
 }
+
+/** Erklärung der Stand-Spalte in der Gegenprobe. */
+const SPALTE_STAND = 'Steht dort „erfüllt", ist die Schwelle schon überschritten — sonst steht dort, wie lange es beim erwarteten Tempo dauern würde.';
 
 /** Wie die Kennzahl im Satz heißt („müsste DER UMSATZ bei … liegen"). */
 const KENNZAHL_WORT: Record<string, string> = {
@@ -192,7 +189,7 @@ function Vorbehalte({ d }: { d: BewertungsAntwort }) {
     <ul className="mt-4 grid gap-1.5 border-t border-line pt-4" aria-live="polite">
       {wichtig.map((w) => (
         <li key={w.id} className="flex gap-2.5">
-          <AlertTriangle size={13} aria-hidden className={cn('mt-0.5 shrink-0', w.stufe === 'rot' ? 'text-down' : 'text-warn')} />
+          <AlertTriangle size={13} aria-hidden className={cn('mt-1 shrink-0', w.stufe === 'rot' ? 'text-down' : 'text-warn')} />
           <span className="max-w-[78ch] text-small leading-relaxed">
             <span className="text-ink2">{w.text}</span>
             {w.hinweis && <span className="text-ink3"> {w.hinweis}</span>}
@@ -264,9 +261,10 @@ function VierBlickwinkel({ d }: { d: BewertungsAntwort }) {
             <Erklaert text={s.info} className="ml-0" />
           </span>
           <span className="font-mono text-lg font-bold tabular-nums text-ink">{jeAktie(s.wert, waehrung)}</span>
-          <span className={cn('text-micro', s.art === 'gemessen' ? 'text-up' : s.art === 'gerechnet' ? 'text-accent' : 'text-ink3')}>
-            {s.art}
-          </span>
+          {/* Grün und Rot sind in Stockpit dem Markt vorbehalten — die Art der
+              Zahl steht im Wort, nicht in der Farbe. Klein und in Satzschrift,
+              damit sie nicht wie eine zweite Spaltenüberschrift wirkt. */}
+          <span className="text-micro text-ink3">{s.art}</span>
         </div>
       ))}
     </div>
@@ -338,13 +336,12 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
 
   return (
     <div className="mt-4 grid gap-3 border-t border-line pt-4">
-      <div>
-        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <span className="font-mono text-micro uppercase tracking-[0.14em] text-accent">
-            {rechnungDarueber ? 'Kurs und Rechnung' : 'Woraus der heutige Kurs besteht'}
-          </span>
-        </div>
-
+      <Abschnitt
+        titel={rechnungDarueber ? 'Kurs und Rechnung' : 'Woraus der heutige Kurs besteht'}
+        info={rechnungDarueber
+          ? 'Liegt die Rechnung über dem Kurs, zahlt der Markt weniger, als die heutigen Zahlen hergeben.'
+          : 'Der Balken teilt den Kurs in zwei Teile: was die Rechnung aus den heutigen Zahlen trägt und was darüber hinaus an Erwartung im Kurs steckt.'}
+      >
         {rechnungDarueber ? (
           <p className="max-w-[78ch] text-small leading-relaxed text-ink2">
             Schon das heutige Geschäft wäre{' '}
@@ -383,7 +380,7 @@ function KursZerlegung({ d }: { d: BewertungsAntwort }) {
             </p>
           </>
         )}
-      </div>
+      </Abschnitt>
 
       {/* Die Zahlen stehen jetzt IN den Karten — hier bleibt nur der Hinweis,
           wenn die Analysten so weit weg sind, dass es einer Erklärung bedarf. */}
@@ -498,7 +495,10 @@ function Rechenweg({ v, waehrung }: { v: BewertungsAntwort['verfahren'][number];
 
   return (
     <div className="rounded-md border border-line bg-panel px-4 py-3.5">
-      <div className="mb-3 font-mono text-micro uppercase tracking-[0.14em] text-accent">So wird gerechnet</div>
+      <Abschnitt
+        titel="So wird gerechnet"
+        info="Die ganze Rechnung in einer Zeile — von der Kennzahl des Unternehmens bis zum Wert je Aktie. Hinter jedem Schritt steht, woher die Zahl kommt."
+      >
       <div className="flex flex-wrap items-stretch gap-x-3 gap-y-3">
         {schritte.map((s) => (
           <div key={s.label} className="flex items-center gap-3">
@@ -528,6 +528,7 @@ function Rechenweg({ v, waehrung }: { v: BewertungsAntwort['verfahren'][number];
           </span>
         </div>
       </div>
+      </Abschnitt>
     </div>
   );
 }
@@ -618,10 +619,10 @@ function Gegenprobe({ v, waehrung, kurs, analystenZiel }: {
         <colgroup><col /><col className="w-[150px]" /><col className="w-[150px]" /><col className="w-[140px]" /></colgroup>
         <thead>
           <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-            <th className="pb-2.5 font-normal">Damit das aufgeht …</th>
-            <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">{wasNoetig}</th>
-            <th className="whitespace-nowrap pb-2.5 pr-4 text-right font-normal">Hat die Firma</th>
-            <th className="whitespace-nowrap pb-2.5 text-right font-normal">Stand</th>
+            <Kopf links>Damit das aufgeht …</Kopf>
+            <Kopf className="pr-4" info="Der Wert, den das Unternehmen erreichen müsste, damit dieser Preis rechnerisch aufgeht.">{wasNoetig}</Kopf>
+            <Kopf className="pr-4" info="Der heutige Stand derselben Größe — gemessen aus dem letzten Abschluss.">Hat die Firma</Kopf>
+            <Kopf info={SPALTE_STAND}>Stand</Kopf>
           </tr>
         </thead>
         <tbody>
@@ -799,11 +800,16 @@ function Erklaert({ text, className }: { text: string; className?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        {/* In Fließtext steht das Symbol mit Abstand hinter dem Wort, in
-            Flex-Zeilen (Spaltenköpfen) sorgt der Container für den Abstand —
-            dort wird die Klasse überschrieben statt ein Pixel verschoben. */}
-        <span className={cn('ml-1 cursor-help text-ink3', className)} aria-label="Erklärung">
-          <Info size={12} className="inline align-middle" />
+        {/* Der Wrapper ist selbst ein Flex-Kasten und umschließt das Symbol
+            genau. Nachgemessen saß es vorher 1,1 px zu tief: ein inline
+            gesetztes Icon sitzt auf der Schriftlinie, nicht in der Mitte der
+            Zeile. „align-middle" richtet den Kasten im Fließtext aus, in
+            Flex-Zeilen übernimmt das der Container. */}
+        <span
+          className={cn('ml-1 inline-flex shrink-0 cursor-help items-center align-middle text-ink3', className)}
+          aria-label="Erklärung"
+        >
+          <Info size={12} aria-hidden />
         </span>
       </TooltipTrigger>
       <TooltipContent side="top" align="start" className="max-w-[360px]">{text}</TooltipContent>
@@ -886,7 +892,7 @@ function WarnZeile({ w }: { w: BewertungsAntwort['verfahren'][number]['ergebnis'
   const Icon = w.stufe === 'info' ? Info : AlertTriangle;
   return (
     <li className="flex gap-2.5 py-1.5">
-      <Icon size={13} className={cn('mt-0.5 shrink-0', farbe)} aria-hidden />
+      <Icon size={13} className={cn('mt-1 shrink-0', farbe)} aria-hidden />
       <span className="text-small leading-relaxed">
         <span className="text-ink2">{w.text}</span>
         {w.hinweis && <span className="text-ink3"> {w.hinweis}</span>}
@@ -907,19 +913,19 @@ const GRUPPEN_INFO: Record<string, string> = {
 };
 
 /** Abschnitts-Überschrift im Detailbereich: eine Ebene, hellblau, mit Erklärung. */
-function Abschnitt({ titel, info, children }: { titel: string; info?: string; children: ReactNode }) {
+function Abschnitt({ titel, info, className, children }: {
+  titel: string; info?: string; className?: string; children: ReactNode;
+}) {
   return (
-    <section>
-      <h4 className="mb-2.5 flex items-center gap-1.5 font-mono text-micro font-bold uppercase tracking-[0.14em] text-accent">
+    <section className={className}>
+      {/* Ebene 2 der Überschriften: mono, 12, fett, Akzent. Ebene 1 ist der
+          Panel-Titel (13, Textschrift, hell), Ebene 3 sind Datenlabels
+          (mono, 12, normal, grau). Mehr Ebenen gibt es auf dieser Seite nicht —
+          vorher standen dieselben Abschnitte mal in normal, mal in fett, mal
+          in Grau statt Blau. */}
+      <h4 className="mb-2.5 flex items-center font-mono text-micro font-bold uppercase tracking-[0.14em] text-accent">
         {titel}
-        {info && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex shrink-0 cursor-help text-ink3" aria-label={`Erklärung zu ${titel}`}><Info size={12} /></span>
-            </TooltipTrigger>
-            <TooltipContent side="top" align="start" className="max-w-[360px]">{info}</TooltipContent>
-          </Tooltip>
-        )}
+        {info && <Erklaert text={info} />}
       </h4>
       {children}
     </section>
@@ -992,9 +998,9 @@ function SensTabelle({ zeilen, waehrung }: { zeilen: SensZeile[]; waehrung: stri
       <colgroup><col /><col className="w-[210px]" /><col className="w-[130px]" /></colgroup>
       <thead>
         <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
-          <th className="pb-2.5 font-normal">Wenn sich das um 10 % ändert …</th>
-          <th className="whitespace-nowrap pb-2.5 pr-6 text-right font-normal">… Wert je Aktie dann</th>
-          <th className="pb-2.5 pl-4 font-normal">Einfluss</th>
+          <Kopf links info="Jede Annahme wird einzeln um zehn Prozent nach oben und unten verschoben, alles andere bleibt gleich.">Wenn sich das um 10 % ändert …</Kopf>
+          <Kopf className="pr-6" info="Die Spanne, in der das Ergebnis dann liegt.">… Wert je Aktie dann</Kopf>
+          <Kopf links className="pl-4" info="Wie stark diese eine Zahl das Ergebnis bewegt — je länger der Balken, desto mehr hängt daran.">Einfluss</Kopf>
         </tr>
       </thead>
       <tbody>
@@ -1020,9 +1026,11 @@ function SensTabelle({ zeilen, waehrung }: { zeilen: SensZeile[]; waehrung: stri
 }
 
 /** Ein Verfahren als aufklappbare Karte: Wert, Erklärung, Details. */
-function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
+function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel, eigeneSzenarien }: {
   v: BewertungsAntwort['verfahren'][number];
   kurs: number | null; waehrung: string | null; eurKurs: number | null; analystenZiel: number | null;
+  /** Bei nur einem Verfahren stehen dieselben drei Zahlen schon oben auf der Seite. */
+  eigeneSzenarien?: boolean;
 }) {
   const [offen, setOffen] = useState(false);
   const e = v.ergebnis;
@@ -1082,11 +1090,15 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
         <div className="grid gap-6 border-t border-line px-4 pb-5 pt-5">
           <Rechenweg v={v} waehrung={waehrung} />
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            {(['worst', 'base', 'best'] as Fall[]).map((f) => (
-              <SzenarioSpalte key={f} fall={f} wert={e.szenarien[f].wertJeAktie} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
-            ))}
-          </div>
+          {/* Nur bei mehreren Verfahren: sonst stehen exakt dieselben drei
+              Zahlen zwei Bildschirmhöhen weiter oben schon einmal. */}
+          {eigeneSzenarien && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(['worst', 'base', 'best'] as Fall[]).map((f) => (
+                <SzenarioSpalte key={f} fall={f} wert={e.szenarien[f].wertJeAktie} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} hervor={f === 'base'} />
+              ))}
+            </div>
+          )}
 
           <Gegenprobe v={v} waehrung={waehrung} kurs={kurs} analystenZiel={analystenZiel} />
 
@@ -1226,9 +1238,11 @@ function Cashtag({ symbol, className }: { symbol: string; className?: string }) 
 }
 
 /**
- * Spaltenkopf der Vergleichsgruppe. Text und „i" stehen in einer Flex-Zeile mit
+ * Spaltenkopf für ALLE Tabellen dieser Seite (Vergleichsgruppe, Gegenprobe,
+ * Sensitivität, Kennzahlen). Text und „i" stehen in einer Flex-Zeile mit
  * items-center — als Inline-Element saß das Symbol eine Spur zu tief und
- * fluchtete nicht mit den Nachbarspalten (Micha).
+ * fluchtete nicht mit den Nachbarspalten (Micha). Eine Komponente für alle
+ * Tabellen heißt auch: überall dieselbe Ausrichtung, dasselbe Padding.
  */
 function Kopf({ children, info, links, className }: {
   children: ReactNode; info?: string; links?: boolean; className?: string;
@@ -1340,8 +1354,8 @@ function PeerPanel({ gruppe, symbol, zielKurs, waehrung }: {
           Klarna den Buchwert nutzte; die maßgebliche Spalte fehlte also.
           Die letzte Spalte übersetzt jedes fremde Vielfache in einen Kurs
           für DIESE Aktie: das ist der Grund, warum die Tabelle nützlich ist. */}
-      <ScrollListe className="max-h-[340px]">
-        <table className="w-full table-fixed">
+      <ScrollListe className="max-h-[340px] overflow-x-auto">
+        <table className="w-full min-w-[820px] table-fixed">
 {/* Bei rechtsbündigen Spalten ist die sichtbare Lücke zwischen zwei
               Köpfen genau: Breite der rechten Spalte minus Breite ihres
               Kopftextes. Nachgemessen waren es 35/43/74/59 px — die Köpfe
@@ -1517,31 +1531,42 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
           </Empty>
         ) : (
           <>
-            {/* Ohne diese Zeile liest sich „REALISTISCH 13,79 USD" wie ein
-                Kursziel. Es ist aber etwas anderes: was das Geschäft trägt, das
-                heute schon da ist (Micha: „wie kann der realistische Wert so
-                krass unter dem Kurs liegen?"). */}
-            <div className="mt-5 flex items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-accent">
-              Was die heutigen Zahlen tragen
-              <Erklaert
-                className="ml-0"
-                text="Gerechnet mit Umsatz, Gewinn und Bilanz von heute und dem Maßstab der Wettbewerber. Das ist kein Kursziel: Künftiges Wachstum steckt hier nur so weit drin, wie die Schätzungen fürs nächste Jahr es hergeben. Was der Markt darüber hinaus erwartet, steht darunter."
-              />
-            </div>
-            <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
-              {(['worst', 'base', 'best'] as Fall[]).map((f) => (
-                <SzenarioSpalte
-                  key={f}
-                  fall={f}
-                  wert={gesamt[f]}
-                  kurs={kurs}
-                  waehrung={waehrung}
-                  eurKurs={eurKurs}
-                  hervor={f === 'base'}
-                  analyst={f === 'worst' ? d.analysten?.tief : f === 'best' ? d.analysten?.hoch : d.analysten?.kursziel}
-                />
-              ))}
-            </div>
+            {/* Ohne diese Überschrift liest sich „REALISTISCH 9,41 USD" wie
+                ein Kursziel. Es ist aber etwas anderes: was das Geschäft trägt,
+                das heute schon da ist (Micha). */}
+            <Abschnitt
+              titel="Was die heutigen Zahlen tragen"
+              className="mt-5"
+              info="Gerechnet mit Umsatz, Gewinn und Bilanz von heute und dem Maßstab der Wettbewerber. Das ist kein Kursziel: Künftiges Wachstum steckt hier nur so weit drin, wie die Schätzungen fürs nächste Jahr es hergeben. Was der Markt darüber hinaus erwartet, steht darunter."
+            >
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(['worst', 'base', 'best'] as Fall[]).map((f) => (
+                  <SzenarioSpalte
+                    key={f}
+                    fall={f}
+                    wert={gesamt[f]}
+                    kurs={kurs}
+                    waehrung={waehrung}
+                    eurKurs={eurKurs}
+                    hervor={f === 'base'}
+                  />
+                ))}
+              </div>
+              {/* Die Analystenspanne stand bisher in jeder der drei Karten —
+                  dreimal dieselbe Quelle für dieselbe Aussage (Micha: „ist das
+                  nicht doppelt?"). Einmal darunter reicht, und als Spanne ist
+                  sie sogar aussagekräftiger. */}
+              {d.analysten?.kursziel != null && (
+                <p className="mt-3 text-small text-ink3">
+                  Analysten sehen{' '}
+                  <span className="font-mono tabular-nums text-ink2">{jeAktie(d.analysten.tief, null)}</span> bis{' '}
+                  <span className="font-mono tabular-nums text-ink2">{jeAktie(d.analysten.hoch, waehrung)}</span>
+                  , im Mittel{' '}
+                  <span className="font-mono tabular-nums text-ink2">{jeAktie(d.analysten.kursziel, waehrung)}</span>
+                  {d.analysten.anzahl ? ` aus ${d.analysten.anzahl} Einschätzungen` : ''}.
+                </p>
+              )}
+            </Abschnitt>
             <VierBlickwinkel d={d} />
             {satz && <p className="mt-5 max-w-[78ch] text-base leading-relaxed text-ink2">{satz}</p>}
             <KursVoraussetzung d={d} />
@@ -1565,7 +1590,15 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
         {d.verfahren.length ? (
           <ul className="grid gap-3">
             {d.verfahren.map((v) => (
-              <VerfahrensZeile key={v.id + (v.basis ?? '')} v={v} kurs={kurs} waehrung={waehrung} eurKurs={eurKurs} analystenZiel={d.analysten?.kursziel ?? null} />
+              <VerfahrensZeile
+                key={v.id + (v.basis ?? '')}
+                v={v}
+                kurs={kurs}
+                waehrung={waehrung}
+                eurKurs={eurKurs}
+                analystenZiel={d.analysten?.kursziel ?? null}
+                eigeneSzenarien={d.verfahren.filter((x) => x.automatisch).length > 1}
+              />
             ))}
           </ul>
         ) : (
@@ -1579,7 +1612,10 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
 
         {!!d.abgelehnt?.length && (
           <div className="mt-5 border-t border-line pt-4">
-            <h3 className="mb-2 font-mono text-micro font-bold uppercase tracking-[0.14em] text-ink3">Nicht angewandt</h3>
+            <Abschnitt
+              titel="Nicht angewandt"
+              info="Verfahren, die zu diesem Unternehmen nicht passen oder für die die kostenlosen Quellen keine belastbaren Zahlen liefern. Sie stehen hier mit Begründung, statt unsichtbar zu fehlen."
+            >
             <ul className="grid gap-2">
               {d.abgelehnt.map((a) => (
                 <li key={a.id} className="text-small leading-relaxed">
@@ -1588,6 +1624,7 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
                 </li>
               ))}
             </ul>
+            </Abschnitt>
           </div>
         )}
       </Panel>
