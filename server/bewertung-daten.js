@@ -56,9 +56,21 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
   const f = fts ?? {};
   const schaetzung = schaetzungenVon(summary);
 
-  const umsatz = zahl(fd.totalRevenue);
-  const opCf = zahl(fd.operatingCashflow);
-  const cash = zahl(fd.totalCash);
+  /**
+   * Bilanz und GuV stehen oft in einer ANDEREN Währung als der Kurs:
+   * AstraZeneca bilanziert in USD, notiert aber in Pence (1 Pfund = 100 GBp) —
+   * die Rechnung ergab 171,82 „USD je Aktie" neben einem Kurs von 12.672 GBp,
+   * also scheinbar −99 %. Shopify an der TSX (USD/CAD) und Tencent in Hongkong
+   * (CNY/HKD) trifft dasselbe. Deshalb werden ALLE Geldbeträge hier einmal in
+   * die Kurswährung umgerechnet; Vielfache und Quoten sind Verhältnisse und
+   * bleiben unberührt.
+   */
+  const fx = zahl(zusatz.waehrungsfaktor) ?? 1;
+  const geld = (v) => (zahl(v) == null ? null : v * fx);
+
+  const umsatz = geld(fd.totalRevenue);
+  const opCf = geld(fd.operatingCashflow);
+  const cash = geld(fd.totalCash);
   // Reichweite der Liquidität: nur sinnvoll, wenn operativ Geld abfließt.
   const monatsBurn = opCf != null && opCf < 0 ? Math.abs(opCf) / 12 : null;
   const liquiditaetMonate = monatsBurn && cash ? cash / monatsBurn : null;
@@ -79,29 +91,35 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     sektor: ap.sector ?? null,
     branche: ap.industry ?? null,
     waehrung: summary?.price?.currency ?? null,
+    // Wechselkurs mitgeben, damit gespeicherte Fassungen nachvollziehbar sind
+    waehrungsfaktor: fx,
+    finanzWaehrung: zusatz.finanzWaehrung ?? null,
     umsatz,
-    ebitda: zahl(fd.ebitda),
+    ebitda: geld(fd.ebitda),
     operativeMarge: zahl(fd.operatingMargins),
     umsatzwachstum: zahl(fd.revenueGrowth),
-    freierCashflow: zahl(fd.freeCashflow),
+    freierCashflow: geld(fd.freeCashflow),
     operativerCashflow: opCf,
-    nettoergebnis: zahl(ks.netIncomeToCommon),
-    epsTtm: zahl(ks.trailingEps),
-    eigenkapital: zahl(f.stockholdersEquity)
-      ?? (zahl(ks.bookValue) != null && zahl(ks.sharesOutstanding) != null ? ks.bookValue * ks.sharesOutstanding : null),
-    buchwertJeAktie: zahl(ks.bookValue),
+    nettoergebnis: geld(ks.netIncomeToCommon),
+    epsTtm: geld(ks.trailingEps),
+    eigenkapital: geld(zahl(f.stockholdersEquity)
+      ?? (zahl(ks.bookValue) != null && zahl(ks.sharesOutstanding) != null ? ks.bookValue * ks.sharesOutstanding : null)),
+    buchwertJeAktie: geld(ks.bookValue),
     roe: zahl(fd.returnOnEquity),
     beta: zahl(ks.beta),
+    // Marktkapitalisierung steht bereits in Kurswährung, der Enterprise Value
+    // dagegen in der Bilanzwährung
     marktkapitalisierung: zahl(sd.marketCap) ?? zahl(ks.marketCap),
-    enterpriseValue: zahl(ks.enterpriseValue),
+    enterpriseValue: geld(ks.enterpriseValue),
+    // Kursziele der Analysten stehen in KURSwährung — nicht umrechnen
     kursziel: zahl(fd.targetMeanPrice),
     kurszielTief: zahl(fd.targetLowPrice),
     kurszielHoch: zahl(fd.targetHighPrice),
     kurszielAnalysten: zahl(fd.numberOfAnalystOpinions),
     cash,
-    schulden: zahl(fd.totalDebt),
-    leasing: zahl(f.capitalLeaseObligations),
-    minderheiten: zahl(f.minorityInterest),
+    schulden: geld(fd.totalDebt),
+    leasing: geld(f.capitalLeaseObligations),
+    minderheiten: geld(f.minorityInterest),
     aktienVerwaessert: zahl(f.dilutedAverageShares) ?? zahl(ks.impliedSharesOutstanding) ?? zahl(ks.sharesOutstanding),
     aktienAusstehend: zahl(ks.sharesOutstanding),
     steuerquote: zahl(f.taxRateForCalcs),
@@ -126,7 +144,10 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     schaetzung,
     // Erwarteter Umsatz aus DERSELBEN Quelle wie die Peer-Multiples —
     // sonst vergleicht man eine Yahoo-Schaetzung mit TradingView-Multiples.
-    umsatzErwartet: peers?.ziel?.umsatzErwartet ?? null,
+    // Yahoos Konsens zuerst: er steht in der Bilanzwährung und wird hier
+    // mitumgerechnet. Der TradingView-Wert ist nur die Rückfallebene — seine
+    // Währung ist nicht garantiert dieselbe.
+    umsatzErwartet: geld(schaetzung.jahr1?.umsatz) ?? peers?.ziel?.umsatzErwartet ?? null,
     qualitaet: peers?.qualitaet ?? null,
     peerGruppe: peers
       ? {
@@ -149,15 +170,43 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
 
 /** Kapitalkosten nach CAPM — die Herleitung steht als Notiz an der Annahme. */
 function kapitalkosten(roh) {
-  const beta = roh.beta ?? 1;
+  // Ein Beta um null oder darunter ist kein niedriges Risiko, sondern ein
+  // kaputter Wert — Yahoo liefert das bei Zweitnotierungen und ADRs regelmäßig
+  // (BP: −0,22). Dann zählt der Marktdurchschnitt 1,0 statt einer geklemmten
+  // Zahl: geklemmt ergäbe sich für einen Ölkonzern ein Kapitalkostensatz wie
+  // für einen Versorger, und der Zahlungsstrom-Wert stiege auf das Doppelte des
+  // Kurses. Echte niedrige Betas (Coca-Cola 0,5) bleiben erhalten.
+  const roheBeta = zahl(roh.beta);
+  const beta = roheBeta == null || roheBeta < VORGABEN.betaSpanne.kaputtUnter
+    ? 1
+    : Math.min(VORGABEN.betaSpanne.max, Math.max(VORGABEN.betaSpanne.min, roheBeta));
   const rf = roh.risikofreierZins;
-  const wert = rf + beta * VORGABEN.marktrisikopraemie;
+  const wert = Math.max(VORGABEN.mindestKapitalkosten, rf + beta * VORGABEN.marktrisikopraemie);
   const pz = (v) => (v * 100).toFixed(1).replace('.', ',');
   return {
     wert,
     notiz: `${pz(rf)} % risikofreier Zins + Beta ${beta.toFixed(2).replace('.', ',')} × ${pz(VORGABEN.marktrisikopraemie)} % Marktrisikoprämie`,
   };
 }
+
+// Bei Immobiliengesellschaften (REITs) steht der Wert in den Objekten, nicht im
+// Zahlungsstrom der GuV: Zukäufe und Verkäufe von Immobilien laufen an der
+// Investitionsposition vorbei, die Abschreibungen sind riesig und wirtschaftlich
+// bedeutungslos. VICI kam so auf einen NEGATIVEN Wert je Aktie, Realty Income
+// auf 1,76 USD bei einem Kurs von 57.
+const istImmobilie = (roh) => /real estate|reit/i.test(`${roh.sektor ?? ''} ${roh.branche ?? ''}`);
+
+/**
+ * Versorger und Netzbetreiber: Der Wert hängt am regulierten Anlagevermögen und
+ * an Investitionszyklen, die die Gewinnrechnung nur verzerrt abbildet —
+ * Frequenzlizenzen, Netzausbau und Leasing laufen an der Investitionsposition
+ * vorbei. Nachgemessen: die Deutsche Telekom kam im Zahlungsstrom-Modell auf
+ * 106 EUR bei einem Kurs von 27, NextEra auf einen negativen Wert. In der
+ * Praxis bewertet man diese Branchen über Vielfache und Ausschüttungen.
+ */
+const istNetzbetreiber = (roh) =>
+  /utilities/i.test(roh.sektor ?? '')
+  || /telecom services|utilities/i.test(roh.branche ?? '');
 
 const istFinanzwert = (roh) =>
   (roh.sektor ?? '').toLowerCase().includes('financial')
@@ -199,13 +248,26 @@ export function anwendbareVerfahren(roh) {
 
   // DCF braucht ein positives operatives Ergebnis und eine Wachstumsschätzung.
   const wachstum = roh.schaetzung?.wachstum ?? roh.umsatzwachstum;
-  // Freier Zahlungsstrom je Euro Umsatz — dieselbe Formel wie in rechneDcf.
+  const immobilie = istImmobilie(roh);
+  // Freier Zahlungsstrom je Euro Umsatz, aus der Jahresreihe zusammengesetzt.
+  // Yahoos Feld `freeCashflow` taugt dafür NICHT — nachgemessen weist es für
+  // Microsoft 5 % vom Umsatz aus statt rund 21 %, für Coca-Cola 10 statt 19 %.
   const fcfMarge = zahl(roh.operativeMarge) != null
     ? roh.operativeMarge * (1 - (zahl(roh.steuerquote) ?? VORGABEN.steuerquote))
       + (roh.investitionsquote != null ? roh.abschreibungsquote ?? 0 : 0)
       - (roh.investitionsquote ?? 0)
     : null;
-  if (!(zahl(roh.umsatz) > 0) || !(zahl(roh.operativeMarge) > 0)) {
+  if (immobilie) {
+    abgelehnt.push({
+      id: 'dcf',
+      grund: 'Bei Immobiliengesellschaften steckt der Wert in den Objekten. Zu- und Verkäufe laufen an der Gewinnrechnung vorbei, und die Abschreibungen auf Gebäude sind wirtschaftlich bedeutungslos — ein Cashflow-Modell trifft hier daneben.',
+    });
+  } else if (istNetzbetreiber(roh)) {
+    abgelehnt.push({
+      id: 'dcf',
+      grund: 'Bei Versorgern und Netzbetreibern hängt der Wert am Anlagevermögen und an Investitionszyklen: Netzausbau, Frequenzen und Leasing tauchen in der Gewinnrechnung nur teilweise auf. Bewertet wird deshalb über den Branchenvergleich.',
+    });
+  } else if (!(zahl(roh.umsatz) > 0) || !(zahl(roh.operativeMarge) > 0)) {
     abgelehnt.push({ id: 'dcf', grund: 'Operativ noch nicht profitabel — es gibt keine Zahlungsströme, die sich abzinsen ließen.' });
   } else if (fcfMarge != null && fcfMarge < VORGABEN.mindestFcfMargeFuerDcf) {
     // Gemessen wird der freie Zahlungsstrom des ersten Prognosejahres, genau so
@@ -245,18 +307,12 @@ export function anwendbareVerfahren(roh) {
   //     so auf 5,5 Mrd, während der Markt 26,5 Mrd zahlt).
   //  3. Sonst der heutige Umsatz.
   const waechstDeutlich = (zahl(wachstum) ?? 0) > VORGABEN.wachstumFuerForward;
-  // Das EBITDA muss die Firma auch tragen. Entscheidend ist nicht eine absolute
-  // Schwelle — Handelskonzerne verdienen strukturell 4 bis 6 % und werden
-  // trotzdem über EV/EBITDA bewertet —, sondern der Abstand zur eigenen
-  // Branche: Samsara kommt auf 1,7 %, seine Vergleichsgruppe auf rund 20 %. Das
-  // Vielfache profitabler Wettbewerber auf eine solche Restgröße ergibt einen
-  // Wert nahe null (2,92 USD bei einem Kurs von 38) — die dünne Marge wird
-  // zweimal bestraft. Unterhalb der halben Branchenmarge zählt der Umsatz.
+  // Das EBITDA muss die Firma tragen können: unter fünf Prozent vom Umsatz ist
+  // es eine Restgröße, auf die kein Vielfaches passt (Samsara, 1,7 %). Darüber
+  // bleibt EV/EBITDA richtig, auch wenn die Marge unter der Branche liegt —
+  // das Vielfache ist margenneutral, ein Umsatzvielfaches wäre es nicht.
   const ebitdaMarge = zahl(roh.ebitda) > 0 && zahl(roh.umsatz) > 0 ? roh.ebitda / roh.umsatz : null;
-  const brancheMarge = median(peers?.ebitdaMargen ?? []);
-  const ebitdaTraegt = ebitdaMarge != null
-    && ebitdaMarge >= VORGABEN.mindestEbitdaMarge
-    && (brancheMarge == null || ebitdaMarge >= brancheMarge * VORGABEN.margenAbstandZurBranche);
+  const ebitdaTraegt = ebitdaMarge != null && ebitdaMarge >= VORGABEN.mindestEbitdaMarge;
   if ((peers?.evEbitda?.length ?? 0) >= 3 && ebitdaTraegt) {
     raus.push({ id: 'multiples', basis: 'ebitda', grund: `EV/EBITDA im Vergleich zu ${peers.anzahl} Wettbewerbern derselben Branche.` });
   } else if (waechstDeutlich && (peers?.evUmsatzErwartet?.length ?? 0) >= 3 && zahl(roh.umsatzErwartet) > 0) {

@@ -518,6 +518,8 @@ export interface BewertungsAntwort {
     einzelwerte: { id: Verfahren; basis: string | null; wertJeAktie: number | null }[];
   };
   verfahren: {
+    /** zählt in den Gesamtwert (nur automatische mit positivem Ergebnis) */
+    zaehlt?: boolean;
     id: Verfahren;
     basis: string | null;
     grund: string;
@@ -547,6 +549,8 @@ export interface BewertungsAntwort {
   }[] | null;
   /** Summen über alle Phasen — getrenntes Feld, damit gespeicherte Fassungen weiter lesbar bleiben */
   pipelineGesamt?: { laufend: number; abgeschlossen: number; abgebrochen: number } | null;
+  /** ETF/Fonds statt Einzelaktie — dann gibt es bewusst kein Ergebnis */
+  istFonds?: boolean;
   /** Kennzahlen-Vergleich mit der Branche: entscheidet über die Stelle in der Peer-Bandbreite */
   qualitaet?: {
     punkte: number;

@@ -66,6 +66,15 @@ export const VORGABEN = {
   eigenkapitalkosten: 0.09,
   marktrisikopraemie: 0.055,
   risikofreierZins: 0.04,
+  // Yahoos Beta ist bei Zweitnotierungen und ADRs oft unbrauchbar: fuer BP kam
+  // −0,22 heraus, was zu Kapitalkosten von 2,8 % und einem DCF von 165 USD bei
+  // einem Kurs von 43 fuehrte. Ein Aktienrisiko unter dem eines Staatsanleihe-
+  // Portfolios gibt es nicht — deshalb gekappt, plus ein Mindestsatz.
+  // 0,4 ist die Untergrenze echter Grosswerte (Versorger, Basiskonsum) — hoeher
+  // anzusetzen bestrafte Coca-Cola und ExxonMobil fuer ihre Stabilitaet.
+  // Unter 0,2 ist der Wert nicht niedrig, sondern kaputt: dann zaehlt 1,0.
+  betaSpanne: { min: 0.4, max: 2.2, kaputtUnter: 0.2 },
+  mindestKapitalkosten: 0.06,
   prognoseJahre: 10,
   // Mindestabstand der Kapitalkosten zur ewigen Wachstumsrate. Darunter wird
   // der Endwert (FCF / (WACC - g)) zur Fantasiezahl.
@@ -84,11 +93,15 @@ export const VORGABEN = {
   // eigenen Kennzahl, einmal im fremden Vielfachen). Unterhalb dieser Schwellen
   // wird deshalb auf den Umsatz ausgewichen, so wie Analysten es bei solchen
   // Firmen auch tun.
-  // absolute Untergrenze (ein EBITDA nahe null taugt nie als Bezugsgroesse)
-  mindestEbitdaMarge: 0.03,
-  // und der Abstand zur Branche: weniger als die halbe Branchenmarge heisst,
-  // dass das fremde Vielfache nicht uebertragbar ist
-  margenAbstandZurBranche: 0.5,
+  // Untergrenze fuer das EBITDA als Bezugsgroesse. Darunter ist es eine
+  // Restgroesse, auf die kein Vielfaches passt (Samsara: 1,7 % Marge, Ergebnis
+  // 2,92 USD bei Kurs 38). Darueber bleibt EV/EBITDA die richtige Wahl, AUCH
+  // wenn die Marge unter der Branche liegt: das Vielfache ist margenneutral,
+  // waehrend ein Umsatzvielfaches die schwaechere Marge komplett ignoriert.
+  // Genau daran scheiterte eine branchenrelative Schwelle: BP (18 % Marge,
+  // Foerderer-Vergleichsgruppe ~50 %) rutschte auf EV/Umsatz und kam auf
+  // 113 USD bei einem Kurs von 43.
+  mindestEbitdaMarge: 0.05,
   mindestNettoMarge: 0.02,
   // Dieselbe Logik fuer den DCF, aber an der richtigen Stelle gemessen: nicht
   // an der operativen Marge (Handelskonzerne wie Walmart oder Kroger verdienen

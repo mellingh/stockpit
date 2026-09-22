@@ -871,6 +871,14 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
           <span className="flex items-center gap-2">
             <span className="text-lg font-bold text-ink">{VERFAHREN_NAME[v.id]}</span>
             {!v.automatisch && <Badge variant="neu">eigene Eingabe</Badge>}
+            {/* Ein Verfahren mit negativem Ergebnis bleibt sichtbar, zählt aber
+                nicht mit: bei Volkswagen übersteigt die Verschuldung der
+                Finanzsparte den Unternehmenswert aus dem Vielfachen. Der
+                Mittelwert aus einer negativen und einer positiven Zahl wäre
+                eine Zahl ohne Bedeutung. */}
+            {v.automatisch && v.zaehlt === false && (
+              <Badge variant="warn">zählt nicht mit</Badge>
+            )}
             <Chevron size={14} className="text-ink3" aria-hidden />
           </span>
           {/* Lesbare Zeilenlänge: Fließtext bricht sonst über die volle Breite */}
@@ -881,6 +889,15 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
             <span className="font-mono text-micro uppercase tracking-[0.14em] text-ink3">Warum hier? </span>
             <span className="text-ink2">{v.grund}</span>
           </span>
+          {/* Ohne diesen Satz steht eine negative Zahl kommentarlos da */}
+          {v.automatisch && v.zaehlt === false && (
+            <span className="mt-2 block max-w-[62ch] text-small leading-relaxed text-warn">
+              Das Ergebnis liegt unter null: Die Verschuldung übersteigt hier den Unternehmenswert, den
+              dieses Verfahren errechnet. Bei Herstellern mit eigener Bank (Volkswagen) ist das die
+              Regel — die Finanzierungsschulden gehören zum Geschäft. Zählt deshalb nicht in den
+              Gesamtwert.
+            </span>
+          )}
         </span>
         <span className="shrink-0 text-right">
           <span className="block font-display text-display-sm font-bold tabular-nums">{jeAktie(wert, waehrung)}</span>
@@ -1324,8 +1341,9 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
 
         {gesamt.base == null ? (
           <Empty className="mt-4" aria-live="polite">
-            Für diesen Wert lässt sich mit kostenlosen Daten keine belastbare Bewertung rechnen.
-            Die Gründe stehen unten.
+            {d.istFonds
+              ? 'Das ist ein Fonds (ETF) — ein Korb aus vielen Aktien. Einen Unternehmenswert gibt es dafür nicht: Was er wert ist, ergibt sich aus den Kursen seiner Positionen. Die Analyse-Seite zeigt zu ETFs die größten Positionen und die Kosten.'
+              : 'Für diesen Wert lässt sich mit kostenlosen Daten keine belastbare Bewertung rechnen. Die Gründe stehen unten.'}
           </Empty>
         ) : (
           <>

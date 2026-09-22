@@ -143,8 +143,15 @@ export function marktFuer(symbol) {
   return suffix ? (MARKT_AUS_SUFFIX[suffix] ?? null) : 'america';
 }
 
-/** Reines Tickersymbol ohne Börsensuffix — so kennt der Scanner es. */
-const nacktesSymbol = (symbol) => symbol.split('.')[0].toUpperCase();
+/**
+ * Reines Tickersymbol ohne Börsensuffix — so kennt der Scanner es. Hongkong
+ * schreibt Yahoo vierstellig mit führenden Nullen (0700.HK), TradingView
+ * dagegen ohne (HKEX:700) — ohne diese Zeile fand die Suche für Tencent nichts.
+ */
+const nacktesSymbol = (symbol) => {
+  const roh = symbol.split('.')[0].toUpperCase();
+  return symbol.toUpperCase().endsWith('.HK') ? roh.replace(/^0+/, '') : roh;
+};
 
 async function scan(markt, body) {
   const res = await fetch(`https://scanner.tradingview.com/${markt}/scan`, {

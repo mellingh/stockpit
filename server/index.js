@@ -1197,6 +1197,26 @@ function marktwerteVon(roh, summary) {
  * Gesamtwert. Verfahren, die Handeingaben brauchen (rNPV, SOTP), laufen nie
  * automatisch mit: ein rNPV ohne Spitzenumsätze zeigt nur den Kassenbestand.
  */
+/**
+ * Notierungen wie „GBp" (britische Pence) sind Hundertstel ihrer Währung —
+ * Yahoo liefert den Kurs in Pence, die Bilanz aber in Pfund oder Dollar.
+ */
+const WAEHRUNGS_UNTEREINHEIT = { GBP: 1, GBX: 100, GBp: 100, ZAC: 100, ZAc: 100, ILA: 100 };
+const waehrungsBasis = (w) => (String(w ?? '').toUpperCase() === 'GBX' || w === 'GBp' ? 'GBP'
+  : w === 'ZAc' || String(w ?? '').toUpperCase() === 'ZAC' ? 'ZAR'
+    : w === 'ILA' ? 'ILS' : w ?? null);
+
+/** Faktor, der einen Betrag aus der Bilanzwährung in die Kurswährung bringt. */
+async function waehrungsFaktor(vonWaehrung, nachWaehrung) {
+  if (!vonWaehrung || !nachWaehrung || vonWaehrung === nachWaehrung) return 1;
+  const vonBasis = waehrungsBasis(vonWaehrung);
+  const nachBasis = waehrungsBasis(nachWaehrung);
+  const untereinheit = (WAEHRUNGS_UNTEREINHEIT[nachWaehrung] ?? 1) / (WAEHRUNGS_UNTEREINHEIT[vonWaehrung] ?? 1);
+  if (vonBasis === nachBasis) return untereinheit;
+  const kurs = await yahoo.getFxRate(vonBasis, nachBasis).catch(() => null);
+  return kurs ? kurs * untereinheit : 1;
+}
+
 async function bewertungsGrundlage(symbol) {
   const [summary, fts, quote] = await Promise.all([
     yahoo.getSummary(symbol),
@@ -1216,7 +1236,15 @@ async function bewertungsGrundlage(symbol) {
   const marker = earningsMarker(summary);
   const letzteZahlen = marker.length ? marker[marker.length - 1].gemeldet : null;
 
-  const roh = rohdatenVon(summary, fts, { letzteZahlen, peers });
+  // Bilanzwährung ≠ Kurswährung ist der Normalfall bei Zweitnotierungen und in
+  // London: die Rechnung liefe sonst gegen einen Kurs in anderer Einheit.
+  const kursWaehrung = summary.price?.currency ?? null;
+  const finanzWaehrung = summary.financialData?.financialCurrency ?? kursWaehrung;
+  const faktor = await waehrungsFaktor(finanzWaehrung, kursWaehrung);
+
+  const roh = rohdatenVon(summary, fts, {
+    letzteZahlen, peers, waehrungsfaktor: faktor, finanzWaehrung,
+  });
   const name = displayName(summary.price, symbol);
   const kurs = quote?.regularMarketPrice ?? null;
   const kursStand = quote?.regularMarketTime ?? new Date();
@@ -1382,7 +1410,14 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
     // Gesamtwert: Median über die automatisch gerechneten Verfahren. Der Median
     // ist robuster als der Mittelwert — ein einzelnes Verfahren mit Ausreißer
     // verschiebt die Aussage nicht.
-    const auto = verfahren.filter((v) => v.automatisch);
+    // Ein Verfahren, das null oder weniger ergibt, ist kein Ergebnis, sondern
+    // ein Zeichen dafür, dass seine Annahmen hier nicht greifen (bei NextEra
+    // frisst die Verschuldung den ganzen abgezinsten Zahlungsstrom). Es bleibt
+    // sichtbar, zählt aber nicht in den Gesamtwert.
+    for (const v of verfahren) {
+      v.zaehlt = v.automatisch && (v.ergebnis.szenarien.base.wertJeAktie ?? 0) > 0;
+    }
+    const auto = verfahren.filter((v) => v.zaehlt);
     const je = (fall) => medianVon(auto.map((v) => v.ergebnis.szenarien[fall].wertJeAktie));
     const base = je('base');
     const gesamt = {
@@ -1454,6 +1489,9 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
 
     res.json({
       symbol, name, kurs, kursStand, waehrung: roh.waehrung, eurKurs,
+      // ETFs und Fonds haben keinen Unternehmenswert — das gehört gesagt,
+      // statt sie wie eine Aktie ohne Daten aussehen zu lassen.
+      istFonds: /ETF|MUTUALFUND|INDEX/i.test(summary?.price?.quoteType ?? ''),
       stand: new Date().toISOString().slice(0, 10),
       // Referenz neben der eigenen Rechnung: Weicht sie stark vom Kursziel der
       // Analysten ab, rechnen die meist etwas anderes — bei Insmed etwa eine
