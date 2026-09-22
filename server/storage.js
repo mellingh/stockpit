@@ -19,8 +19,8 @@ const DEFAULT_DATA = {
     // löst sie über die SWS-Such-API auf und leitet weiter (relative URL,
     // funktioniert damit unabhängig von Port/Rechner)
     { name: 'Simply Wall St', url: '/api/goto/sws/{TICKER}' },
-    { name: 'TradingView', url: 'https://de.tradingview.com/chart/?symbol={TICKER}' },
     { name: 'Finviz', url: 'https://finviz.com/quote.ashx?t={TICKER}' },
+    { name: 'TradingView', url: 'https://de.tradingview.com/chart/?symbol={TICKER}' },
   ],
 };
 

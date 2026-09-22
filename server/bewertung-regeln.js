@@ -128,6 +128,54 @@ export const SZENARIO_REGELN = {
   },
 };
 
+/**
+ * Qualitätsvergleich mit der eigenen Branche — er entscheidet, WO in der
+ * Bandbreite der Wettbewerber-Vielfachen gerechnet wird.
+ *
+ * Vorher stand dort immer der Median, also „diese Firma ist Durchschnitt".
+ * Das benachteiligt systematisch jede Firma, die schneller wächst oder mehr
+ * verdient als ihre Gruppe — und schmeichelt jeder schwachen. Ein Analyst
+ * bestimmt genau deshalb ein „warranted multiple": bessere Kennzahlen
+ * rechtfertigen ein höheres Vielfaches.
+ *
+ * Fünf Kriterien, alle aus DERSELBEN Quelle wie die Vergleichsgruppe (sonst
+ * misst man mit zwei Linealen). Jedes zählt +1, 0 oder −1; der Schnitt
+ * verschiebt das Perzentil um höchstens ein Fünftel der Bandbreite. Nach oben wie nach
+ * unten — das ist kein Bonus-System.
+ */
+export const QUALITAET = {
+  maxVerschiebung: 0.2,
+  spanne: 0.25, // Abstand von pessimistisch/optimistisch zum Basis-Perzentil
+  grenzen: { min: 0.1, max: 0.9 },
+  kriterien: [
+    {
+      id: 'wachstum', feld: 'wachstum', label: 'Umsatzwachstum', einheit: 'prozent',
+      schwelle: 0.05, richtung: 'hoch',
+      info: 'Wie stark der Umsatz in den letzten zwölf Monaten gewachsen ist. Wer schneller wächst als die Branche, ist mehr wert als der Branchenschnitt.',
+    },
+    {
+      id: 'marge', feld: 'operativeMarge', label: 'Operative Marge', einheit: 'prozent',
+      schwelle: 0.03, richtung: 'hoch',
+      info: 'Was von 100 € Umsatz nach allen laufenden Kosten als Betriebsgewinn übrig bleibt.',
+    },
+    {
+      id: 'rendite', feld: 'eigenkapitalrendite', label: 'Eigenkapitalrendite (ROE)', einheit: 'prozent',
+      schwelle: 0.03, richtung: 'hoch',
+      info: 'Was die Firma aus dem eingesetzten Eigenkapital an Gewinn macht. Hohe Werte heißen: das Geschäft braucht wenig Kapital für viel Ertrag.',
+    },
+    {
+      id: 'cashflow', feld: 'fcfMarge', label: 'Freier Cashflow je 100 € Umsatz', einheit: 'prozent',
+      schwelle: 0.03, richtung: 'hoch',
+      info: 'Wie viel echtes Geld nach Investitionen übrig bleibt. Ein Gewinn, der nie als Geld ankommt, trägt keine Bewertung.',
+    },
+    {
+      id: 'schulden', feld: 'schuldenquote', label: 'Schulden je Euro Eigenkapital', einheit: 'faktor',
+      schwelle: 0.3, richtung: 'tief',
+      info: 'Wie viel Fremdkapital auf einem Euro Eigenkapital liegt. Weniger ist sicherer: Schulden muss man auch in schlechten Jahren bedienen.',
+    },
+  ],
+};
+
 /** Regeln, die an einer bestimmten Annahme hängen statt an ihrer Quelle. */
 export const SZENARIO_SONDERREGELN = {
   erfolgswahrscheinlichkeit: { label: 'Erfolgswahrscheinlichkeit', art: 'faktor', worst: 0.7, base: 1.0, best: 1.2, maximum: 0.95 },

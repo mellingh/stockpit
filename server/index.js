@@ -1470,6 +1470,10 @@ app.get('/api/bewertung/:symbol', async (req, res) => {
       manuell: Object.entries(MANUELLE_VERFAHREN)
         .filter(([id]) => !verfahren.some((v) => v.id === id))
         .map(([id, grund]) => ({ id, grund })),
+      // Kennzahlen-Vergleich mit der Branche — er bestimmt, an welcher Stelle
+      // der Wettbewerber-Bandbreite gerechnet wird, und ist deshalb Teil der
+      // Herleitung, nicht nur Schmuck.
+      qualitaet: roh.qualitaet,
       // Bei Healthcare: woraus das künftige Geschäft kommen müsste
       // Array bleibt Array (gespeicherte Fassungen älterer Runden lesen es so),
       // die Summen kommen als eigenes Feld dazu.

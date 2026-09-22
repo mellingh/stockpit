@@ -547,6 +547,18 @@ export interface BewertungsAntwort {
   }[] | null;
   /** Summen über alle Phasen — getrenntes Feld, damit gespeicherte Fassungen weiter lesbar bleiben */
   pipelineGesamt?: { laufend: number; abgeschlossen: number; abgebrochen: number } | null;
+  /** Kennzahlen-Vergleich mit der Branche: entscheidet über die Stelle in der Peer-Bandbreite */
+  qualitaet?: {
+    punkte: number;
+    geprueft: number;
+    schnitt: number;
+    perzentile: { worst: number; base: number; best: number };
+    kriterien: {
+      id: string; label: string; einheit: string; info: string;
+      wert: number | null; median: number | null;
+      punkte: number | null; urteil: 'besser' | 'aehnlich' | 'schwaecher' | 'unbekannt';
+    }[];
+  } | null;
   rohdaten: Record<string, unknown>;
   peerGruppe: {
     branche: string;

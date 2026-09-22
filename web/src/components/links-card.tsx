@@ -17,6 +17,29 @@ function XLogo({ size = 12 }: { size?: number }) {
 }
 
 /**
+ * Feste Reihenfolge der bekannten Finanzseiten (Micha): erst die Übersicht bei
+ * Yahoo, dann die Einschätzung von Simply Wall St, dann die Kennzahlen bei
+ * Finviz — Chart und Forum stehen hinten. Selbst hinzugefügte Seiten hängen
+ * sich in ihrer Eingabereihenfolge hinten an.
+ */
+const SEITEN_RANG: { muster: RegExp; rang: number }[] = [
+  { muster: /finance\.yahoo\./i, rang: 1 },
+  { muster: /simplywall|goto\/sws/i, rang: 2 },
+  { muster: /finviz\./i, rang: 3 },
+  { muster: /tradingview\./i, rang: 4 },
+  { muster: /stocktwits\./i, rang: 5 },
+];
+const seitenRang = (url: string) => SEITEN_RANG.find((s) => s.muster.test(url))?.rang ?? 9;
+// Funktionsdeklaration statt Pfeilfunktion: eine generische Pfeilfunktion
+// liest TypeScript in einer .tsx-Datei als JSX-Tag.
+function nachRang<T extends { url: string }>(liste: T[]): T[] {
+  return liste
+    .map((l, i) => ({ l, i }))
+    .sort((a, b) => seitenRang(a.l.url) - seitenRang(b.l.url) || a.i - b.i)
+    .map((x) => x.l);
+}
+
+/**
  * "Meinungen & Links": X-Suchen vertrauter Accounts (from:Account $TICKER)
  * + Quick-Links zu externen Seiten ({TICKER}-Platzhalter). Ein Eingabefeld
  * für beides — @handle → X-Account, URL → Webseite (Symbol in der URL wird
@@ -25,7 +48,8 @@ function XLogo({ size = 12 }: { size?: number }) {
 export function LinksCard({ symbol, name }: { symbol: string; name?: string }) {
   const ticker = symbol.split('.')[0].toUpperCase();
   const { data: accounts = [] } = useXAccounts();
-  const { data: webLinks = [] } = useWebLinks();
+  const { data: rohLinks = [] } = useWebLinks();
+  const webLinks = nachRang(rohLinks);
   const [verwaltenOffen, setVerwaltenOffen] = useState(false);
   const [eingabe, setEingabe] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);

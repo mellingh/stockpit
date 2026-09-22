@@ -886,6 +886,88 @@ function VerfahrensZeile({ v, kurs, waehrung, eurKurs, analystenZiel }: {
 // ---------- Seite ----------
 
 /**
+ * Der Kennzahlen-Vergleich mit der Branche — und was daraus folgt.
+ *
+ * Micha: „nimm die Top 5 wichtigsten Analystenkennzahlen, wo man sieht, dass
+ * die Aktie gesund ist, und kalkuliere die mit rein." Genau das passiert hier:
+ * Die fünf Kennzahlen entscheiden, an welcher STELLE der Wettbewerber-Bandbreite
+ * gerechnet wird. Vorher stand dort immer die Mitte — also „Durchschnitt", egal
+ * wie gut oder schlecht die Firma tatsächlich dasteht.
+ *
+ * Kurs-Vielfache wie KGV oder EV/EBITDA stehen bewusst NICHT in dieser Liste:
+ * sie sind der PREIS, den die Rechnung ermittelt, nicht die Qualität, die ihn
+ * rechtfertigt. Sie mit hineinzurechnen wäre ein Zirkelschluss.
+ */
+function QualitaetsPanel({ q, symbol }: { q: NonNullable<BewertungsAntwort['qualitaet']>; symbol: string }) {
+  const stelle = Math.round(q.perzentile.base * 100);
+  const besser = q.kriterien.filter((k) => k.urteil === 'besser').length;
+  const schwaecher = q.kriterien.filter((k) => k.urteil === 'schwaecher').length;
+
+  // feste zwei Nachkommastellen beim Vielfachen — „0,3×" neben „0,78×" franst aus
+  const zahl = (v: number | null, einheit: string) =>
+    v == null
+      ? '–'
+      : einheit === 'faktor'
+        ? new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v) + '×'
+        : fmtPct(v * 100, false);
+
+  const urteilStil: Record<string, { text: string; variante: 'pos' | 'neg' | 'neu' }> = {
+    besser: { text: 'besser', variante: 'pos' },
+    schwaecher: { text: 'schwächer', variante: 'neg' },
+    aehnlich: { text: 'wie die Branche', variante: 'neu' },
+    unbekannt: { text: 'keine Daten', variante: 'neu' },
+  };
+
+  return (
+    <Panel className="animate-rise">
+      <PanelTitle>Wie gesund ist die Firma?</PanelTitle>
+      <p className="mb-4 max-w-[78ch] text-small leading-relaxed text-ink2">
+        <span className="font-mono font-bold tabular-nums text-ink">{besser}</span> von{' '}
+        <span className="font-mono font-bold tabular-nums text-ink">{q.geprueft}</span> Kennzahlen sind besser
+        als in der Vergleichsgruppe{schwaecher > 0 && `, ${schwaecher} schwächer`} — deshalb rechnet die
+        Bewertung mit dem{' '}
+        <span className="font-mono font-bold tabular-nums text-ink">{stelle}.</span> Perzentil der
+        Wettbewerber-Vielfachen
+        <Erklaert text={`Die Wettbewerber werden nach ihrem Vielfachen sortiert. Am 50. Perzentil steht der mittlere von ihnen. Steht ${symbol} bei den Kennzahlen besser da, wird weiter oben in dieser Reihe gerechnet, bei schwächeren Kennzahlen weiter unten — höchstens 20 Punkte in jede Richtung.`} />
+        {stelle === 50 ? ' — also genau in der Mitte.' : '.'}
+      </p>
+      <table className="w-full table-fixed">
+        <colgroup><col /><col className="w-[170px]" /><col className="w-[190px]" /><col className="w-[190px]" /></colgroup>
+        <thead>
+          <tr className="border-b border-line text-left font-mono text-micro uppercase tracking-[0.14em] text-ink3">
+            <Kopf links>Kennzahl</Kopf>
+            <Kopf info={`Der Wert von ${symbol} aus den letzten zwölf Monaten.`}>Diese Firma</Kopf>
+            <Kopf info="Der mittlere Wert der Vergleichsgruppe — die Messlatte.">Branche (Mitte)</Kopf>
+            <Kopf info="Nur deutliche Unterschiede zählen: kleine Abweichungen gelten als „wie die Branche&#34;.">Urteil</Kopf>
+          </tr>
+        </thead>
+        <tbody>
+          {q.kriterien.map((k) => (
+            <tr key={k.id} className="border-b border-line/70 last:border-b-0">
+              <td className="py-2.5 pr-6">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-small text-ink2">{k.label}</span>
+                  <Erklaert text={k.info} className="ml-0" />
+                </span>
+              </td>
+              <td className="py-2.5 text-right font-mono text-small font-bold tabular-nums text-ink">
+                {zahl(k.wert, k.einheit)}
+              </td>
+              <td className="py-2.5 text-right font-mono text-small tabular-nums text-ink3">
+                {zahl(k.median, k.einheit)}
+              </td>
+              <td className="py-2.5 text-right">
+                <Badge variant={urteilStil[k.urteil].variante}>{urteilStil[k.urteil].text}</Badge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Panel>
+  );
+}
+
+/**
  * Ein Kürzel, das zur Analyse dieses Werts führt. Ein blau geschriebenes
  * Kürzel sieht aus wie ein Link — also ist es einer (Micha).
  */
@@ -1252,6 +1334,8 @@ function Ergebnis({ d, id }: { d: BewertungsAntwort; id?: string | null }) {
           </div>
         )}
       </Panel>
+
+      {!!d.qualitaet && <QualitaetsPanel q={d.qualitaet} symbol={d.symbol} />}
 
       {!!d.pipeline?.length && <PipelinePanel pipeline={d.pipeline} gesamt={d.pipelineGesamt} />}
 

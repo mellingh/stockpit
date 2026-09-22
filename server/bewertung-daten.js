@@ -127,9 +127,12 @@ export function rohdatenVon(summary, fts, zusatz = {}) {
     // Erwarteter Umsatz aus DERSELBEN Quelle wie die Peer-Multiples —
     // sonst vergleicht man eine Yahoo-Schaetzung mit TradingView-Multiples.
     umsatzErwartet: peers?.ziel?.umsatzErwartet ?? null,
+    qualitaet: peers?.qualitaet ?? null,
     peerGruppe: peers
       ? {
         branche: peers.branche,
+        // Wo in der Bandbreite gerechnet wird (aus dem Kennzahlen-Vergleich)
+        perzentile: peers.qualitaet?.perzentile ?? null,
         anzahl: peers.peers.length,
         namen: peers.peers.map((p) => p.symbol),
         evUmsatz: peerWerte('evUmsatz'),
@@ -349,12 +352,23 @@ export function annahmenFuer(verfahren, roh, extras = {}) {
     }[basis];
     const reihe = felder.reihe ?? [];
 
+    // Wo in der Bandbreite der Gruppe gerechnet wird: in der Mitte, solange die
+    // Kennzahlen dem Branchenschnitt entsprechen — darüber oder darunter, wenn
+    // der Vergleich das hergibt. Ohne diese Anpassung bekäme jede Firma das
+    // Durchschnitts-Vielfache, auch die, die in jedem Punkt besser dasteht.
+    const pz = peers?.perzentile ?? null;
+    const stelle = pz?.base ?? 0.5;
+    const multipleWert = reihe.length ? perzentil(reihe, stelle) : 0;
+    const stellenText = Math.abs(stelle - 0.5) < 0.02
+      ? 'Mitte der Gruppe'
+      : `${Math.round(stelle * 100)}. Perzentil der Gruppe`;
+
     annahmen.push(
       mk('mult.kennzahl', felder.label, felder.wert ?? 0, 'geschaeftsbericht', st, { einheit: 'geld', gruppe: 'Vergleich', notiz: felder.info }),
-      mk('mult.multiple', `${felder.multiple} (Median der Gruppe)`, median(reihe) ?? 0, 'peer_gruppe', st,
-        { einheit: 'faktor', gruppe: 'Vergleich', peers: reihe,
+      mk('mult.multiple', `${felder.multiple} (${stellenText})`, multipleWert ?? 0, 'peer_gruppe', st,
+        { einheit: 'faktor', gruppe: 'Vergleich', peers: reihe, perzentile: pz ?? undefined,
           notiz: reihe.length
-            ? `Median aus ${reihe.length} Wettbewerbern der Branche ${peers?.branche ?? '—'} (${(peers?.namen ?? []).slice(0, 8).join(', ')}). Worst Case rechnet mit dem 25., Best Case mit dem 75. Perzentil dieser Gruppe.`
+            ? `Aus ${reihe.length} Wettbewerbern der Branche ${peers?.branche ?? '—'} (${(peers?.namen ?? []).slice(0, 8).join(', ')}). Gerechnet wird am ${stellenText} — welche Stelle das ist, entscheidet der Kennzahlen-Vergleich weiter unten. Pessimistisch und optimistisch liegen 25 Perzentilpunkte darunter bzw. darüber.`
             : 'Keine Vergleichsgruppe gefunden.' }),
       // Kein Eingabefeld — steuert nur, ob die Equity Bridge läuft.
       { id: 'mult.aufEquity', label: 'Bezugsgröße', wert: aufEquity ? 1 : 0, quelle: 'geschaeftsbericht', stand: st, herkunft: 'auto', versteckt: true },

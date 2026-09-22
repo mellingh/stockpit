@@ -79,6 +79,12 @@ export function szenarioWert(annahme, fall) {
   // Perzentil braucht eine Peer-Gruppe; ohne sie greift die Ersatzregel.
   if (art === 'perzentil') {
     const peers = (annahme.peers ?? []).filter((v) => zahl(v) != null);
+    // Eigene Perzentile an der Annahme stechen die Regel: sie kommen aus dem
+    // Kennzahlen-Vergleich mit der Gruppe (eine Firma, die in allen Punkten
+    // besser dasteht, wird nicht mit dem Durchschnitts-Vielfachen bewertet).
+    // Sie sind an der Annahme gespeichert und damit später reproduzierbar.
+    const eigene = zahl(annahme.perzentile?.[fall]);
+    if (eigene != null) f = eigene;
     if (peers.length >= 2) return perzentil(peers, f);
     art = regel.ersatz.art;
     f = regel.ersatz[fall];

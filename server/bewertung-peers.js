@@ -12,6 +12,7 @@
 // Deshalb ist dieses Modul die Voraussetzung dafür, dass Multiples etwas aussagen.
 
 import { cached, HOUR } from './cache.js';
+import { QUALITAET } from './bewertung-regeln.js';
 
 // Wie weit darf die Vergleichsgruppe in der Groesse abweichen? Vierfach nach
 // oben und unten — darueber vergleicht man Nebenwerte mit Weltkonzernen.
@@ -51,6 +52,13 @@ const SAMMELKATEGORIEN = new Set([
   'Other Metals/Minerals',
   'Other Transportation',
 ]);
+// Die „Other …"-Kategorien gehören dazu, obwohl sie nach einer Sparte klingen:
+// nachgeprüft an Uber. In „Other Transportation" stehen neben Uber vor allem
+// lateinamerikanische Flughafenbetreiber (PAC, ASR, OMAB) und ein
+// Lebensmittelgroßhändler — daraus wurde ein Wert von 28,84 USD. Über Yahoos
+// Einordnung („Software - Application") kommen Plattformen wie ServiceNow und
+// Salesforce in die Gruppe, und das Ergebnis liegt bei 51,55 USD. Für einen
+// Marktplatz ist die zweite Gruppe die ehrlichere Messlatte.
 
 /**
  * Yahoo-Branche → TradingView-Branche. Wird NUR gebraucht, wenn TradingView den
@@ -149,11 +157,22 @@ async function scan(markt, body) {
   return (await res.json()).data ?? [];
 }
 
-const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy', 'close', 'currency', 'typespecs'];
+const SPALTEN = ['name', 'description', 'sector', 'industry', 'market_cap_basic', 'enterprise_value_current', 'total_revenue_ttm', 'ebitda_ttm', 'price_earnings_ttm', 'price_book_fq', 'return_on_equity', 'total_revenue_yoy_growth_ttm', 'revenue_forecast_next_fy', 'close', 'currency', 'typespecs',
+  // Kennzahlen für den Qualitätsvergleich — aus derselben Abfrage wie die
+  // Vielfachen, damit Zielwert und Gruppe mit demselben Lineal gemessen werden.
+  'operating_margin', 'free_cash_flow_margin_ttm', 'debt_to_equity'];
+
+/** Prozentangaben der Quelle (8,84) in Anteile umrechnen (0,0884). */
+const anteil = (v) => (typeof v === 'number' && Number.isFinite(v) ? v / 100 : null);
 
 function zeileZuObjekt(row) {
-  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet, kurs, waehrung, arten] = row.d ?? [];
+  const [name, beschreibung, sektor, branche, marktkap, ev, umsatz, ebitda, kgv, kbv, roe, wachstum, umsatzErwartet, kurs, waehrung, arten,
+    opMarge, fcfMarge, schuldenquote] = row.d ?? [];
   return {
+    operativeMarge: anteil(opMarge),
+    fcfMarge: anteil(fcfMarge),
+    eigenkapitalrendite: anteil(roe),
+    schuldenquote: typeof schuldenquote === 'number' ? schuldenquote : null,
     symbol: String(row.s ?? '').split(':').pop(),
     boerse: String(row.s ?? '').split(':')[0],
     // Vorzugsaktien tragen dieselbe Branche, aber eine eigene Kapitalstruktur
@@ -297,10 +316,64 @@ export function getPeers(symbol, yahooBranche = null) {
 
     return {
       markt, ziel, branche, sektor: ziel.sektor, sammelkategorie, peers: ergaenzt,
+      // Wo in der Bandbreite der Gruppe gerechnet wird, entscheiden die
+      // Kennzahlen des Werts — nicht pauschal die Mitte.
+      qualitaet: qualitaetsVergleich(ziel, ergaenzt),
       // Fuer die Anzeige: „laut Yahoo Credit Services statt Sammelkategorie"
       korrigiert: ersatz ? { von: ziel.branche, nach: ersatz } : null,
     };
   }).catch(() => null);
+}
+
+/** Median einer Zahlenreihe. */
+function mitte(werte) {
+  const s = werte.filter((v) => typeof v === 'number' && Number.isFinite(v)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/**
+ * Wie steht der Wert gegenüber seiner Gruppe da — und was folgt daraus für das
+ * Vielfache, mit dem gerechnet wird?
+ *
+ * Ergebnis ist bewusst nachvollziehbar: je Kriterium der eigene Wert, der
+ * Median der Gruppe und ein Urteil. Die Verschiebung des Perzentils ist gekappt,
+ * damit aus einer Einschätzung keine Hebelwirkung wird.
+ */
+export function qualitaetsVergleich(ziel, peers) {
+  if (!ziel || !(peers?.length >= 3)) return null;
+
+  const kriterien = QUALITAET.kriterien.map((k) => {
+    const eigen = ziel[k.feld];
+    const median = mitte(peers.map((p) => p[k.feld]));
+    if (typeof eigen !== 'number' || median == null) {
+      return { ...k, wert: typeof eigen === 'number' ? eigen : null, median, punkte: null, urteil: 'unbekannt' };
+    }
+    const besser = k.richtung === 'hoch' ? eigen > median + k.schwelle : eigen < median - k.schwelle;
+    const schlechter = k.richtung === 'hoch' ? eigen < median - k.schwelle : eigen > median + k.schwelle;
+    const punkte = besser ? 1 : schlechter ? -1 : 0;
+    return { ...k, wert: eigen, median, punkte, urteil: besser ? 'besser' : schlechter ? 'schwaecher' : 'aehnlich' };
+  });
+
+  const bewertet = kriterien.filter((k) => k.punkte != null);
+  if (bewertet.length < 3) return null; // zu dünne Datenlage für ein Urteil
+  const summe = bewertet.reduce((s, k) => s + k.punkte, 0);
+  const schnitt = summe / bewertet.length;
+
+  const klemm = (p) => Math.min(QUALITAET.grenzen.max, Math.max(QUALITAET.grenzen.min, p));
+  const basis = klemm(0.5 + schnitt * QUALITAET.maxVerschiebung);
+  return {
+    kriterien,
+    punkte: summe,
+    geprueft: bewertet.length,
+    schnitt,
+    perzentile: {
+      worst: klemm(basis - QUALITAET.spanne),
+      base: basis,
+      best: klemm(basis + QUALITAET.spanne),
+    },
+  };
 }
 
 /** Multiples der Peer-Gruppe als Zahlenreihen (für die Perzentil-Regel). */
